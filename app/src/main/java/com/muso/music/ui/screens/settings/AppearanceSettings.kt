@@ -51,7 +51,6 @@ import com.muso.music.LocalPlayerAwareWindowInsets
 import com.muso.music.R
 import com.muso.music.constants.CropAlbumArtKey
 import com.muso.music.constants.CustomThemeColorKey
-import com.muso.music.constants.DarkMode
 import com.muso.music.constants.DarkModeKey
 import com.muso.music.constants.DefaultOpenTabKey
 import com.muso.music.constants.GridCellSize
@@ -68,7 +67,6 @@ import com.muso.music.constants.LyricsStyle
 import com.muso.music.constants.LyricsStyleKey
 import com.muso.music.constants.LyricsTextSizeKey
 import com.muso.music.constants.LyricsTextPositionKey
-import com.muso.music.constants.NavigationTab
 import com.muso.music.constants.PlayerBackgroundStyle
 import com.muso.music.constants.PlayerBackgroundStyleKey
 import com.muso.music.constants.PlayerButtonsStyle

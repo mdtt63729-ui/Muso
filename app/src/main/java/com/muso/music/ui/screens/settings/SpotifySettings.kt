@@ -45,8 +45,12 @@ import com.muso.music.ui.component.DefaultDialog
 import com.muso.music.ui.component.IconButton
 import com.muso.music.ui.component.PreferenceEntry
 import com.muso.music.ui.component.PreferenceGroupTitle
+import com.muso.music.ui.utils.backToMain
+
 import com.muso.music.utils.SpotifyClient
 import com.muso.music.utils.rememberPreference
+import kotlinx.coroutines.launch
+
 
 /**
  * SimpMusic's Spotify category: log in with the user's own Spotify Client ID, see the

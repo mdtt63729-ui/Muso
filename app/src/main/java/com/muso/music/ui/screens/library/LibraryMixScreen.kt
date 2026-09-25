@@ -41,6 +41,8 @@ import com.muso.music.LocalPlayerAwareWindowInsets
 import com.muso.music.LocalPlayerConnection
 import com.muso.music.R
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.runtime.remember
+
 import com.muso.music.extensions.toMediaItem
 import com.muso.music.constants.CONTENT_TYPE_ALBUM
 import com.muso.music.constants.CONTENT_TYPE_ARTIST

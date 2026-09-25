@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -21,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+
 import androidx.navigation.NavController
 import com.muso.music.LocalPlayerAwareWindowInsets
 import com.muso.music.constants.ReducedMotionKey
@@ -49,6 +55,8 @@ import com.muso.music.constants.CrossfadeDurationKey
 import com.muso.music.constants.CrossfadeEnabledKey
 import com.muso.music.constants.KeepScreenOnKey
 import com.muso.music.constants.AnimatedArtworkKey
+import com.muso.music.constants.PlayerTextAlignmentKey
+
 import com.muso.music.constants.SkipSilenceKey
 import com.muso.music.constants.StopMusicOnTaskClearKey
 import com.muso.music.ui.component.EnumListPreference

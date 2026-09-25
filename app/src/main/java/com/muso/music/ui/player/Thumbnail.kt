@@ -57,6 +57,8 @@ import com.muso.music.constants.CropAlbumArtKey
 import com.muso.music.constants.HidePlayerThumbnailKey
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.systemBarsPadding
+
 import com.muso.music.constants.ThumbnailCornerRadius
 import com.muso.music.ui.component.BounceIconButton
 import com.muso.music.ui.component.Lyrics

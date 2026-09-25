@@ -274,6 +274,22 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 41 (v0.5.56): v0.5.55 build fix - remaining import errors
+
+- Thumbnail: systemBarsPadding import for the fullscreen lyrics dialog.
+- LibraryMixScreen: remember import.
+- AppearanceSettings: removed phantom imports of DarkMode/NavigationTab from
+  constants - those enums live at the bottom of the same file.
+- BackupAndRestore / ContentSettings / ListeningHistorySettings / PlayerSettings:
+  MaterialTheme / padding / dp imports for the collapsing-title headline.
+- PlayerSettings: PlayerTextAlignmentKey import; new swipe.xml vector drawable
+  for the gesture-animations preference icon.
+- SpotifySettings: kotlinx.coroutines.launch import (logout scope) and the
+  NavController.backToMain extension import for the back-button long-press.
+- SpotifyClient: androidx.datastore.preferences.core.edit import (token store).
+
+**Version:** 0.5.56 (versionCode 63); release tag v0.5.56, APK Muso_v0.5.56_v1.apk.
+
 ## Round 40 (v0.5.55): v0.5.54 build fix - all Kotlin compile errors from rounds 33-36
 
 The v0.5.54 build surfaced the accumulated Kotlin errors of the never-built
