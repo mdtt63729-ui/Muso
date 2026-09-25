@@ -384,11 +384,6 @@ fun BottomSheetPlayer(
                 }
 
                 else -> {}
-                            sliderPosition = null
-                        },
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                    )
-                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -1254,11 +1249,6 @@ fun BottomSheetPlayer(
                 }
 
                 else -> {}
-                            sliderPosition = null
-                        },
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                    )
-                }
             }
 
             Spacer(Modifier.height(8.dp))

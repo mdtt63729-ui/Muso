@@ -1,3 +1,13 @@
+## Round 43 (v0.5.58): v0.5.57 build fix - broken slider else-branch
+
+The thin-slider removal regex in v0.5.57 cut through the ThinProgressSlider
+call (it stopped at the wrong closing brace) and left dangling arguments at
+two sites, breaking Player.kt parsing. Both regions are now cleanly
+"else -> {}" and the file passes the full brace/paren balance audit again.
+No other changes - all v0.5.57 fixes stand.
+
+**Version:** 0.5.58 (versionCode 65); release tag v0.5.58, APK Muso_v0.5.58_v1.apk.
+
 ## Round 42 (v0.5.57): UI polish round from device testing
 
 - Home: content now sits right under the permanent header (removed the extra
