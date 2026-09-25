@@ -32,6 +32,8 @@ import com.muso.music.constants.PersistentQueueKey
 import com.muso.music.constants.CrossfadeDurationKey
 import com.muso.music.constants.CrossfadeEnabledKey
 import com.muso.music.constants.PlayerBackgroundStyle
+import com.muso.music.constants.PlayerStyleKey
+import com.muso.music.constants.PlayerStyle
 import com.muso.music.constants.PlayerBackgroundStyleKey
 import com.muso.music.constants.HighQualityVideoKey
 import com.muso.music.constants.KeepScreenOnKey
@@ -89,6 +91,22 @@ fun PlayerSettings(
 
         PreferenceGroupTitle(
             title = stringResource(R.string.player)
+        )
+
+        val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(PlayerStyleKey, PlayerStyle.CLASSIC)
+        EnumListPreference(
+            title = { Text(stringResource(R.string.player_style)) },
+            icon = { Icon(painterResource(R.drawable.play), null) },
+            selectedValue = playerStyle,
+            onValueSelected = onPlayerStyleChange,
+            valueText = {
+                when (it) {
+                    PlayerStyle.CLASSIC -> stringResource(R.string.player_style_classic)
+                    PlayerStyle.EXPRESSIVE -> stringResource(R.string.player_style_expressive)
+                    PlayerStyle.IMMERSIVE -> stringResource(R.string.player_style_immersive)
+                    PlayerStyle.APPLE -> stringResource(R.string.player_style_apple)
+                }
+            }
         )
 
         EnumListPreference(

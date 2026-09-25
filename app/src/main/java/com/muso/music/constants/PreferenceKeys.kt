@@ -10,6 +10,10 @@ val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
 val PlayerTextAlignmentKey = stringPreferencesKey("playerTextAlignment")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")
+val PlayerStyleKey = stringPreferencesKey("playerStyle")
+val AnimationsEnabledKey = booleanPreferencesKey("animationsEnabled")
+val GestureAnimationsKey = booleanPreferencesKey("gestureAnimations")
+val ReducedMotionKey = booleanPreferencesKey("reducedMotion")
 val LyricsStyleKey = stringPreferencesKey("lyricsStyle")
 val LyricsTextSizeKey = intPreferencesKey("lyricsTextSize")
 val LyricsBlurEnabledKey = booleanPreferencesKey("lyricsBlurEnabled")
@@ -37,6 +41,13 @@ enum class MixSortType {
 enum class LyricsStyle {
     APPLE_MUSIC,
     CLASSIC,
+}
+
+enum class PlayerStyle {
+    CLASSIC,
+    EXPRESSIVE,
+    IMMERSIVE,
+    APPLE,
 }
 
 enum class SliderStyle {

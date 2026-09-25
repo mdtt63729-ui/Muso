@@ -59,6 +59,7 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -837,8 +838,15 @@ class MainActivity : ComponentActivity() {
                                         if (screen.route == Screens.Search.route) {
                                             // The Search entry is an action, not a destination:
                                             // open the search field like the ACTION_SEARCH intent does.
+                                            // The focus request must be deferred to the next frame -
+                                            // requesting it synchronously crashes with
+                                            // "FocusRequester is not initialized" whenever the
+                                            // SearchBar is not composed yet (e.g. on the home tab).
                                             onActiveChange(true)
-                                            searchBarFocusRequester.requestFocus()
+                                            coroutineScope.launch {
+                                                withFrameNanos { }
+                                                runCatching { searchBarFocusRequester.requestFocus() }
+                                            }
                                         } else if (navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true) {
                                             navBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
                                             coroutineScope.launch {
@@ -909,7 +917,7 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(shouldShowSearchBar, openSearchImmediately) {
                         if (shouldShowSearchBar && openSearchImmediately) {
                             onActiveChange(true)
-                            searchBarFocusRequester.requestFocus()
+                            runCatching { searchBarFocusRequester.requestFocus() }
                             openSearchImmediately = false
                         }
                     }

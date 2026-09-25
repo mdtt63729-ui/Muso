@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import com.muso.music.utils.rememberPreference
+import com.muso.music.constants.AnimationsEnabledKey
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -56,6 +58,15 @@ fun ShimmerAsyncImage(
  */
 @Composable
 fun ShimmerBox(modifier: Modifier = Modifier) {
+    // Skeleton loading (Animation settings): a static flat tone when animations are off.
+    val animationsEnabled by rememberPreference(AnimationsEnabledKey, true)
+    val base = MaterialTheme.colorScheme.surfaceVariant
+    if (!animationsEnabled) {
+        Box(
+            modifier = modifier.background(base.copy(alpha = 0.55f))
+        )
+        return
+    }
     val transition = rememberInfiniteTransition(label = "shimmerBox")
     val shift by transition.animateFloat(
         initialValue = 0f,
@@ -65,7 +76,6 @@ fun ShimmerBox(modifier: Modifier = Modifier) {
         ),
         label = "shimmerShift",
     )
-    val base = MaterialTheme.colorScheme.surfaceVariant
     Box(
         modifier = modifier.background(
             Brush.linearGradient(

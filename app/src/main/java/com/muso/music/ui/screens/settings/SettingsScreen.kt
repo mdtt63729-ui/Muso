@@ -1,70 +1,49 @@
 package com.muso.music.ui.screens.settings
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import com.muso.music.ui.component.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.muso.music.BuildConfig
 import com.muso.music.LocalPlayerAwareWindowInsets
 import com.muso.music.R
-import com.muso.music.ui.component.IconButton
-import com.muso.music.ui.component.PreferenceEntry
+import com.muso.music.ui.component.Material3SettingsGroup
+import com.muso.music.ui.component.Material3SettingsItem
 import com.muso.music.ui.utils.backToMain
 
 /**
- * Category header for the settings home — a primary-colored icon + section title, the
- * pattern the reference apps (SimpMusic / ReTune) use to break settings into visual
- * groups.
+ * Echo Music settings home (ported): a big title, a search field that filters the
+ * categories live, and the categories as connected rounded card groups with icons and
+ * descriptions. Every entry opens the existing, fully working settings page.
  */
-@Composable
-private fun SettingsCategoryHeader(
-    @DrawableRes icon: Int,
-    title: String,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 2.dp),
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -73,109 +52,176 @@ fun SettingsScreen(
     latestVersionName: String,
 ) {
     val uriHandler = LocalUriHandler.current
+    val updateAvailable = latestVersionName != BuildConfig.VERSION_NAME
+
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchLower = searchQuery.lowercase()
+
+    data class SettingsPage(
+        val title: String,
+        val description: String,
+        val iconRes: Int,
+        val route: String?,
+        val url: String? = null,
+        val showBadge: Boolean = false,
+    )
+
+    val appearanceDesc = stringResource(R.string.settings_desc_appearance)
+    val contentDesc = stringResource(R.string.settings_desc_content)
+    val playerDesc = stringResource(R.string.settings_desc_player)
+    val effectsDesc = stringResource(R.string.settings_desc_audio_effects)
+    val storageDesc = stringResource(R.string.settings_desc_storage)
+    val backupDesc = stringResource(R.string.settings_desc_backup)
+    val discordDesc = stringResource(R.string.settings_desc_discord)
+    val privacyDesc = stringResource(R.string.settings_desc_privacy)
+    val aboutDesc = stringResource(R.string.settings_desc_about)
+
+    val allPages = listOf(
+        SettingsPage(
+            title = stringResource(R.string.appearance),
+            description = appearanceDesc,
+            iconRes = R.drawable.palette,
+            route = "settings/appearance",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.content),
+            description = contentDesc,
+            iconRes = R.drawable.language,
+            route = "settings/content",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.player_and_audio),
+            description = playerDesc,
+            iconRes = R.drawable.play,
+            route = "settings/player",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.audio_effects),
+            description = effectsDesc,
+            iconRes = R.drawable.equalizer,
+            route = "settings/audio_effects",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.storage),
+            description = storageDesc,
+            iconRes = R.drawable.storage,
+            route = "settings/storage",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.backup_restore),
+            description = backupDesc,
+            iconRes = R.drawable.restore,
+            route = "settings/backup_restore",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.discord_integration),
+            description = discordDesc,
+            iconRes = R.drawable.discord,
+            route = "settings/discord",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.privacy),
+            description = privacyDesc,
+            iconRes = R.drawable.security,
+            route = "settings/privacy",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.about),
+            description = aboutDesc,
+            iconRes = R.drawable.info,
+            route = "settings/about",
+        ),
+    )
+
+    val items = allPages
+        .filter { it.title.lowercase().contains(searchLower) || it.description.lowercase().contains(searchLower) }
+        .map { page ->
+            Material3SettingsItem(
+                icon = painterResource(page.iconRes),
+                title = page.title,
+                description = page.description,
+                onClick = { navController.navigate(page.route!!) },
+            )
+        }
+        .toMutableList()
+
+    // The update entry floats at the top when a newer release exists (and matches the search).
+    val updateTitle = stringResource(R.string.system_update)
+    val updateDesc = stringResource(R.string.settings_desc_update)
+    if (updateAvailable &&
+        (updateTitle.lowercase().contains(searchLower) || updateDesc.lowercase().contains(searchLower))
+    ) {
+        items.add(
+            0,
+            Material3SettingsItem(
+                icon = painterResource(R.drawable.update),
+                title = updateTitle,
+                description = if (searchLower.isNotEmpty()) updateDesc else latestVersionName,
+                showBadge = true,
+                onClick = { uriHandler.openUri("https://github.com/mdtt63729-ui/Muso/releases/latest") },
+            )
+        )
+    }
 
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
 
-        // ---------- Customization ----------
-        SettingsCategoryHeader(
-            icon = R.drawable.palette,
-            title = stringResource(R.string.settings_category_customization),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.appearance)) },
-            icon = { Icon(painterResource(R.drawable.palette), null) },
-            onClick = { navController.navigate("settings/appearance") }
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.content)) },
-            icon = { Icon(painterResource(R.drawable.language), null) },
-            onClick = { navController.navigate("settings/content") }
+        Text(
+            text = stringResource(R.string.settings),
+            style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 16.dp)
         )
 
-        // ---------- Player & audio ----------
-        SettingsCategoryHeader(
-            icon = R.drawable.play,
-            title = stringResource(R.string.player_and_audio),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.player_and_audio)) },
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            onClick = { navController.navigate("settings/player") }
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.audio_effects)) },
-            description = stringResource(R.string.audio_effects_desc),
-            icon = { Icon(painterResource(R.drawable.equalizer), null) },
-            onClick = { navController.navigate("settings/audio_effects") }
-        )
-
-        // ---------- Storage & backup ----------
-        SettingsCategoryHeader(
-            icon = R.drawable.storage,
-            title = stringResource(R.string.settings_category_data),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.storage)) },
-            icon = { Icon(painterResource(R.drawable.storage), null) },
-            onClick = { navController.navigate("settings/storage") }
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.backup_restore)) },
-            icon = { Icon(painterResource(R.drawable.restore), null) },
-            onClick = { navController.navigate("settings/backup_restore") }
-        )
-
-        // ---------- Integrations & privacy ----------
-        SettingsCategoryHeader(
-            icon = R.drawable.security,
-            title = stringResource(R.string.settings_category_integrations),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.discord_integration)) },
-            icon = { Icon(painterResource(R.drawable.discord), null) },
-            onClick = { navController.navigate("settings/discord") }
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.privacy)) },
-            icon = { Icon(painterResource(R.drawable.security), null) },
-            onClick = { navController.navigate("settings/privacy") }
-        )
-
-        // ---------- About ----------
-        SettingsCategoryHeader(
-            icon = R.drawable.info,
-            title = stringResource(R.string.about),
-        )
-        if (latestVersionName != BuildConfig.VERSION_NAME) {
-            PreferenceEntry(
-                title = {
-                    Text(
-                        text = stringResource(R.string.new_version_available),
-                    )
-                },
-                description = latestVersionName,
-                icon = {
-                    BadgedBox(
-                        badge = { Badge() }
-                    ) {
-                        Icon(painterResource(R.drawable.update), null)
+        TextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text(stringResource(R.string.search)) },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.search),
+                    contentDescription = null,
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(
+                            painter = painterResource(R.drawable.close),
+                            contentDescription = null,
+                        )
                     }
-                },
-                onClick = {
-                    uriHandler.openUri("https://github.com/mdtt63729-ui/Muso/releases/latest")
                 }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(28.dp),
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 8.dp, end = 8.dp, bottom = 16.dp)
+        )
+
+        if (items.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_results_found),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 24.dp)
             )
         }
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.about)) },
-            icon = { Icon(painterResource(R.drawable.info), null) },
-            onClick = { navController.navigate("settings/about") }
-        )
+
+        Material3SettingsGroup(items = items)
+
+        Spacer(Modifier.padding(bottom = 24.dp))
     }
 
     TopAppBar(

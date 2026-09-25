@@ -61,6 +61,9 @@ import com.muso.music.ui.component.SwitchPreference
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
+import com.muso.music.constants.ReducedMotionKey
+import com.muso.music.constants.GestureAnimationsKey
+import com.muso.music.constants.AnimationsEnabledKey
 import me.saket.squiggles.SquigglySlider
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -292,6 +295,38 @@ fun AppearanceSettings(
             },
         )
     }
+
+        PreferenceGroupTitle(
+            title = stringResource(R.string.animation)
+        )
+
+        val (animationsEnabled, onAnimationsEnabledChange) = rememberPreference(AnimationsEnabledKey, defaultValue = true)
+        val (gestureAnimations, onGestureAnimationsChange) = rememberPreference(GestureAnimationsKey, defaultValue = true)
+        val (reducedMotion, onReducedMotionChange) = rememberPreference(ReducedMotionKey, defaultValue = false)
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.animations)) },
+            description = stringResource(R.string.animations_desc),
+            icon = { Icon(painterResource(R.drawable.tune), null) },
+            checked = animationsEnabled,
+            onCheckedChange = onAnimationsEnabledChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.gesture_animations)) },
+            description = stringResource(R.string.gesture_animations_desc),
+            icon = { Icon(painterResource(R.drawable.slow_motion_video), null) },
+            checked = gestureAnimations,
+            onCheckedChange = onGestureAnimationsChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.reduced_motion)) },
+            description = stringResource(R.string.reduced_motion_desc),
+            icon = { Icon(painterResource(R.drawable.discover_tune), null) },
+            checked = reducedMotion,
+            onCheckedChange = onReducedMotionChange
+        )
 
     TopAppBar(
         title = { Text(stringResource(R.string.appearance)) },

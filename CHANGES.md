@@ -274,6 +274,104 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 26 (v0.5.40): PRD round - player styles, codec info, gestures, animation settings
+
+Follows the Muso advanced-player PRD (text.txt), the feasible phases in one stable pass.
+
+**Multiple fullscreen player styles (PRD sections 8-10):**
+Settings -> Player -> Player Style now offers four designs, persisted across restarts:
+- Muso Classic - the current design, kept as the default (existing look preserved).
+- Material 3 Expressive - the pill transport with press-growing weights and the
+  connected shuffle/repeat/lyrics/video control group.
+- Immersive - large metadata, the biggest transport, minimal controls (Lyrics | Queue
+  dock only).
+- Apple-inspired - centered metadata with heart/shuffle/repeat as one quiet row.
+All four share the same shell: video, queue sheet, lyrics, and mini player untouched.
+
+**Real audio codec information (sections 5 and 7):**
+The player now reads its actually-selected audio track (Echo Music's pattern via
+onTracksChanged) and shows the real codec and bitrate - "AAC 128 kbps", "Opus", "FLAC" -
+in the times row of the player. When nothing is known the pill simply hides; no fake
+values are ever shown.
+
+**Echo Nightly-style gestures (sections 13 and 14):**
+Swipe the artwork left/right to skip to the next/previous song; the artwork tracks the
+finger while dragging and settles back if released too early. Velocity-aware, gated by
+the new Gesture Animations setting.
+
+**Animation settings (section 15):**
+Settings -> Appearance -> Animation adds three real toggles: Animations (fades over
+video become instant cuts, skeletons become static), Gesture Animations (the artwork
+swipe), and Reduced Motion (Ken Burns zoom and karaoke word lift/glow motion stop;
+sync fill stays).
+
+**Video (SimpMusic):** already follows SimpMusic's architecture - a separate muted
+ExoPlayer plays the song's video stream behind the whole player while the audio engine
+stays untouched; sync tightened to 1s/1s in the previous round. No changes needed.
+
+**Non-regression (section 2):** no routes, player, lyrics, queue, or search behavior
+changed; the style switch only swaps the controls composable inside the same shell.
+
+**Version:** 0.5.40 (versionCode 47); release tag v0.5.40, APK Muso_v0.5.40_v1.apk.
+
+## Round 25 (v0.5.39): Echo Music settings UI + SimpMusic video polish
+
+**Settings (Echo Music port):**
+- New settings home in Echo's design: big title, a live search field that filters the
+  categories, and connected rounded card groups (Material3SettingsGroup) with icons
+  and descriptions - ported from Echo's Material3SettingsGroup/Item.
+- The update entry floats to the top with a badge when a newer release exists.
+- Every existing settings page is reachable from the new home - all routes unchanged,
+  so every setting keeps working exactly as before.
+- All settings rows everywhere (appearance, content, player, audio effects, storage,
+  privacy, backup, discord) restyled to Echo's card look: each row is a rounded 20dp
+  card with the icon in a 40dp rounded box, titleMedium title and bodyMedium
+  description, with animateContentSize. Group titles now use Echo's uppercase
+  onSurfaceVariant style.
+
+**Video (SimpMusic):** the video system already follows SimpMusic's architecture (a
+separate muted ExoPlayer playing the song's YouTube video stream, display-only,
+kept in sync with the main audio player). Tightened the sync loop to 1s interval /
+1s threshold so video and audio stay imperceptibly aligned after seeks and stalls.
+
+**Version:** 0.5.39 (versionCode 46); release tag v0.5.39, APK Muso_v0.5.39_v1.apk.
+
+## Round 24 (v0.5.38): Apple Music style player, karaoke lyrics, crash + lag fixes
+
+The first real device run surfaced everything at once; this round rebuilds the full
+screen player and the lyrics engine on the reference apps' designs.
+
+**Player (SimpMusic "Apple Music" + Echo design, ported):**
+- Title row: bold title, lighter artists, heart on the right.
+- Thin pill progress bar: 7dp at rest, thickens to 14dp while touched, no thumb,
+  tap-to-seek and drag-to-scrub.
+- Transport: prev | play | next as big PLAIN glyphs (no container pills) in a tight
+  centered cluster - the old wide pink pill with the off-centre pause icon is gone.
+- Shuffle / repeat sit low at the sides, out of the transport.
+- New Lyrics | Video | Queue dock (pill buttons) at the bottom.
+- Over a playing video the controls flip to white on a gradient scrim.
+- The five-button queue peek row (queue / lyrics / sleep timer / library / more) is
+  fully removed from the bottom of the player; the queue sheet keeps a minimal
+  grabber and the sleep timer / details stay in the expanded queue.
+
+**Karaoke lyrics (Echo Music port):** TTML lyrics (BetterLyrics / SimpMusic
+providers) now render word-by-word - each word fills in with a soft left-to-right
+wipe exactly while it is sung, with a subtle lift and glow, on the same Apple Music
+lyrics design as before. LRC lyrics keep line-sync as usual.
+
+**Video controls lag fix:** the controls no longer leave composition when hidden
+over a video - they fade with a fast alpha (180ms in, 500ms out), so toggling them
+no longer rebuilds the whole control cluster (the old stutter).
+
+**Crash fixes:**
+- Search tab: requesting focus on the not-yet-composed SearchBar crashed with
+  "FocusRequester is not initialized" (classic on the home tab); the request is now
+  deferred to the next frame and guarded.
+- Release keep rules added for Muso's viewmodels and preference constants as R8
+  insurance for the library tab crash; if it still crashes, a logcat will pinpoint it.
+
+**Version:** 0.5.38 (versionCode 45); release tag v0.5.38, APK Muso_v0.5.38_v1.apk.
+
 ## Round 23 (v0.5.37): fixed the remaining 8 Kotlin compile errors
 
 Second compile pass of v0.5.36 left only 8 errors in 5 files, all fixed:

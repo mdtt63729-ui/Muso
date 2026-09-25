@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -55,6 +57,7 @@ import com.muso.music.R
 import com.muso.music.constants.LyricsRomanizationKey
 import com.muso.music.constants.LyricsStyle
 import com.muso.music.constants.LyricsAutoScrollKey
+import com.muso.music.constants.ReducedMotionKey
 import com.muso.music.constants.LyricsBlurEnabledKey
 import com.muso.music.constants.LyricsStyleKey
 import com.muso.music.constants.LyricsTextSizeKey
@@ -72,6 +75,19 @@ import com.muso.music.ui.screens.settings.PlayerTextAlignment
 import com.muso.music.ui.utils.fadingEdge
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.Romanizer
+import com.muso.music.lyrics.LyricsWord
+import echo.music.iad1tya.betterlyrics.TTMLParser
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.PI
+import kotlin.math.sin
 import com.muso.music.utils.rememberPreference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -102,24 +118,52 @@ fun Lyrics(
         else lyricsEntity?.lyrics
     }
 
+    val isTTML = remember(lyrics) {
+        // TTML carries per-word timings (BetterLyrics / SimpMusic lyrics providers).
+        !lyrics.isNullOrEmpty() &&
+                (lyrics.trimStart().startsWith("<?xml") || lyrics.trimStart().startsWith("<tt"))
+    }
     val lines = remember(lyrics, romanizeLyrics) {
-        if (lyrics == null || lyrics == LYRICS_NOT_FOUND) emptyList()
-        else if (lyrics.startsWith("[")) {
-            val parsed = listOf(HEAD_LYRICS_ENTRY) + parseLyrics(lyrics)
-            if (romanizeLyrics) parsed.map { LyricsEntry(it.time, Romanizer.romanize(it.text)) } else parsed
-        } else {
-            lyrics.lines().mapIndexed { index, line ->
-                LyricsEntry(index * 100L, if (romanizeLyrics) Romanizer.romanize(line) else line)
+        when {
+            lyrics == null || lyrics == LYRICS_NOT_FOUND -> emptyList()
+            // TTML karaoke: line entries with per-word start/end times. Romanizing would
+            // break the word timing, so it falls back to plain romanized line text.
+            isTTML && !romanizeLyrics -> listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(lyrics).map { line ->
+                LyricsEntry(
+                    time = (line.startTime * 1000).toLong(),
+                    text = line.text,
+                    words = line.words.map { w ->
+                        LyricsWord(
+                            text = w.text,
+                            startMs = (w.startTime * 1000).toLong(),
+                            endMs = (w.endTime * 1000).toLong(),
+                        )
+                    },
+                )
+            }
+            isTTML -> listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(lyrics).map { line ->
+                LyricsEntry((line.startTime * 1000).toLong(), Romanizer.romanize(line.text))
+            }
+            lyrics.startsWith("[") -> {
+                val parsed = listOf(HEAD_LYRICS_ENTRY) + parseLyrics(lyrics)
+                if (romanizeLyrics) parsed.map { LyricsEntry(it.time, Romanizer.romanize(it.text)) } else parsed
+            }
+            else -> {
+                lyrics.lines().mapIndexed { index, line ->
+                    LyricsEntry(index * 100L, if (romanizeLyrics) Romanizer.romanize(line) else line)
+                }
             }
         }
     }
     val isSynced = remember(lyrics) {
-        !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
+        !lyrics.isNullOrEmpty() && (lyrics.startsWith("[") || isTTML)
     }
 
     var currentLineIndex by remember {
         mutableIntStateOf(-1)
     }
+    // Playback position for the word-by-word karaoke fill.
+    var playbackPosition by remember { mutableLongStateOf(0L) }
     // Because LaunchedEffect has delay, which leads to inconsistent with current line color and scroll animation,
     // we use deferredCurrentLineIndex when user is scrolling
     var deferredCurrentLineIndex by rememberSaveable {
@@ -142,7 +186,8 @@ fun Lyrics(
             delay(50)
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
-            currentLineIndex = findCurrentLineIndex(lines, sliderPosition ?: playerConnection.player.currentPosition)
+            playbackPosition = sliderPosition ?: playerConnection.player.currentPosition
+            currentLineIndex = findCurrentLineIndex(lines, playbackPosition)
         }
     }
 
@@ -225,6 +270,28 @@ fun Lyrics(
                 ) { index, item ->
                     val isCurrentLine = index == displayedCurrentLineIndex
                     val hasActiveLine = isSynced && displayedCurrentLineIndex != -1
+
+                    // Karaoke (word-by-word) line: words fill in as they are sung.
+                    if (isSynced && item.words.isNotEmpty()) {
+                        KaraokeLyricsLine(
+                            words = item.words,
+                            isCurrentLine = isCurrentLine,
+                            isPastLine = hasActiveLine && index < displayedCurrentLineIndex,
+                            position = playbackPosition,
+                            fontSize = lyricsTextSize,
+                            accent = MaterialTheme.colorScheme.primary,
+                            inactiveColor = AppleMusicInactiveLineColor,
+                            textAlign = when (playerTextAlignment) {
+                                PlayerTextAlignment.SIDED -> TextAlign.Start
+                                PlayerTextAlignment.CENTER -> TextAlign.Center
+                            },
+                            onTapLine = {
+                                playerConnection.player.seekTo(item.time)
+                                lastPreviewTime = 0L
+                            },
+                        )
+                        return@itemsIndexed
+                    }
                     // Apple Music style: the active line is lit, the rest dim and blur with
                     // distance (depth of field), color animates smoothly on line change.
                     val isAppleMusicStyle = lyricsStyle == LyricsStyle.APPLE_MUSIC
@@ -334,3 +401,141 @@ fun Lyrics(
 
 const val animateScrollDuration = 300L
 val LyricsPreviewTime = 4.seconds
+
+/**
+ * Echo-Music style karaoke line (ported): the line keeps the same Apple Music look -
+ * bold primary when active, dim inactive colour otherwise - but every word fills in
+ * with a soft left-to-right wipe exactly while it is sung, lifting a touch and
+ * glowing as it goes. Lines without word timings render as before.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun KaraokeLyricsLine(
+    words: List<LyricsWord>,
+    isCurrentLine: Boolean,
+    isPastLine: Boolean,
+    position: Long,
+    fontSize: Int,
+    accent: Color,
+    inactiveColor: Color,
+    textAlign: TextAlign,
+    onTapLine: () -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTapLine)
+            .padding(
+                horizontal = 24.dp,
+                vertical = if (isCurrentLine) 12.dp else 10.dp,
+            ),
+        horizontalArrangement = when (textAlign) {
+            TextAlign.Center -> Arrangement.Center
+            TextAlign.Right -> Arrangement.End
+            else -> Arrangement.Start
+        },
+    ) {
+        words.forEachIndexed { wordIndex, word ->
+            KaraokeWord(
+                word = word,
+                isLineActive = isCurrentLine,
+                isLinePast = isPastLine,
+                position = position,
+                fontSize = fontSize,
+                accent = accent,
+                inactiveColor = inactiveColor,
+            )
+            if (wordIndex < words.lastIndex) {
+                Text(text = " ", fontSize = fontSize.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun KaraokeWord(
+    word: LyricsWord,
+    isLineActive: Boolean,
+    isLinePast: Boolean,
+    position: Long,
+    fontSize: Int,
+    accent: Color,
+    inactiveColor: Color,
+) {
+    val isWordComplete = isLinePast || position >= word.endMs
+    val isWordActive = isLineActive && position >= word.startMs && position < word.endMs
+    val wordDuration = (word.endMs - word.startMs).coerceAtLeast(1L)
+
+    val progress = when {
+        isWordComplete -> 1f
+        !isLineActive || position <= word.startMs -> 0f
+        else -> ((position - word.startMs).toFloat() / wordDuration).coerceIn(0f, 1f)
+    }
+
+    // Reduced Motion (Animation settings) keeps the word fill but drops the lift/glow
+    // movement, so karaoke stays readable without motion.
+    val reducedMotion by rememberPreference(ReducedMotionKey, false)
+
+    val sinProgress = sin(progress * PI).toFloat()
+    val wordScale = if (reducedMotion) 1f else 1f + (0.015f * sinProgress)
+
+    val targetFloat = if (reducedMotion) 0f else if (isWordActive) -4f * sinProgress else 0f
+    val floatOffset by animateFloatAsState(
+        targetValue = targetFloat,
+        animationSpec = tween(
+            durationMillis = if (isWordActive) 50 else 350,
+            easing = FastOutSlowInEasing,
+        ),
+        label = "WordFloatOffset",
+    )
+
+    val glowAlpha = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 0.45f else 0f
+    val glowRadius = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 12f else 0f
+
+    val style = MaterialTheme.typography.headlineMedium.copy(
+        fontSize = fontSize.sp,
+        fontWeight = if (isLineActive) FontWeight.Bold else FontWeight.Medium,
+        shadow = if (glowAlpha > 0f) {
+            Shadow(color = accent.copy(alpha = glowAlpha), offset = Offset.Zero, blurRadius = glowRadius.coerceAtLeast(1f))
+        } else null,
+    )
+
+    Box(
+        modifier = Modifier.graphicsLayer {
+            translationY = floatOffset.dp.toPx()
+            scaleX = wordScale
+            scaleY = wordScale
+        }
+    ) {
+        Text(
+            text = word.text,
+            style = style,
+            color = inactiveColor,
+        )
+
+        if (isWordComplete || isWordActive) {
+            Text(
+                text = word.text,
+                style = style,
+                color = accent,
+                modifier = if (isWordActive) {
+                    Modifier
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            val edgeWidth = 8.dp.toPx()
+                            val center = (size.width + edgeWidth * 2) * progress - edgeWidth
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(Color.Black, Color.Transparent),
+                                    startX = center - edgeWidth,
+                                    endX = center + edgeWidth,
+                                ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                } else Modifier,
+            )
+        }
+    }
+}

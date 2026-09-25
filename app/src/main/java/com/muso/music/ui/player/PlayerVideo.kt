@@ -110,10 +110,10 @@ fun PlayerVideo(
     // and a video that is visibly ahead/behind the audio is worse than no video at all.
     LaunchedEffect(videoUrl, isPlaying) {
         while (isActive) {
-            delay(2000)
-            if (videoPlayer.playbackState == Player.STATE_READY) {
+            delay(1000)
+            if (videoPlayer.playbackState == Player.STATE_READY && isPlaying) {
                 val mainPosition = positionProvider()
-                if (abs(videoPlayer.currentPosition - mainPosition) > 2000) {
+                if (abs(videoPlayer.currentPosition - mainPosition) > 1000) {
                     videoPlayer.seekTo(mainPosition)
                 }
             }

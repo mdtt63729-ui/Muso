@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
@@ -37,6 +38,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SwipeToDismissBox
@@ -183,81 +185,25 @@ fun Queue(
         backgroundColor = backgroundColor,
         modifier = modifier,
         collapsedContent = {
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+            // Minimal grabber only: the old five-button row (queue / lyrics / sleep timer /
+            // library / more) was removed from the fullscreen player - lyrics and video now
+            // live in the player dock, the rest stays in the expanded queue.
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(
-                        WindowInsets.systemBars
-                            .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
-                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { state.expandSoft() },
+                contentAlignment = Alignment.Center,
             ) {
-                IconButton(onClick = { state.expandSoft() }) {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null
-                    )
-                }
-
-                IconButton(onClick = { showLyrics = !showLyrics }) {
-                    Icon(
-                        painter = painterResource(R.drawable.lyrics),
-                        contentDescription = null,
-                        modifier = Modifier.alpha(if (showLyrics) 1f else 0.5f)
-                    )
-                }
-
-                AnimatedContent(
-                    label = "sleepTimer",
-                    targetState = sleepTimerEnabled
-                ) { sleepTimerEnabled ->
-                    if (sleepTimerEnabled) {
-                        Text(
-                            text = makeTimeString(sleepTimerTimeLeft),
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .clickable(onClick = playerConnection.service.sleepTimer::clear)
-                                .padding(8.dp)
-                        )
-                    } else {
-                        IconButton(onClick = { showSleepTimerDialog = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.bedtime),
-                                contentDescription = null
-                            )
-                        }
-                    }
-                }
-
-                IconButton(onClick = playerConnection::toggleLibrary) {
-                    Icon(
-                        painter = painterResource(if (currentSong?.song?.inLibrary != null) R.drawable.library_add_check else R.drawable.library_add),
-                        contentDescription = null
-                    )
-                }
-
-                IconButton(
-                    onClick = {
-                        menuState.show {
-                            PlayerMenu(
-                                mediaMetadata = mediaMetadata,
-                                navController = navController,
-                                bottomSheetState = playerBottomSheetState,
-                                onShowDetailsDialog = { showDetailsDialog = true },
-                                onDismiss = menuState::dismiss
-                            )
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_horiz),
-                        contentDescription = null
-                    )
-                }
-            }
-        }
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 5.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(LocalContentColor.current.copy(alpha = 0.35f))
+                )
+            }        }
     ) {
         val queueTitle by playerConnection.queueTitle.collectAsState()
         val queueWindows by playerConnection.queueWindows.collectAsState()

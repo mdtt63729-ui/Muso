@@ -79,3 +79,7 @@
 -keep class com.my.kizzy.remote.** { <fields>; }
 # Keep Gateway data classes
 -keep class com.my.kizzy.gateway.entities.** { <fields>; }
+# --- Muso: keep own viewmodels and preference constants. R8 stripped metadata from
+# some of these classes in release builds, which crashed the library tab.
+-keep class com.muso.music.viewmodels.** { *; }
+-keep class com.muso.music.constants.** { *; }

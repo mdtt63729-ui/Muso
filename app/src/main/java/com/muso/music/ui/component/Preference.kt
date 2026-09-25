@@ -1,6 +1,7 @@
 package com.muso.music.ui.component
 
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,12 +9,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -38,50 +43,63 @@ fun PreferenceEntry(
     onClick: (() -> Unit)? = null,
     isEnabled: Boolean = true,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    // Echo-style settings row: one rounded card per entry, the icon in a 40dp rounded box.
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
-                enabled = isEnabled && onClick != null,
-                onClick = onClick ?: {}
-            )
-            .alpha(if (isEnabled) 1f else 0.5f)
-            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .animateContentSize()
     ) {
-        if (icon != null) {
-            Box(
-                modifier = Modifier.padding(horizontal = 4.dp)
-            ) {
-                icon()
-            }
-
-            Spacer(Modifier.width(12.dp))
-        }
-
-        Column(
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.weight(1f)
-        ) {
-            ProvideTextStyle(MaterialTheme.typography.titleMedium) {
-                title()
-            }
-
-            if (description != null) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    enabled = isEnabled && onClick != null,
+                    onClick = onClick ?: {}
                 )
+                .alpha(if (isEnabled) 1f else 0.5f)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+        ) {
+            if (icon != null) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    icon()
+                }
+
+                Spacer(Modifier.width(16.dp))
             }
 
-            content?.invoke()
-        }
+            Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.weight(1f)
+            ) {
+                ProvideTextStyle(MaterialTheme.typography.titleMedium) {
+                    title()
+                }
 
-        if (trailingContent != null) {
-            Spacer(Modifier.width(12.dp))
+                if (description != null) {
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-            trailingContent()
+                content?.invoke()
+            }
+
+            if (trailingContent != null) {
+                Spacer(Modifier.width(12.dp))
+
+                trailingContent()
+            }
         }
     }
 }
@@ -234,7 +252,7 @@ fun PreferenceGroupTitle(
     Text(
         text = title.uppercase(),
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(16.dp)
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp)
     )
 }

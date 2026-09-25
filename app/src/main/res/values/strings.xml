@@ -198,6 +198,32 @@
     <string name="undo">Undo</string>
 
     <!-- Player -->
+    <string name="lyrics">Lyrics</string>
+    <string name="settings_desc_appearance">Theme, colors, lyrics style</string>
+    <string name="settings_desc_content">Language, lyrics providers, region</string>
+    <string name="settings_desc_player">Playback, crossfade, video, sleep</string>
+    <string name="settings_desc_audio_effects">Equalizer, bass boost, reverb</string>
+    <string name="settings_desc_storage">Downloads and cached songs</string>
+    <string name="settings_desc_backup">Save and restore your library</string>
+    <string name="settings_desc_discord">Show what you are listening to</string>
+    <string name="settings_desc_privacy">History, permissions, analytics</string>
+    <string name="settings_desc_about">Version, credits, links</string>
+    <string name="settings_desc_update">Check and install new versions</string>
+    <string name="player_style">Player style</string>
+    <string name="player_style_desc">Pick the fullscreen player design</string>
+    <string name="player_style_classic">Muso Classic</string>
+    <string name="player_style_expressive">Material 3 Expressive</string>
+    <string name="player_style_immersive">Immersive</string>
+    <string name="player_style_apple">Apple-inspired</string>
+    <string name="animation">Animation</string>
+    <string name="animations">Animations</string>
+    <string name="animations_desc">Smooth fades and motion effects</string>
+    <string name="gesture_animations">Gesture Animations</string>
+    <string name="gesture_animations_desc">Swipe the artwork to change songs</string>
+    <string name="reduced_motion">Reduced Motion</string>
+    <string name="reduced_motion_desc">Turn off unnecessary movement</string>
+    <string name="system_update">System update</string>
+    <string name="video">Video</string>
     <string name="lyrics_not_found">Lyrics not found</string>
     <string name="sleep_timer">Sleep timer</string>
     <string name="end_of_song">End of song</string>

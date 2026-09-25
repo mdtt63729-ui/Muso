@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import com.muso.music.LocalPlayerConnection
 import com.muso.music.constants.PlayerHorizontalPadding
 import com.muso.music.constants.ShowLyricsKey
+import com.muso.music.constants.ReducedMotionKey
 import com.muso.music.constants.ThumbnailCornerRadius
 import com.muso.music.ui.component.Lyrics
 import com.muso.music.constants.AnimatedArtworkKey
@@ -50,6 +51,9 @@ fun Thumbnail(
 
     val showLyrics by rememberPreference(ShowLyricsKey, false)
     val animatedArtwork by rememberPreference(AnimatedArtworkKey, false)
+    // Reduced Motion silences the Ken Burns breathing zoom (Animation settings).
+    val reducedMotion by rememberPreference(ReducedMotionKey, false)
+    val kenBurnsActive = animatedArtwork && !reducedMotion
 
     // Animated artwork (Ken Burns): a very slow breathing zoom. Pure GPU transform on the
     // image layer, so it costs nothing to scroll or interact.
@@ -93,7 +97,7 @@ fun Thumbnail(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(ThumbnailCornerRadius * 2))
                         .graphicsLayer {
-                            if (animatedArtwork) {
+                            if (kenBurnsActive) {
                                 scaleX = kenBurnsScale
                                 scaleY = kenBurnsScale
                                 transformOrigin = TransformOrigin(0.42f, 0.38f)
