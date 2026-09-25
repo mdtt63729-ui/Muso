@@ -135,7 +135,7 @@ private class HqThumbnailInterceptor : Interceptor {
                 lowResPattern.replace(data, "/hq720")
             )) {
                 try {
-                    val result = chain.withData(url).proceed()
+                    val result = chain.proceed(chain.request.newBuilder().data(url).build())
                     if (result is SuccessResult) return result
                 } catch (_: Exception) {
                 }

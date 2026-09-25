@@ -77,6 +77,7 @@ import com.muso.music.ui.menu.ArtistMenu
 import com.muso.music.ui.menu.PlaylistMenu
 import com.muso.music.ui.menu.SongMenu
 import com.muso.music.utils.rememberEnumPreference
+import com.muso.music.viewmodels.LibraryMixViewModel
 import com.muso.music.utils.rememberPreference
 import java.time.LocalDateTime
 
@@ -121,10 +122,10 @@ fun LibraryMixScreen(
     }
 
     val autoPlaylists = listOf(
-        Playlist(PlaylistEntity(id = PlaylistEntity.LIKED_PLAYLIST_ID, name = stringResource(R.string.liked))),
-        Playlist(PlaylistEntity(id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID, name = stringResource(R.string.offline))),
-        Playlist(PlaylistEntity(id = "LP_UPLOADED", name = stringResource(R.string.uploaded))),
-        Playlist(PlaylistEntity(id = "LP_CACHED", name = stringResource(R.string.cached))),
+        Playlist(PlaylistEntity(id = PlaylistEntity.LIKED_PLAYLIST_ID, name = stringResource(R.string.liked)), songCount = 0, thumbnails = emptyList()),
+        Playlist(PlaylistEntity(id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID, name = stringResource(R.string.offline)), songCount = 0, thumbnails = emptyList()),
+        Playlist(PlaylistEntity(id = "LP_UPLOADED", name = stringResource(R.string.uploaded)), songCount = 0, thumbnails = emptyList()),
+        Playlist(PlaylistEntity(id = "LP_CACHED", name = stringResource(R.string.cached)), songCount = 0, thumbnails = emptyList()),
     )
     val visibleAutoPlaylists = autoPlaylists.filter { matches(arrayOf(it.playlist.name)) }
 

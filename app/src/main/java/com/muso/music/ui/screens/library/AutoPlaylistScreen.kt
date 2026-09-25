@@ -41,6 +41,7 @@ import com.muso.music.ui.component.EmptyPlaceholder
 import com.muso.music.ui.component.LocalMenuState
 import com.muso.music.ui.component.SongListItem
 import com.muso.music.ui.menu.SongMenu
+import com.muso.music.viewmodels.AutoPlaylistViewModel
 import kotlin.random.Random
 
 /**

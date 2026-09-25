@@ -38,7 +38,7 @@ import kotlinx.coroutines.launch
  * never crash the service.
  */
 class AudioEffectsManager(
-    context: Context,
+    private val context: Context,
     private val player: ExoPlayer,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())

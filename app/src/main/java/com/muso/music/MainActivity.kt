@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -213,8 +214,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-    @OptIn(ExperimentalMaterial3Api::class)
     /**
      * In-app language switch: when a language (other than "System default") is picked in
      * settings, the whole activity is recreated over a configuration context carrying
@@ -236,6 +235,8 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -537,8 +538,8 @@ class MainActivity : ComponentActivity() {
                             }.route,
                             enterTransition = {
                                 if (initialState.destination.route in topLevelScreens && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it.route == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it.route == initialState.destination.route }
+                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
+                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
                                     slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { if (forward) it / 3 else -it / 3 } +
                                             fadeIn(tween(320, easing = FastOutSlowInEasing))
                                 } else {
@@ -547,8 +548,8 @@ class MainActivity : ComponentActivity() {
                             },
                             exitTransition = {
                                 if (initialState.destination.route in topLevelScreens && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it.route == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it.route == initialState.destination.route }
+                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
+                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
                                     slideOutHorizontally(tween(280, easing = FastOutSlowInEasing)) { if (forward) -it / 6 else it / 6 } +
                                             fadeOut(tween(280, easing = FastOutSlowInEasing))
                                 } else {
@@ -557,8 +558,8 @@ class MainActivity : ComponentActivity() {
                             },
                             popEnterTransition = {
                                 if ((initialState.destination.route in topLevelScreens || initialState.destination.route?.startsWith("search/") == true) && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it.route == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it.route == initialState.destination.route }
+                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
+                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
                                     slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { if (forward) it / 3 else -it / 3 } +
                                             fadeIn(tween(320, easing = FastOutSlowInEasing))
                                 } else {
@@ -567,8 +568,8 @@ class MainActivity : ComponentActivity() {
                             },
                             popExitTransition = {
                                 if ((initialState.destination.route in topLevelScreens || initialState.destination.route?.startsWith("search/") == true) && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it.route == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it.route == initialState.destination.route }
+                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
+                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
                                     slideOutHorizontally(tween(280, easing = FastOutSlowInEasing)) { if (forward) -it / 6 else it / 6 } +
                                             fadeOut(tween(280, easing = FastOutSlowInEasing))
                                 } else {

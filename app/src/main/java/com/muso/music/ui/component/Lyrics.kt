@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.muso.music.BuildConfig
 import com.muso.music.LocalPlayerConnection
 import com.muso.music.R
+import com.muso.music.constants.LyricsRomanizationKey
 import com.muso.music.constants.LyricsStyle
 import com.muso.music.constants.LyricsAutoScrollKey
 import com.muso.music.constants.LyricsBlurEnabledKey

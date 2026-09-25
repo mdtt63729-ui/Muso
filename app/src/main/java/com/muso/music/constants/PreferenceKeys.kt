@@ -34,11 +34,6 @@ enum class MixSortType {
     NAME,
 }
 
-enum class LibraryViewType {
-    GRID,
-    LIST,
-}
-
 enum class LyricsStyle {
     APPLE_MUSIC,
     CLASSIC,

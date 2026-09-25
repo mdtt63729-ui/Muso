@@ -274,6 +274,31 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 22 (v0.5.36): fixed all Kotlin compile errors from the first real build
+
+The first CI build of the new code (v0.5.35) reached the Kotlin compile step and
+revealed 10 real errors across 8 files, all fixed:
+
+1. MainActivity: @OptIn(ExperimentalMaterial3Api) had drifted onto attachBaseContext
+   during the language-switch insertion, leaving onCreate without it (25 experimental
+   API errors) - moved back onto onCreate.
+2. MainActivity: transition direction code compared it.route (a String list item)
+   against routes - 8 occurrences fixed to plain equality.
+3. MainActivity: home header used Row without importing it - import added.
+4. App.kt HQ thumbnail interceptor: Coil chains have no withData() - replaced with
+   chain.proceed(request.newBuilder().data(url).build()).
+5. PreferenceKeys: duplicate LibraryViewType enum (mine + the original with toggle())
+   - removed the duplicate.
+6. AudioEffectsManager: constructor context param was not a property, so start()
+   could not see it - made it private val.
+7. Lyrics.kt: missing LyricsRomanizationKey import.
+8. Player.kt: missing material3.Icon import (only IconButtonDefaults was imported).
+9. AutoPlaylistScreen: missing AutoPlaylistViewModel import.
+10. LibraryMixScreen: missing LibraryMixViewModel import, and the four auto-playlist
+    Playlist() constructions lacked songCount / thumbnails parameters.
+
+**Version:** 0.5.36 (versionCode 43); release tag v0.5.36, APK Muso_v0.5.36_v1.apk.
+
 ## Round 21 (v0.5.35): fixed Room schema folder after the package rename
 
 The first CI build (v0.5.34) failed in KSP: Room's exported schemas lived under
