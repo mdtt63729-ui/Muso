@@ -274,6 +274,16 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 21 (v0.5.35): fixed Room schema folder after the package rename
+
+The first CI build (v0.5.34) failed in KSP: Room's exported schemas lived under
+app/schemas/com.zionhuang.music.db.InternalDatabase, but after renaming the package it
+looked for them under app/schemas/com.muso.music.db.InternalDatabase. Renamed the schema
+folder (1.json-12.json all present, no stale references). The room.schemaLocation
+build arg is unchanged - Room derives the subfolder from the database class package.
+
+**Version:** 0.5.35 (versionCode 42); release tag v0.5.35, APK Muso_v0.5.35_v1.apk.
+
 ## Round 20 (v0.5.34): fixed the empty workflow file
 
 The GitHub Actions workflow (.github/workflows/build.yml) had been accidentally
