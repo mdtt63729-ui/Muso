@@ -38,6 +38,8 @@ import com.zionhuang.music.constants.EnableUnisonKey
 import com.zionhuang.music.constants.EnableYouLyPlusKey
 import com.zionhuang.music.constants.HideExplicitKey
 import com.zionhuang.music.constants.InnerTubeCookieKey
+import com.zionhuang.music.constants.LyricsProviderOrderKey
+import com.zionhuang.music.lyrics.LyricsProviderRegistry
 import com.zionhuang.music.constants.LanguageCodeToName
 import com.zionhuang.music.constants.ProxyEnabledKey
 import com.zionhuang.music.constants.ProxyTypeKey
@@ -73,6 +75,8 @@ fun ContentSettings(
     val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
     val (enableLrcLib, onEnableLrcLibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (enableBetterLyrics, onEnableBetterLyricsChange) = rememberPreference(key = EnableBetterLyricsKey, defaultValue = true)
+    val defaultProviderOrder = remember { LyricsProviderRegistry.serializeProviderOrder(LyricsProviderRegistry.getDefaultProviderOrder()) }
+    val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(key = LyricsProviderOrderKey, defaultValue = defaultProviderOrder)
     val (enableSimpMusic, onEnableSimpMusicChange) = rememberPreference(key = EnableSimpMusicKey, defaultValue = true)
     val (enableYouLyPlus, onEnableYouLyPlusChange) = rememberPreference(key = EnableYouLyPlusKey, defaultValue = true)
     val (enablePaxsenix, onEnablePaxsenixChange) = rememberPreference(key = EnablePaxsenixKey, defaultValue = true)
@@ -129,6 +133,18 @@ fun ContentSettings(
             icon = { Icon(painterResource(R.drawable.explicit), null) },
             checked = hideExplicit,
             onCheckedChange = onHideExplicitChange
+        )
+
+        ListPreference(
+            title = { Text(stringResource(R.string.preferred_lyrics_provider)) },
+            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            selectedValue = LyricsProviderRegistry.deserializeProviderOrder(lyricsProviderOrder).firstOrNull() ?: "",
+            values = LyricsProviderRegistry.providerNames,
+            valueText = { LyricsProviderRegistry.getDisplayName(it) },
+            onValueSelected = { providerName ->
+                val order = listOf(providerName) + LyricsProviderRegistry.getDefaultProviderOrder().filter { it != providerName }
+                onLyricsProviderOrderChange(LyricsProviderRegistry.serializeProviderOrder(order))
+            }
         )
 
         SwitchPreference(

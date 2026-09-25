@@ -313,6 +313,7 @@
     <string name="enable_better_lyrics">Enable Better Lyrics provider</string>
     <string name="enable_simpmusic">Enable SimpMusic lyrics provider</string>
     <string name="enable_youlyplus">Enable YouLyPlus lyrics provider</string>
+    <string name="preferred_lyrics_provider">Preferred lyrics provider</string>
     <string name="enable_paxsenix">Enable Paxsenix lyrics provider</string>
     <string name="enable_unison">Enable Unison lyrics provider</string>
     <string name="show_video_in_player">Show video in player</string>

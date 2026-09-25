@@ -40,6 +40,11 @@ private const val ACTIVE_LINE_ALPHA = 1f
 private const val ALPHA_FALLOFF_PER_LINE = 0.25f
 private const val MIN_LINE_ALPHA = 0.25f
 
+// Blur layers are the expensive part of this treatment. During fast scroll, dozens of far-away
+// lines would each get a RenderEffect for nothing — they are already at MIN_LINE_ALPHA where the
+// blur is imperceptible. Capping the blur distance keeps only a small window of layers alive.
+private const val BLUR_MAX_DISTANCE = 5
+
 // Before the FIRST line is due — an intro, a long instrumental opening — there is no sung line
 // for anything to be near, so every line is dimmed uniformly and NOT blurred: blur means "far
 // from where we are in the song", and during an intro nowhere is where we are.
@@ -76,7 +81,7 @@ fun Modifier.appleMusicLyricFocus(
     val fontSizeDp = with(LocalDensity.current) { AppleMusicLyricFontSize.toDp() }
     val blurSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val targetBlur: Dp =
-        if (!blurSupported || allLinesCurrent || !hasActiveLine || distanceFromCurrent == 0) {
+        if (!blurSupported || allLinesCurrent || !hasActiveLine || distanceFromCurrent == 0 || distance > BLUR_MAX_DISTANCE) {
             0.dp
         } else {
             fontSizeDp * (distance * BLUR_PER_LINE_EM).coerceAtMost(BLUR_MAX_EM)

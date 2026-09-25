@@ -103,6 +103,21 @@ README retitled as well.
 package 'tools'"): GitHub's Ubuntu runners already ship the Android SDK, so that step is
 removed. The workflow now goes straight from JDK setup to `./gradlew assembleFossRelease`.
 
+## Round 4: build fix, preferred provider setting, perf pass
+
+- **CI fix (again): `./gradlew: Permission denied`** — the wrapper loses its execute bit when the
+  source travels through Windows zip tools. The workflow now runs `chmod +x gradlew` before
+  building, and the archive itself is packed with the bit set.
+- **New setting: Preferred lyrics provider** (Echo-Music). A dropdown in Settings -> Content
+  picks which provider is tried first; the rest follow in the default order. Written through the
+  existing provider-order key, so no migration.
+- **No-lag pass on lyrics**: `LyricsHelper` now reads the provider order with the suspend
+  DataStore API instead of a blocking read, so provider resolution can never block the calling
+  thread.
+- **Scroll perf on the Apple Music lyrics view**: blur layers are now capped to lines within 5
+  of the active one — far lines only dim. Fast scrolling no longer creates dozens of
+  RenderEffects on low-end devices.
+
 ## Build / CI
 
 - `versionName` 0.5.20, `versionCode` 27, app name changed to **Muso**.

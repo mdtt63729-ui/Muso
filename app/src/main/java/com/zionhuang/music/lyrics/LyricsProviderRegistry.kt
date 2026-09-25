@@ -24,6 +24,19 @@ object LyricsProviderRegistry {
 
     fun getProviderByName(name: String): LyricsProvider? = providerMap[name]
 
+    fun getDisplayName(name: String): String = when (name) {
+        "YouLyPlus" -> "YouLyPlus"
+        "Paxsenix" -> "PaxSenix"
+        "Unison" -> "Unison"
+        "BetterLyrics" -> "Better Lyrics"
+        "SimpMusic" -> "SimpMusic"
+        "LrcLib" -> "LrcLib"
+        "Kugou" -> "KuGou"
+        "YouTubeSubtitle" -> "YouTube Subtitle"
+        "YouTubeMusic" -> "YouTube Music"
+        else -> name
+    }
+
     fun deserializeProviderOrder(orderString: String): List<String> {
         if (orderString.isBlank()) return getDefaultProviderOrder()
         return orderString.split(",").map { it.trim() }.filter { it in providerMap }
