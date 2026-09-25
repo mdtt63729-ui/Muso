@@ -274,6 +274,17 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 20 (v0.5.34): fixed the empty workflow file
+
+The GitHub Actions workflow (.github/workflows/build.yml) had been accidentally
+truncated to 0 bytes since v0.5.26 by a bad version-bump script (the file was opened
+for writing before being read), so no CI build ran for v0.5.26-v0.5.33. Restored the
+full workflow from the last good copy (v0.5.25), updated it to v0.5.34 with current
+release notes, and validated the YAML. The app code itself was unaffected - only the
+workflow file was empty.
+
+**Version:** 0.5.34 (versionCode 41); release tag v0.5.34, APK Muso_v0.5.34_v1.apk.
+
 ## Round 19 (v0.5.33): package renamed to com.muso.music
 
 The application id / namespace changed from com.zionhuang.music to com.muso.music.
