@@ -274,6 +274,21 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 23 (v0.5.37): fixed the remaining 8 Kotlin compile errors
+
+Second compile pass of v0.5.36 left only 8 errors in 5 files, all fixed:
+
+1-3. CachedScreen / PodcastScreen / PodcastsScreen: missing
+   androidx.compose.foundation.layout.asPaddingValues import.
+4. LibraryMixScreen: the sort-by-name lambda names its parameter "item" but the
+   when-branches used the implicit "it" - switched to item.playlist.name /
+   item.album.title / item.artist.name.
+5. PodcastViewModels (CachedViewModel): ExoPlayer's SimpleCache.isCached()
+   needs (key, position, length) - now called with 0..Long.MAX_VALUE so the
+   whole stream counts as cached.
+
+**Version:** 0.5.37 (versionCode 44); release tag v0.5.37, APK Muso_v0.5.37_v1.apk.
+
 ## Round 22 (v0.5.36): fixed all Kotlin compile errors from the first real build
 
 The first CI build of the new code (v0.5.35) reached the Kotlin compile step and

@@ -139,9 +139,9 @@ fun LibraryMixScreen(
 
         MixSortType.NAME -> (playlists + albums + artists).sortedBy { item ->
             when (item) {
-                is Playlist -> it.playlist.name
-                is Album -> it.album.title
-                is Artist -> it.artist.name
+                is Playlist -> item.playlist.name
+                is Album -> item.album.title
+                is Artist -> item.artist.name
                 else -> ""
             }
         }

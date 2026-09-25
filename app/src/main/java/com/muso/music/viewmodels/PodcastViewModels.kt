@@ -76,7 +76,7 @@ class CachedViewModel @Inject constructor(
         .let { all ->
             kotlinx.coroutines.flow.flow {
                 all.collect { songs ->
-                    emit(songs.filter { playerCache.isCached(it.id) })
+                    emit(songs.filter { playerCache.isCached(it.id, 0, Long.MAX_VALUE) })
                 }
             }
         }
