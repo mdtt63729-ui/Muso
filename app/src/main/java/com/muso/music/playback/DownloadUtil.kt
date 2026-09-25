@@ -34,7 +34,7 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
-import androidx.media3.common.Requirements
+import androidx.media3.exoplayer.scheduler.Requirements
 import com.muso.music.constants.DownloadOnWifiOnlyKey
 import com.muso.music.utils.dataStore
 import kotlinx.coroutines.CoroutineScope
@@ -82,13 +82,16 @@ class DownloadUtil @Inject constructor(
                 .setLength(PRELOAD_BYTES)
                 .build()
             val buffer = ByteArray(64 * 1024)
-            dataSource.open(spec).use { length ->
+            try {
+                dataSource.open(spec)
                 var total = 0L
                 while (total < PRELOAD_BYTES) {
                     val read = dataSource.read(buffer, 0, buffer.size)
                     if (read == C.RESULT_END_OF_INPUT) break
-                    total += read
+                    if (read > 0) total += read
                 }
+            } finally {
+                runCatching { dataSource.close() }
             }
         }
     }

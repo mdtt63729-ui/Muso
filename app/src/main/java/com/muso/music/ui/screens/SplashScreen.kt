@@ -1,5 +1,6 @@
 package com.muso.music.ui.screens
 
+import com.muso.music.R
 import android.graphics.BlurMaskFilter
 import android.graphics.LinearGradient
 import android.graphics.Paint

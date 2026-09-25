@@ -1,4 +1,8 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.muso.music.ui.component
+
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState

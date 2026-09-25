@@ -18,6 +18,10 @@ import com.muso.music.ui.screens.artist.ArtistSongsScreen
 import com.muso.music.ui.screens.library.AutoPlaylistScreen
 import com.muso.music.ui.screens.library.UploadedScreen
 import com.muso.music.ui.screens.library.PodcastsScreen
+import com.muso.music.ui.screens.settings.SpotifyLoginScreen
+import com.muso.music.ui.screens.settings.SpotifySettings
+import com.muso.music.ui.screens.settings.AISettings
+import com.muso.music.ui.screens.settings.ListeningHistorySettings
 import com.muso.music.ui.screens.library.PodcastScreen
 import com.muso.music.ui.screens.library.CachedScreen
 import com.muso.music.ui.screens.library.LibraryAlbumsScreen

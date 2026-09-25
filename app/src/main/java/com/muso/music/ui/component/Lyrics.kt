@@ -63,6 +63,8 @@ import com.muso.music.constants.LyricsLineSpacingKey
 import com.muso.music.constants.LyricsPosition
 import com.muso.music.constants.LyricsTextSizeKey
 import com.muso.music.constants.TranslateLyricsKey
+import com.muso.music.constants.LyricsStyleKey
+import com.muso.music.constants.LyricsTextPositionKey
 import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.muso.music.lyrics.LyricsEntry
 import com.muso.music.lyrics.LyricsEntry.Companion.HEAD_LYRICS_ENTRY
@@ -234,7 +236,7 @@ fun Lyrics(
     ) {
         LazyColumn(
             state = lazyListState,
-            verticalArrangement = Arrangement.spacedBy((lyricsLineSpacing - 1f) * 24f.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp * (lyricsLineSpacing - 1f)),
             contentPadding = WindowInsets.systemBars
                 .only(WindowInsetsSides.Top)
                 .add(WindowInsets(top = maxHeight / 2, bottom = maxHeight / 2))

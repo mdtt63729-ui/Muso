@@ -3,6 +3,7 @@ package com.muso.music.playback
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
+import android.os.Build
 import android.content.Intent
 import android.database.SQLException
 import android.media.audiofx.AudioEffect
@@ -40,6 +41,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStats
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
+import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -958,13 +960,6 @@ class MusicService : MediaLibraryService(),
             ) = DefaultAudioSink.Builder(this@MusicService)
                 .setEnableFloatOutput(enableFloatOutput)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                .setOffloadMode(
-                    if (dataStore.get(AudioOffloadKey, false)) {
-                        DefaultAudioSink.OFFLOAD_MODE_ENABLED
-                    } else {
-                        DefaultAudioSink.OFFLOAD_MODE_DISABLED
-                    },
-                )
                 .setAudioProcessorChain(
                     // Spatial audio (Echo Player and Audio): a real stereo-widening DSP,
                     // prepended to the chain when enabled (applies on next app start).
@@ -979,6 +974,19 @@ class MusicService : MediaLibraryService(),
                     ),
                 )
                 .build()
+                .also { sink ->
+                    // Audio offload: media3 exposes this on the sink instance (API 29+),
+                    // not on the builder. Build-time choice, applied on renderers creation.
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        sink.setOffloadMode(
+                            if (dataStore.get(AudioOffloadKey, false)) {
+                                AudioSink.OFFLOAD_MODE_ENABLED_GAPLESS_REQUIRED
+                            } else {
+                                AudioSink.OFFLOAD_MODE_DISABLED
+                            }
+                        )
+                    }
+                }
         }
 
     override fun onPlaybackStatsReady(eventTime: AnalyticsListener.EventTime, playbackStats: PlaybackStats) {

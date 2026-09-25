@@ -274,6 +274,37 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 40 (v0.5.55): v0.5.54 build fix - all Kotlin compile errors from rounds 33-36
+
+The v0.5.54 build surfaced the accumulated Kotlin errors of the never-built
+rounds. All fixed:
+
+- MainActivity: removed a bad "com.muso.music.utils.edit" import (the DataStore
+  edit extension resolves from androidx.datastore.preferences.core.edit).
+- DownloadUtil: Requirements lives in androidx.media3.exoplayer.scheduler, not
+  common; preloadSong no longer treats DataSource.open()'s Long result as
+  Closeable - proper open/read/close loop with cleanup, reads through the
+  cache-backed resolving factory so bytes land in the player cache.
+- MusicService: audio offload is set on the built sink instance
+  (AudioSink.OFFLOAD_MODE_ENABLED_GAPLESS_REQUIRED / DISABLED, API 29+ guard),
+  not on DefaultAudioSink.Builder - media3 has no builder-level offload setter.
+- SpatialAudioProcessor: AudioFormat is
+  androidx.media3.common.audio.AudioProcessor.AudioFormat.
+- BounceIconButton: @file:OptIn(ExperimentalFoundationApi) for
+  combinedClickable.
+- Lyrics: missing LyricsStyleKey/LyricsTextPositionKey imports; line spacing
+  now 24.dp * (spacing - 1) (Dp.times(Float)).
+- Player: the SQUIGGLY slider branch in the subjectless slider-style when
+  now reads sliderStyle == SliderStyle.SQUIGGLY.
+- Thumbnail: added the missing imports (remember, Row, size, background,
+  MaterialTheme, stringResource, painterResource, Icon, R) used by the new
+  lyrics toolbar and fullscreen dialog.
+- NavigationBuilder: imports for ListeningHistorySettings, AISettings,
+  SpotifySettings, SpotifyLoginScreen.
+- SplashScreen: com.muso.music.R import for the Gochi Hand font reference.
+
+**Version:** 0.5.55 (versionCode 62); release tag v0.5.55, APK Muso_v0.5.55_v1.apk.
+
 ## Round 39 (v0.5.54): v0.5.53 build fix - duplicate listener override
 
 The v0.5.53 build failed in kapt (Dagger metadata processing) with
