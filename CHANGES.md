@@ -274,6 +274,18 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 38 (v0.5.53): v0.5.52 build fix - drawable tint attrs
+
+The v0.5.52 build failed because five vector drawables (crop, disc,
+fullscreen, surround_sound, upload) carried android:tint="?attr/
+colorControlNormal", an attr not resolvable inside drawable XML under
+AAPT2. The tint lines were removed - icons are tinted at usage time by
+Compose (LocalContentColor), so nothing changes visually. All five
+drawables re-validated as well-formed XML; no other ?attr references
+remain in res/drawable.
+
+**Version:** 0.5.53 (versionCode 60); release tag v0.5.53, APK Muso_v0.5.53_v1.apk.
+
 ## Round 37 (v0.5.52): v0.5.51 build fix - string XML escapes
 
 The v0.5.51 CI build failed at resource linking: two strings
