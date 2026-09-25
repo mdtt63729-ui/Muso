@@ -60,6 +60,49 @@ Ported SimpMusic's Apple Music lyrics renderer into the player lyrics view:
 
 Files: `ui/component/AppleMusicLyrics.kt` (new), `ui/component/Lyrics.kt` (updated).
 
+## Video in player (Spotify/SimpMusic style)
+
+The fullscreen player now plays the song's music video, like Spotify's canvas / SimpMusic's
+fullscreen player:
+
+- A secondary, muted ExoPlayer renders the lowest-resolution video stream for the current
+  song (fetched through the same InnerTube player API used for audio), kept in sync with the
+  main audio player: it follows play/pause and re-syncs after seeks (drift check every 2 s).
+- The audio pipeline is completely untouched — cache, normalization, queue and equalizer all
+  keep working on the audio stream; the video layer is display-only.
+- Shown when the player sheet is at least half expanded; falls back to the regular artwork
+  thumbnail when the song has no video or the fetch fails.
+- Settings -> Player: "Show video in player" toggle (default on).
+
+Files: `ui/player/PlayerVideo.kt` (new), `ui/player/Player.kt`, `ui/screens/settings/PlayerSettings.kt`,
+`libs.versions.toml` + `app/build.gradle.kts` (added `media3-ui`).
+
+## SimpMusic-style navigation, new icon, and branding (v0.5.20 final polish)
+
+**Navigation bar** — the bottom bar now uses the SimpMusic tab set: Home, Library, Search.
+
+- Old tabs (Songs / Artists / Albums / Playlists as separate bottom-bar entries) removed from
+  the bar; all four now live inside the new combined Library screen as tabs (selection persists).
+- The Search entry is an action like Spotify/SimpMusic: tapping it opens the search field
+  (same as the search shortcut), so search suggestions and history work exactly as before.
+- Default-open-tab setting simplified to Home / Library; old saved values fall back to Home.
+- App shortcuts (Songs/Albums/Playlists) now open the Library tab.
+
+**App icon** — every launcher icon replaced with the provided Muso logo (music note +
+equalizer bars), generated from the original image at full quality (LANCZOS) for all densities:
+
+- Adaptive icons: white background + black glyph foreground in the safe zone, plus a white
+  monochrome layer for Android 13+ themed icons.
+- Legacy square + round icons for older launchers.
+
+**App name / branding** — the About screen and Discord settings screens had hard-coded
+"InnerTune" text (this is why the app name still showed InnerTune); they now show Muso.
+README retitled as well.
+
+**CI fix** — the previous build failed in `android-actions/setup-android@v3` ("Failed to find
+package 'tools'"): GitHub's Ubuntu runners already ship the Android SDK, so that step is
+removed. The workflow now goes straight from JDK setup to `./gradlew assembleFossRelease`.
+
 ## Build / CI
 
 - `versionName` 0.5.20, `versionCode` 27, app name changed to **Muso**.

@@ -292,18 +292,13 @@ class MainActivity : ComponentActivity() {
                     }
                     val tabOpenedFromShortcut = remember {
                         when (intent?.action) {
-                            ACTION_SONGS -> NavigationTab.SONG
-                            ACTION_ALBUMS -> NavigationTab.ALBUM
-                            ACTION_PLAYLISTS -> NavigationTab.PLAYLIST
+                            ACTION_SONGS, ACTION_ALBUMS, ACTION_PLAYLISTS -> NavigationTab.LIBRARY
                             else -> null
                         }
                     }
                     val topLevelScreens = listOf(
                         Screens.Home.route,
-                        Screens.Songs.route,
-                        Screens.Artists.route,
-                        Screens.Albums.route,
-                        Screens.Playlists.route,
+                        Screens.Library.route,
                         "settings"
                     )
 
@@ -495,10 +490,7 @@ class MainActivity : ComponentActivity() {
                             navController = navController,
                             startDestination = when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                 NavigationTab.HOME -> Screens.Home
-                                NavigationTab.SONG -> Screens.Songs
-                                NavigationTab.ARTIST -> Screens.Artists
-                                NavigationTab.ALBUM -> Screens.Albums
-                                NavigationTab.PLAYLIST -> Screens.Playlists
+                                NavigationTab.LIBRARY -> Screens.Library
                             }.route,
                             enterTransition = {
                                 if (initialState.destination.route in topLevelScreens && targetState.destination.route in topLevelScreens) {
@@ -712,7 +704,8 @@ class MainActivity : ComponentActivity() {
                         ) {
                             navigationItems.fastForEach { screen ->
                                 NavigationBarItem(
-                                    selected = navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true,
+                                    selected = screen.route != Screens.Search.route &&
+                                            navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true,
                                     icon = {
                                         Icon(
                                             painter = painterResource(screen.iconId),
@@ -727,7 +720,12 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     onClick = {
-                                        if (navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true) {
+                                        if (screen.route == Screens.Search.route) {
+                                            // The Search entry is an action, not a destination:
+                                            // open the search field like the ACTION_SEARCH intent does.
+                                            onActiveChange(true)
+                                            searchBarFocusRequester.requestFocus()
+                                        } else if (navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true) {
                                             navBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
                                             coroutineScope.launch {
                                                 searchBarScrollBehavior.state.resetHeightOffset()

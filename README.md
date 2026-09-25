@@ -1,4 +1,4 @@
-# InnerTune
+# Muso
 
 <img src="https://raw.githubusercontent.com/z-huang/InnerTune/dev/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp" height="72">
 

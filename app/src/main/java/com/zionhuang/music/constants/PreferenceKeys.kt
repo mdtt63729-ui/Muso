@@ -133,6 +133,7 @@ enum class AlbumFilter {
 }
 
 val ShowLyricsKey = booleanPreferencesKey("showLyrics")
+val ShowVideoInPlayerKey = booleanPreferencesKey("showVideoInPlayer")
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 val LockQueueKey = booleanPreferencesKey("lockQueue")
 

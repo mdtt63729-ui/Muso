@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
@@ -69,6 +70,7 @@ import com.zionhuang.music.constants.PlayerHorizontalPadding
 import com.zionhuang.music.constants.PlayerTextAlignmentKey
 import com.zionhuang.music.constants.PureBlackKey
 import com.zionhuang.music.constants.QueuePeekHeight
+import com.zionhuang.music.constants.ShowVideoInPlayerKey
 import com.zionhuang.music.constants.SliderStyle
 import com.zionhuang.music.constants.SliderStyleKey
 import com.zionhuang.music.extensions.togglePlayPause
@@ -111,6 +113,7 @@ fun BottomSheetPlayer(
 
     val playerTextAlignment by rememberEnumPreference(PlayerTextAlignmentKey, PlayerTextAlignment.CENTER)
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+    val showVideo by rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
 
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -389,10 +392,25 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
-                        )
+                        if (showVideo && state.progress > 0.5f) {
+                            PlayerVideo(
+                                videoId = mediaMetadata?.id,
+                                isPlaying = isPlaying,
+                                positionProvider = { playerConnection.player.currentPosition },
+                                modifier = Modifier.fillMaxSize(),
+                                fallback = {
+                                    Thumbnail(
+                                        sliderPositionProvider = { sliderPosition },
+                                        modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
+                                    )
+                                }
+                            )
+                        } else {
+                            Thumbnail(
+                                sliderPositionProvider = { sliderPosition },
+                                modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
+                            )
+                        }
                     }
 
                     Column(
@@ -423,10 +441,25 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
-                        )
+                        if (showVideo && state.progress > 0.5f) {
+                            PlayerVideo(
+                                videoId = mediaMetadata?.id,
+                                isPlaying = isPlaying,
+                                positionProvider = { playerConnection.player.currentPosition },
+                                modifier = Modifier.fillMaxSize(),
+                                fallback = {
+                                    Thumbnail(
+                                        sliderPositionProvider = { sliderPosition },
+                                        modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
+                                    )
+                                }
+                            )
+                        } else {
+                            Thumbnail(
+                                sliderPositionProvider = { sliderPosition },
+                                modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
+                            )
+                        }
                     }
 
                     mediaMetadata?.let {

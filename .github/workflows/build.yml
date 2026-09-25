@@ -27,9 +27,6 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Build unsigned FOSS release APK
         run: ./gradlew assembleFossRelease --stacktrace
 

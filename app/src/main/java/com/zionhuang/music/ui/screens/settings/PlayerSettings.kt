@@ -25,6 +25,7 @@ import com.zionhuang.music.constants.AudioQualityKey
 import com.zionhuang.music.constants.AutoLoadMoreKey
 import com.zionhuang.music.constants.AutoSkipNextOnErrorKey
 import com.zionhuang.music.constants.PersistentQueueKey
+import com.zionhuang.music.constants.ShowVideoInPlayerKey
 import com.zionhuang.music.constants.SkipSilenceKey
 import com.zionhuang.music.constants.StopMusicOnTaskClearKey
 import com.zionhuang.music.ui.component.EnumListPreference
@@ -45,6 +46,7 @@ fun PlayerSettings(
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(PersistentQueueKey, defaultValue = true)
     val (skipSilence, onSkipSilenceChange) = rememberPreference(SkipSilenceKey, defaultValue = false)
     val (audioNormalization, onAudioNormalizationChange) = rememberPreference(AudioNormalizationKey, defaultValue = true)
+    val (showVideoInPlayer, onShowVideoInPlayerChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
     val (autoLoadMore, onAutoLoadMoreChange) = rememberPreference(AutoLoadMoreKey, defaultValue = true)
     val (autoSkipNextOnError, onAutoSkipNextOnErrorChange) = rememberPreference(AutoSkipNextOnErrorKey, defaultValue = false)
     val (stopMusicOnTaskClear, onStopMusicOnTaskClearChange) = rememberPreference(StopMusicOnTaskClearKey, defaultValue = false)
@@ -86,6 +88,14 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.volume_up), null) },
             checked = audioNormalization,
             onCheckedChange = onAudioNormalizationChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.show_video_in_player)) },
+            description = stringResource(R.string.show_video_in_player_desc),
+            icon = { Icon(painterResource(R.drawable.music_note), null) },
+            checked = showVideoInPlayer,
+            onCheckedChange = onShowVideoInPlayerChange
         )
 
         PreferenceGroupTitle(

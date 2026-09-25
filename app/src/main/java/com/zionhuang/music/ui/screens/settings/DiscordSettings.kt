@@ -237,7 +237,7 @@ fun RichPresence(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Listening to InnerTune",
+                text = stringResource(R.string.app_name).let { "Listening to $it" },
                 style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Start,
                 fontWeight = FontWeight.ExtraBold,
@@ -338,7 +338,7 @@ fun RichPresence(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Visit InnerTune")
+                Text("Visit Muso")
             }
         }
     }

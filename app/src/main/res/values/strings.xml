@@ -1,6 +1,7 @@
 <resources>
     <!-- Bottom navigation -->
     <string name="home">Home</string>
+    <string name="library">Library</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
     <string name="albums">Albums</string>
@@ -314,6 +315,8 @@
     <string name="enable_youlyplus">Enable YouLyPlus lyrics provider</string>
     <string name="enable_paxsenix">Enable Paxsenix lyrics provider</string>
     <string name="enable_unison">Enable Unison lyrics provider</string>
+    <string name="show_video_in_player">Show video in player</string>
+    <string name="show_video_in_player_desc">Play the song\'s music video in the player, like Spotify</string>
     <string name="hide_explicit">Hide explicit content</string>
 
     <string name="backup_restore">Backup and restore</string>
@@ -325,7 +328,7 @@
     <string name="restore_failed">Failed to restore backup</string>
 
     <string name="discord_integration">Discord Integration</string>
-    <string name="discord_information">InnerTune uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\nInnerTune will only extract your token, and everything else is stored locally.</string>
+    <string name="discord_information">Muso uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\nMuso will only extract your token, and everything else is stored locally.</string>
     <string name="dismiss">Dismiss</string>
     <string name="options">Options</string>
     <string name="preview">Preview</string>

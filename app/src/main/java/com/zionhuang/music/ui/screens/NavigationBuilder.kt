@@ -16,6 +16,7 @@ import com.zionhuang.music.ui.screens.artist.ArtistItemsScreen
 import com.zionhuang.music.ui.screens.artist.ArtistScreen
 import com.zionhuang.music.ui.screens.artist.ArtistSongsScreen
 import com.zionhuang.music.ui.screens.library.LibraryAlbumsScreen
+import com.zionhuang.music.ui.screens.library.LibraryScreen
 import com.zionhuang.music.ui.screens.library.LibraryArtistsScreen
 import com.zionhuang.music.ui.screens.library.LibraryPlaylistsScreen
 import com.zionhuang.music.ui.screens.library.LibrarySongsScreen
@@ -41,6 +42,9 @@ fun NavGraphBuilder.navigationBuilder(
 ) {
     composable(Screens.Home.route) {
         HomeScreen(navController)
+    }
+    composable("library") {
+        LibraryScreen(navController)
     }
     composable(Screens.Songs.route) {
         LibrarySongsScreen(navController)
