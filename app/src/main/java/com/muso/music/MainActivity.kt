@@ -176,8 +176,6 @@ import com.muso.music.constants.SYSTEM_DEFAULT
 import java.util.Locale
 import kotlinx.coroutines.runBlocking
 import com.muso.music.utils.dataStore
-import com.muso.music.constants.LastArtworkBackgroundColorKey
-import com.muso.music.constants.ArtworkBackgroundKey
 import androidx.datastore.preferences.core.edit
 import com.muso.music.utils.get
 import com.muso.music.utils.rememberEnumPreference
@@ -332,18 +330,6 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(DefaultThemeColor)
             }
 
-            // Background from artwork (Appearance): the last extracted artwork color is
-            // persisted, so the tint is already there the instant the app opens - no
-            // waiting for the artwork, no flash, no lag.
-            var artworkBackgroundColor by remember {
-                mutableStateOf(
-                    Color(
-                        runCatching {
-                            applicationContext.dataStore.get(LastArtworkBackgroundColorKey, 0)
-                        }.getOrDefault(0)
-                    )
-                )
-            }
 
             LaunchedEffect(playerConnection, enableDynamicTheme, isSystemInDarkTheme, customThemeColor) {
                 val playerConnection = playerConnection
@@ -365,12 +351,6 @@ class MainActivity : ComponentActivity() {
                             (result.drawable as? BitmapDrawable)?.bitmap?.extractThemeColor() ?: DefaultThemeColor
                         }
                     } else DefaultThemeColor
-                    // Persist for the artwork background tint so it survives restarts.
-                    runCatching {
-                        applicationContext.dataStore.edit {
-                            it[LastArtworkBackgroundColorKey] = themeColor.toArgb()
-                        }
-                    }
                 }
             }
 
@@ -384,15 +364,6 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.surface)
                 ) {
-                // Background from artwork: a soft full-UI tint of the current song's
-                // artwork color, applied on top of the surface.
-                if (applicationContext.dataStore.get(ArtworkBackgroundKey, true)) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(artworkBackgroundColor.copy(alpha = 0.30f))
-                    )
-                }
                     val focusManager = LocalFocusManager.current
                     val density = LocalDensity.current
                     val windowsInsets = WindowInsets.systemBars

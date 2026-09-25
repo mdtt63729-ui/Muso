@@ -334,7 +334,7 @@ fun HomeScreen(
         LazyColumn(
             state = lazylistState,
             contentPadding = PaddingValues(
-                top = baseContentPadding.calculateTopPadding() + 64.dp,
+                top = baseContentPadding.calculateTopPadding(),
                 start = baseContentPadding.calculateStartPadding(LocalLayoutDirection.current),
                 end = baseContentPadding.calculateEndPadding(LocalLayoutDirection.current),
                 bottom = baseContentPadding.calculateBottomPadding(),

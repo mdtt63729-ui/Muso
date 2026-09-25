@@ -71,7 +71,7 @@ private const val T_COMPRESS_END = 0.62f
 private const val T_PULSE_END = 1.20f
 private const val T_REBUILD_END = 1.50f
 private const val T_SETTLE_END = 1.70f
-private const val T_EXIT_END = 1.95f
+private const val T_EXIT_END = 1.45f
 private const val WAVE_DELAY = 0.035f
 
 // ---------- Original logo geometry (heights relative to the center bar) ----------

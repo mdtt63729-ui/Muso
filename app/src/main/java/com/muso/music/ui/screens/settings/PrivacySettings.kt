@@ -91,15 +91,6 @@ fun PrivacySettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState)
     ) {
-        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
-
-        Text(
-            text = stringResource(R.string.privacy),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-
         PreferenceGroupTitle(
             title = stringResource(R.string.search_history)
         )
@@ -148,13 +139,8 @@ fun PrivacySettings(
     TopAppBar(
         title = {
             // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
-            androidx.compose.animation.AnimatedVisibility(
-                visible = scrollState.value > 100,
-                enter = androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.fadeOut(),
-            ) {
-                Text(stringResource(R.string.privacy))
-            }
+                            Text(stringResource(R.string.privacy))
+
         },
         navigationIcon = {
             IconButton(

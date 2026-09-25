@@ -169,7 +169,7 @@ fun BottomSheetPlayer(
     }
 
     val playerTextAlignment by rememberEnumPreference(PlayerTextAlignmentKey, PlayerTextAlignment.CENTER)
-    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SQUIGGLY)
     val hidePlayerSlider by rememberPreference(HidePlayerSliderKey, false)
     val showCodecOnPlayer by rememberPreference(ShowCodecOnPlayerKey, true)
     val (showVideo, onShowVideoChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
@@ -229,7 +229,7 @@ fun BottomSheetPlayer(
     ) {
         // Full-screen video state, hoisted above the controls so the controls can colour
         // themselves for the video backdrop (white on scrim) instead of theme colours.
-        val playerStyle by rememberEnumPreference(PlayerStyleKey, PlayerStyle.APPLE)
+        val playerStyle by rememberEnumPreference(PlayerStyleKey, PlayerStyle.EXPRESSIVE)
         val gestureAnimationsEnabled by rememberPreference(GestureAnimationsKey, true)
         val animationsEnabled by rememberPreference(AnimationsEnabledKey, true)
 
@@ -383,18 +383,7 @@ fun BottomSheetPlayer(
                     )
                 }
 
-                else -> {
-                    ThinProgressSlider(
-                        position = position,
-                        duration = if (duration == C.TIME_UNSET) 0L else duration,
-                        accent = accent,
-                        inactive = if (onVideo) Color.White.copy(alpha = 0.3f) else secondaryText.copy(alpha = 0.3f),
-                        onValueChange = { sliderPosition = it },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
+                else -> {}
                             sliderPosition = null
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
@@ -857,7 +846,6 @@ fun BottomSheetPlayer(
                                 targetState = if (playbackState == STATE_ENDED) R.drawable.replay else if (isPlaying) R.drawable.pause else R.drawable.play,
                                 animationSpec = tween(150),
                                 label = "playPauseIcon",
-                                modifier = Modifier.fillMaxSize(),
                             ) { iconRes ->
                                 Icon(
                                     painter = painterResource(iconRes),
@@ -1265,18 +1253,7 @@ fun BottomSheetPlayer(
                     )
                 }
 
-                else -> {
-                    ThinProgressSlider(
-                        position = position,
-                        duration = if (duration == C.TIME_UNSET) 0L else duration,
-                        accent = accent,
-                        inactive = if (onVideo) Color.White.copy(alpha = 0.3f) else secondaryText.copy(alpha = 0.3f),
-                        onValueChange = { sliderPosition = it },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
+                else -> {}
                             sliderPosition = null
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),

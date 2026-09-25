@@ -33,16 +33,16 @@ jobs:
       - name: Build unsigned FOSS release APK
         run: ./gradlew assembleFossRelease --stacktrace
 
-      - name: Rename APK to Muso_v0.5.56_v1.apk
+      - name: Rename APK to Muso_v0.5.57_v1.apk
         run: |
-          cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk Muso_v0.5.56_v1.apk
-          ls -lh Muso_v0.5.56_v1.apk
+          cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk Muso_v0.5.57_v1.apk
+          ls -lh Muso_v0.5.57_v1.apk
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Muso_v0.5.56_v1
-          path: Muso_v0.5.56_v1.apk
+          name: Muso_v0.5.57_v1
+          path: Muso_v0.5.57_v1.apk
 
       - name: Publish APK to GitHub Releases
         env:
@@ -51,12 +51,12 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG="${GITHUB_REF_NAME}"
           else
-            TAG="v0.5.56-v1"
+            TAG="v0.5.57-v1"
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" Muso_v0.5.56_v1.apk --clobber
+            gh release upload "$TAG" Muso_v0.5.57_v1.apk --clobber
           else
-            gh release create "$TAG" Muso_v0.5.56_v1.apk \
-              --title "Muso v0.5.56" \
-              --notes "Muso v0.5.56 (unsigned release build). Skeleton shimmer loading; real audio effects (equalizer, bass boost, virtualizer, reverb); crossfade; blurred artwork player background; translucent navigation bar; in-app language switch; offline lyrics romanization; animated artwork; SimpMusic-style home header; package renamed to com.muso.music"
+            gh release create "$TAG" Muso_v0.5.57_v1.apk \
+              --title "Muso v0.5.57" \
+              --notes "Muso v0.5.57 (unsigned release build). Skeleton shimmer loading; real audio effects (equalizer, bass boost, virtualizer, reverb); crossfade; blurred artwork player background; translucent navigation bar; in-app language switch; offline lyrics romanization; animated artwork; SimpMusic-style home header; package renamed to com.muso.music"
           fi

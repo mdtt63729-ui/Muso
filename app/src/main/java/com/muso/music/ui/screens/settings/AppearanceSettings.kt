@@ -72,7 +72,6 @@ import com.muso.music.constants.PlayerBackgroundStyleKey
 import com.muso.music.constants.PlayerButtonsStyle
 import com.muso.music.constants.PlayerButtonsStyleKey
 import com.muso.music.constants.PlayerStyle
-import com.muso.music.constants.ArtworkBackgroundKey
 import com.muso.music.constants.PlayerStyleKey
 import com.muso.music.constants.PureBlackKey
 import com.muso.music.constants.RotatingArtworkKey
@@ -139,19 +138,18 @@ fun AppearanceSettings(
     val (highRefreshRate, onHighRefreshRateChange) = rememberPreference(key = HighRefreshRateKey, defaultValue = false)
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(key = DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
     val (gridCellSize, onGridCellSizeChange) = rememberEnumPreference(key = GridCellSizeKey, defaultValue = GridCellSize.SMALL)
-    val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(key = PlayerStyleKey, defaultValue = PlayerStyle.APPLE)
+    val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(key = PlayerStyleKey, defaultValue = PlayerStyle.EXPRESSIVE)
 
     val (playerBackgroundStyle, onPlayerBackgroundStyleChange) = rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.BLURRED_ARTWORK,
     )
-    val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(key = SliderStyleKey, defaultValue = SliderStyle.DEFAULT)
+    val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(key = SliderStyleKey, defaultValue = SliderStyle.SQUIGGLY)
     val (playerButtonsStyle, onPlayerButtonsStyleChange) = rememberEnumPreference(key = PlayerButtonsStyleKey, defaultValue = PlayerButtonsStyle.DEFAULT)
     val (hidePlayerSlider, onHidePlayerSliderChange) = rememberPreference(key = HidePlayerSliderKey, defaultValue = false)
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(key = HidePlayerThumbnailKey, defaultValue = false)
     val (cropAlbumArt, onCropAlbumArtChange) = rememberPreference(key = CropAlbumArtKey, defaultValue = false)
     val (rotatingArtwork, onRotatingArtworkChange) = rememberPreference(key = RotatingArtworkKey, defaultValue = false)
-    val (artworkBackground, onArtworkBackgroundChange) = rememberPreference(key = ArtworkBackgroundKey, defaultValue = true)
     val (showCodecOnPlayer, onShowCodecOnPlayerChange) = rememberPreference(key = ShowCodecOnPlayerKey, defaultValue = true)
 
     val (lyricsStyle, onLyricsStyleChange) = rememberEnumPreference(key = LyricsStyleKey, defaultValue = LyricsStyle.APPLE_MUSIC)
@@ -323,15 +321,6 @@ fun AppearanceSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState),
     ) {
-        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
-
-        Text(
-            text = stringResource(R.string.appearance),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-
         // ============================ Interface ============================
         PreferenceGroupTitle(
             title = stringResource(R.string.user_interface),
@@ -359,14 +348,6 @@ fun AppearanceSettings(
                 onCheckedChange = onPureBlackChange,
             )
         }
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.artwork_background)) },
-            description = stringResource(R.string.artwork_background_desc),
-            icon = { Icon(painterResource(R.drawable.palette), null) },
-            checked = artworkBackground,
-            onCheckedChange = onArtworkBackgroundChange,
-        )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.now_playing_style)) },
@@ -670,13 +651,8 @@ fun AppearanceSettings(
     TopAppBar(
         title = {
             // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
-            androidx.compose.animation.AnimatedVisibility(
-                visible = scrollState.value > 100,
-                enter = androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.fadeOut(),
-            ) {
-                Text(stringResource(R.string.appearance))
-            }
+                            Text(stringResource(R.string.appearance))
+
         },
         navigationIcon = {
             IconButton(

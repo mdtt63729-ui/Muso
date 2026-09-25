@@ -112,15 +112,6 @@ fun StorageSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState)
     ) {
-        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
-
-        Text(
-            text = stringResource(R.string.storage),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-
         PreferenceGroupTitle(
             title = stringResource(R.string.downloaded_songs)
         )
@@ -241,13 +232,8 @@ fun StorageSettings(
     TopAppBar(
         title = {
             // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
-            androidx.compose.animation.AnimatedVisibility(
-                visible = scrollState.value > 100,
-                enter = androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.fadeOut(),
-            ) {
-                Text(stringResource(R.string.storage))
-            }
+                            Text(stringResource(R.string.storage))
+
         },
         navigationIcon = {
             IconButton(

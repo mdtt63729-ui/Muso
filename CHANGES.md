@@ -1,3 +1,27 @@
+## Round 42 (v0.5.57): UI polish round from device testing
+
+- Home: content now sits right under the permanent header (removed the extra
+  64dp top padding that doubled the gap).
+- Background from artwork: removed entirely (overlay, setting, persistence) -
+  it washed out the background in light theme.
+- Settings screens: single title - the top bar title is always visible and the
+  big in-content headline is gone, no more duplicated titles or dead space.
+- Defaults per request: Now playing style = Material 3 Expressive, slider
+  style = Squiggly.
+- Fullscreen player: the stray thin progress line at the bottom (the
+  fallback slider branch) is gone.
+- Expressive play/pause: the icon no longer fills the pill oddly - the icon
+  crossfade now wraps the icon itself, centered like the skip buttons.
+- Lyrics toolbar (fullscreen + three-dot): moved to the bottom end of the
+  lyrics area with padding - no longer overlapping the player's top bar.
+- Splash: shortened to ~1.45s for a snappier entry.
+- Player artwork: requests the 1200px thumbnail variant (ultra quality).
+
+Not yet fixed (need crash log / next round): library tab crash on open,
+search entry lag, liquid glass toggle behavior.
+
+**Version:** 0.5.57 (versionCode 64); release tag v0.5.57, APK Muso_v0.5.57_v1.apk.
+
 # Muso v0.5.20 — Changes (based on InnerTune dev + Echo-Music API stack)
 
 ## Streaming / Download (Echo-Music stack)

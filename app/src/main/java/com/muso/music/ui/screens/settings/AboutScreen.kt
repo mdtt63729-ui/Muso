@@ -62,15 +62,6 @@ fun AboutScreen(
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
-
-        Text(
-            text = stringResource(R.string.about),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-
         Spacer(Modifier.height(4.dp))
 
         Image(
@@ -186,13 +177,8 @@ fun AboutScreen(
     TopAppBar(
         title = {
             // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
-            androidx.compose.animation.AnimatedVisibility(
-                visible = scrollState.value > 100,
-                enter = androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.fadeOut(),
-            ) {
-                Text(stringResource(R.string.about))
-            }
+                            Text(stringResource(R.string.about))
+
         },
         navigationIcon = {
             IconButton(

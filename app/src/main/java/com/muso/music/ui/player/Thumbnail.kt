@@ -138,7 +138,7 @@ fun Thumbnail(
                     .padding(horizontal = PlayerHorizontalPadding)
             ) {
                 AsyncImage(
-                    model = mediaMetadata?.thumbnailUrl,
+                    model = mediaMetadata?.thumbnailUrl?.replace("w544-h544", "w1200-h1200"),
                     contentDescription = null,
                     contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
                     modifier = Modifier
@@ -202,7 +202,9 @@ fun Thumbnail(
                 // Echo-style lyrics toolbar: fullscreen + three-dot actions.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.align(Alignment.TopEnd),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp),
                 ) {
                     var lyricsMenu by remember { mutableStateOf(false) }
                     BounceIconButton(onClick = { lyricsFullscreen = true }) {
