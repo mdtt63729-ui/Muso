@@ -190,7 +190,7 @@ fun SettingsScreen(
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
+                    IconButton(onClick = { searchQuery = "" }, onLongClick = {}) {
                         Icon(
                             painter = painterResource(R.drawable.close),
                             contentDescription = null,

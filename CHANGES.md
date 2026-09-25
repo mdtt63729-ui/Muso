@@ -274,6 +274,16 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 26 fix (v0.5.41): compile fixes for the v0.5.40 build log
+
+- Player.kt: the 10 transport/shuffle/repeat IconButtons resolved to nothing because
+  the material3 IconButton import was missing - added it (the ui.component one needs
+  onLongClick and is not used here).
+- SettingsScreen: the search-clear IconButton used the shared ui.component IconButton
+  without its required onLongClick - now passes an empty onLongClick.
+
+**Version:** 0.5.41 (versionCode 48); release tag v0.5.41, APK Muso_v0.5.41_v1.apk.
+
 ## Round 26 (v0.5.40): PRD round - player styles, codec info, gestures, animation settings
 
 Follows the Muso advanced-player PRD (text.txt), the feasible phases in one stable pass.
