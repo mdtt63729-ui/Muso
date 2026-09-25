@@ -82,7 +82,7 @@ fun PodcastsScreen(
             shows?.getOrNull().isNullOrEmpty() -> item(key = "empty") {
                 EmptyPlaceholder(
                     icon = R.drawable.graphic_eq,
-                    text = if (shows!!.isFailure) {
+                    text = if (shows?.isFailure == true) {
                         stringResource(R.string.login_required)
                     } else {
                         stringResource(R.string.podcasts_empty)
@@ -91,7 +91,7 @@ fun PodcastsScreen(
             }
 
             else -> items(
-                items = shows!!.getOrThrow(),
+                items = shows?.getOrThrow() ?: emptyList(),
                 key = { it.id },
             ) { show ->
                 PodcastShowRow(show) {

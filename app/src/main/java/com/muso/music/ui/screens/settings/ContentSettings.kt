@@ -19,12 +19,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavController
 import com.zionhuang.innertube.utils.parseCookieString
 import com.muso.music.LocalPlayerAwareWindowInsets
+import com.muso.music.constants.HighQualityVideoKey
+import com.muso.music.constants.ShowVideoInPlayerKey
+import com.muso.music.constants.AudioQualityKey
 import com.muso.music.R
 import com.muso.music.constants.AccountChannelHandleKey
 import com.muso.music.constants.AccountEmailKey
+import com.muso.music.constants.DownloadQualityKey
+import com.muso.music.constants.AutoDownloadLikedSongsKey
+import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AccountNameKey
 import com.muso.music.constants.ContentCountryKey
 import android.app.Activity
@@ -55,6 +62,7 @@ import com.muso.music.ui.component.ListPreference
 import com.muso.music.ui.component.PreferenceEntry
 import com.muso.music.ui.component.PreferenceGroupTitle
 import com.muso.music.ui.component.SwitchPreference
+import com.muso.music.ui.component.EnumListPreference
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
@@ -90,21 +98,37 @@ fun ContentSettings(
     val (proxyEnabled, onProxyEnabledChange) = rememberPreference(key = ProxyEnabledKey, defaultValue = false)
     val (proxyType, onProxyTypeChange) = rememberEnumPreference(key = ProxyTypeKey, defaultValue = Proxy.Type.HTTP)
     val (proxyUrl, onProxyUrlChange) = rememberPreference(key = ProxyUrlKey, defaultValue = "host:port")
+    val (autoDownloadLikedSongs, onAutoDownloadLikedSongsChange) = rememberPreference(key = AutoDownloadLikedSongsKey, defaultValue = false)
+    val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.AUTO)
+    val (showVideoInPlayer, onShowVideoInPlayerChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
+    val (highQualityVideo, onHighQualityVideoChange) = rememberPreference(HighQualityVideoKey, defaultValue = true)
+    val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(key = DownloadQualityKey, defaultValue = AudioQuality.AUTO)
 
+
+    val scrollState = rememberScrollState()
 
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
 
+        Text(
+            text = stringResource(R.string.content),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+
         PreferenceEntry(
-            title = { Text(if (isLoggedIn) accountName else stringResource(R.string.login)) },
+            title = { Text(stringResource(R.string.youtube_account)) },
             description = if (isLoggedIn) {
                 accountEmail.takeIf { it.isNotEmpty() }
                     ?: accountChannelHandle.takeIf { it.isNotEmpty() }
-            } else null,
+            } else {
+                stringResource(R.string.manage_your_youtube_accounts)
+            },
             icon = { Icon(painterResource(R.drawable.person), null) },
             onClick = { navController.navigate("login") }
         )
@@ -126,7 +150,7 @@ fun ContentSettings(
             },
         )
         ListPreference(
-            title = { Text(stringResource(R.string.content_language)) },
+            title = { Text(stringResource(R.string.preferred_audio_language)) },
             icon = { Icon(painterResource(R.drawable.language), null) },
             selectedValue = contentLanguage,
             values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
@@ -150,11 +174,64 @@ fun ContentSettings(
             onValueSelected = onContentCountryChange
         )
 
+        EnumListPreference(
+            title = { Text(stringResource(R.string.audio_quality)) },
+            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            selectedValue = audioQuality,
+            onValueSelected = onAudioQualityChange,
+            valueText = {
+                when (it) {
+                    AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
+                    AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
+                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                }
+            }
+        )
+
+        EnumListPreference(
+            title = { Text(stringResource(R.string.download_quality)) },
+            icon = { Icon(painterResource(R.drawable.download), null) },
+            selectedValue = downloadQuality,
+            onValueSelected = onDownloadQualityChange,
+            valueText = {
+                when (it) {
+                    AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
+                    AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
+                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                }
+            }
+        )
+
         SwitchPreference(
-            title = { Text(stringResource(R.string.hide_explicit)) },
+            title = { Text(stringResource(R.string.high_quality_video)) },
+            description = stringResource(R.string.high_quality_video_desc),
+            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            checked = highQualityVideo,
+            onCheckedChange = onHighQualityVideoChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.show_video_in_player)) },
+            description = stringResource(R.string.show_video_in_player_desc),
+            icon = { Icon(painterResource(R.drawable.music_note), null) },
+            checked = showVideoInPlayer,
+            onCheckedChange = onShowVideoInPlayerChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.auto_download_liked_songs)) },
+            description = stringResource(R.string.auto_download_liked_songs_desc),
+            icon = { Icon(painterResource(R.drawable.download), null) },
+            checked = autoDownloadLikedSongs,
+            onCheckedChange = onAutoDownloadLikedSongsChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.play_explicit_content)) },
+            description = stringResource(R.string.play_explicit_content_desc),
             icon = { Icon(painterResource(R.drawable.explicit), null) },
-            checked = hideExplicit,
-            onCheckedChange = onHideExplicitChange
+            checked = !hideExplicit,
+            onCheckedChange = { onHideExplicitChange(!it) }
         )
 
         ListPreference(
@@ -248,7 +325,16 @@ fun ContentSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.content)) },
+        title = {
+            // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
+            androidx.compose.animation.AnimatedVisibility(
+                visible = scrollState.value > 100,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut(),
+            ) {
+                Text(stringResource(R.string.content))
+            }
+        },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,

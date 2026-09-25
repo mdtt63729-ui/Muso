@@ -126,6 +126,11 @@ import com.muso.music.constants.ShowVideoInPlayerKey
 import com.muso.music.constants.KeepScreenOnKey
 import com.muso.music.constants.SliderStyle
 import com.muso.music.constants.SliderStyleKey
+import androidx.compose.runtime.CompositionLocalProvider
+import com.muso.music.constants.PlayerButtonsStyle
+import com.muso.music.constants.PlayerButtonsStyleKey
+import com.muso.music.constants.ShowCodecOnPlayerKey
+import com.muso.music.constants.HidePlayerSliderKey
 import com.muso.music.extensions.togglePlayPause
 import com.muso.music.extensions.toggleRepeatMode
 import com.muso.music.models.MediaMetadata
@@ -165,6 +170,8 @@ fun BottomSheetPlayer(
 
     val playerTextAlignment by rememberEnumPreference(PlayerTextAlignmentKey, PlayerTextAlignment.CENTER)
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+    val hidePlayerSlider by rememberPreference(HidePlayerSliderKey, false)
+    val showCodecOnPlayer by rememberPreference(ShowCodecOnPlayerKey, true)
     val (showVideo, onShowVideoChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
     val playerBackgroundStyle by rememberEnumPreference(PlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
     val keepScreenOn by rememberPreference(KeepScreenOnKey, defaultValue = false)
@@ -222,7 +229,7 @@ fun BottomSheetPlayer(
     ) {
         // Full-screen video state, hoisted above the controls so the controls can colour
         // themselves for the video backdrop (white on scrim) instead of theme colours.
-        val playerStyle by rememberEnumPreference(PlayerStyleKey, PlayerStyle.CLASSIC)
+        val playerStyle by rememberEnumPreference(PlayerStyleKey, PlayerStyle.APPLE)
         val gestureAnimationsEnabled by rememberPreference(GestureAnimationsKey, true)
         val animationsEnabled by rememberPreference(AnimationsEnabledKey, true)
 
@@ -354,8 +361,9 @@ fun BottomSheetPlayer(
             Spacer(Modifier.height(18.dp))
 
             // Thin pill progress bar (Apple Music): 7dp at rest, 14dp while touched, no thumb.
-            when (sliderStyle) {
-                SliderStyle.SQUIGGLY -> {
+            when {
+                hidePlayerSlider -> {}
+                sliderStyle == SliderStyle.SQUIGGLY -> {
                     SquigglySlider(
                         value = (sliderPosition ?: position).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
@@ -411,7 +419,7 @@ fun BottomSheetPlayer(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                if (codecLabel.isNotEmpty()) {
+                if (showCodecOnPlayer && codecLabel.isNotEmpty()) {
                     Text(
                         text = codecLabel,
                         style = MaterialTheme.typography.labelMedium,
@@ -442,7 +450,7 @@ fun BottomSheetPlayer(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 IconButton(
-                    onClick = { if (canSkipPrevious) playerConnection.player.seekToPrevious() },
+                    onClick = { if (canSkipPrevious) playerConnection.service.fadeSkip(false) },
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(
@@ -493,7 +501,7 @@ fun BottomSheetPlayer(
                 }
 
                 IconButton(
-                    onClick = { if (canSkipNext) playerConnection.player.seekToNext() },
+                    onClick = { if (canSkipNext) playerConnection.service.fadeSkip(true) },
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(
@@ -672,8 +680,9 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-            when (sliderStyle) {
-                SliderStyle.DEFAULT -> {
+            when {
+                hidePlayerSlider -> {}
+                sliderStyle == SliderStyle.DEFAULT -> {
                     Slider(
                         value = (sliderPosition ?: position).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
@@ -793,7 +802,7 @@ fun BottomSheetPlayer(
             ) {
                 // Previous — full pill on secondaryContainer.
                 Surface(
-                    onClick = { if (canSkipPrevious) playerConnection.player.seekToPrevious() },
+                    onClick = { if (canSkipPrevious) playerConnection.service.fadeSkip(false) },
                     shape = RoundedCornerShape(34.dp),
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     interactionSource = prevInteraction,
@@ -863,7 +872,7 @@ fun BottomSheetPlayer(
 
                 // Next — mirror of Previous.
                 Surface(
-                    onClick = { if (canSkipNext) playerConnection.player.seekToNext() },
+                    onClick = { if (canSkipNext) playerConnection.service.fadeSkip(true) },
                     shape = RoundedCornerShape(34.dp),
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     interactionSource = nextInteraction,
@@ -1012,7 +1021,7 @@ fun BottomSheetPlayer(
                     }
                 }
 
-                if (codecLabel.isNotEmpty()) {
+                if (showCodecOnPlayer && codecLabel.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
                     Text(
                         text = codecLabel,
@@ -1026,21 +1035,23 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(28.dp))
 
-            ThinProgressSlider(
-                position = position,
-                duration = if (duration == C.TIME_UNSET) 0L else duration,
-                accent = accent,
-                inactive = if (onVideo) Color.White.copy(alpha = 0.3f) else secondaryText.copy(alpha = 0.3f),
-                onValueChange = { sliderPosition = it },
-                onValueChangeFinished = {
-                    sliderPosition?.let {
-                        playerConnection.player.seekTo(it)
-                        position = it
-                    }
-                    sliderPosition = null
-                },
-                modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-            )
+            if (!hidePlayerSlider) {
+                ThinProgressSlider(
+                    position = position,
+                    duration = if (duration == C.TIME_UNSET) 0L else duration,
+                    accent = accent,
+                    inactive = if (onVideo) Color.White.copy(alpha = 0.3f) else secondaryText.copy(alpha = 0.3f),
+                    onValueChange = { sliderPosition = it },
+                    onValueChangeFinished = {
+                        sliderPosition?.let {
+                            playerConnection.player.seekTo(it)
+                            position = it
+                        }
+                        sliderPosition = null
+                    },
+                    modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
 
@@ -1076,7 +1087,7 @@ fun BottomSheetPlayer(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 IconButton(
-                    onClick = { if (canSkipPrevious) playerConnection.player.seekToPrevious() },
+                    onClick = { if (canSkipPrevious) playerConnection.service.fadeSkip(false) },
                     modifier = Modifier.size(60.dp),
                 ) {
                     Icon(
@@ -1127,7 +1138,7 @@ fun BottomSheetPlayer(
                 }
 
                 IconButton(
-                    onClick = { if (canSkipNext) playerConnection.player.seekToNext() },
+                    onClick = { if (canSkipNext) playerConnection.service.fadeSkip(true) },
                     modifier = Modifier.size(60.dp),
                 ) {
                     Icon(
@@ -1232,8 +1243,9 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(18.dp))
 
-            when (sliderStyle) {
-                SliderStyle.SQUIGGLY -> {
+            when {
+                hidePlayerSlider -> {}
+                sliderStyle == SliderStyle.SQUIGGLY -> {
                     SquigglySlider(
                         value = (sliderPosition ?: position).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
@@ -1289,7 +1301,7 @@ fun BottomSheetPlayer(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                if (codecLabel.isNotEmpty()) {
+                if (showCodecOnPlayer && codecLabel.isNotEmpty()) {
                     Text(
                         text = codecLabel,
                         style = MaterialTheme.typography.labelMedium,
@@ -1371,7 +1383,7 @@ fun BottomSheetPlayer(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 IconButton(
-                    onClick = { if (canSkipPrevious) playerConnection.player.seekToPrevious() },
+                    onClick = { if (canSkipPrevious) playerConnection.service.fadeSkip(false) },
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(
@@ -1422,7 +1434,7 @@ fun BottomSheetPlayer(
                 }
 
                 IconButton(
-                    onClick = { if (canSkipNext) playerConnection.player.seekToNext() },
+                    onClick = { if (canSkipNext) playerConnection.service.fadeSkip(true) },
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(
@@ -1590,8 +1602,8 @@ fun BottomSheetPlayer(
                                         onDragEnd = {
                                             val threshold = size.width / 4f
                                             when {
-                                                swipeOffset < -threshold -> playerConnection.player.seekToNext()
-                                                swipeOffset > threshold -> playerConnection.player.seekToPrevious()
+                                                swipeOffset < -threshold -> playerConnection.service.fadeSkip(true)
+                                                swipeOffset > threshold -> playerConnection.service.fadeSkip(false)
                                             }
                                             swipeOffset = 0f
                                         },
@@ -1672,8 +1684,8 @@ fun BottomSheetPlayer(
                                         onDragEnd = {
                                             val threshold = size.width / 4f
                                             when {
-                                                swipeOffset < -threshold -> playerConnection.player.seekToNext()
-                                                swipeOffset > threshold -> playerConnection.player.seekToPrevious()
+                                                swipeOffset < -threshold -> playerConnection.service.fadeSkip(true)
+                                                swipeOffset > threshold -> playerConnection.service.fadeSkip(false)
                                             }
                                             swipeOffset = 0f
                                         },
@@ -1763,7 +1775,17 @@ private fun PlayerControls(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
-            content()
+            // Player buttons style (Echo appearance): recolor the control icons through
+            // LocalContentColor so every player style picks it up in one place.
+            val playerButtonsStyle by rememberEnumPreference(PlayerButtonsStyleKey, PlayerButtonsStyle.DEFAULT)
+            val buttonsTint = when (playerButtonsStyle) {
+                PlayerButtonsStyle.DEFAULT -> LocalContentColor.current
+                PlayerButtonsStyle.PRIMARY -> MaterialTheme.colorScheme.primary
+                PlayerButtonsStyle.TERTIARY -> MaterialTheme.colorScheme.tertiary
+            }
+            CompositionLocalProvider(LocalContentColor provides buttonsTint) {
+                content()
+            }
         }
     }
 }

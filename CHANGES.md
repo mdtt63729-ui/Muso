@@ -274,6 +274,324 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 36 (v0.5.51): karaoke lyrics matched exactly to kimi_5.html
+
+The reference HTML (kimi_5.html) was decoded and the word-level karaoke was
+matched to it exactly, with white text everywhere as requested:
+
+- Word lift: 4px * sin(progress), word scale: 1 + 0.02 * sin(progress) - the
+  active word gently floats up and grows while it sings, then settles.
+- Fill layer: white overlay swept left-to-right by the synced word timestamps
+  (gradient edge), with a white glow (12px, 35% alpha) - the HTML's primary
+  accent is replaced by white as requested.
+- Base layer: white at 30% opacity inside the singing line; full white in the
+  other lines, dimmed by ReTune distance focus (distance 1-2 -> 20%, 3 -> 15%,
+  4 -> 10%, 5+ -> 8%). Once a line passes, its words return to the dim base.
+- The previous round's line zoom was removed - the HTML has no line-level zoom;
+  distance focus is a pure alpha fade with no stagger, following instantly.
+- Typography: ExtraBold (800) with -0.5sp letter spacing, center aligned.
+
+**Version:** 0.5.51 (versionCode 58); release tag v0.5.51, APK Muso_v0.5.51_v1.apk.
+
+## Round 35 (v0.5.50): Apple Music lyrics glow, default Apple player, lyrics toolbar, artwork background
+
+**Lyrics animation (Apple Music feel):** karaoke lyrics are now pure white with a
+white glow that breathes as each word is sung, and the active line gets a light
+zoom (1.04x) that eases in and out smoothly - the word-to-word fill keeps working
+as before. The plain Apple-style lines also light up white instead of the theme
+color.
+
+**Default player = Apple Music:** the fullscreen player now opens in Echo's Apple
+Music style by default (previously the classic InnerTune style was default), and
+the player background defaults to the blurred-artwork style - the full-potential
+Apple Music look out of the box. Previously stored classic selections map to the
+new default automatically.
+
+**Lyrics toolbar (Echo):** when lyrics are enabled in the player, a fullscreen
+button and a three-dot button appear at the top of the lyrics. Fullscreen opens a
+true full-screen lyrics experience (same synced lyrics, tap or the close button to
+leave). The three-dot menu adjusts lyrics text size live (bigger/smaller).
+
+**Background from artwork (new Appearance setting, default on):** the whole app is
+tinted with a soft layer of the current song's artwork color. The extracted color
+is persisted, so when you close and reopen the app the tint is already there
+instantly - no waiting for artwork, no flash. Toggles in Appearance settings.
+
+**Note:** no HTML file was attached with the animation reference, so the lyrics
+animation was implemented exactly per the description (white text, white glow,
+word-to-word fill, light zoom). If the HTML differs, share it and I will match it.
+
+**Version:** 0.5.50 (versionCode 57); release tag v0.5.50, APK Muso_v0.5.50_v1.apk.
+
+## Round 34 (v0.5.49): Gochi Hand wordmark, immersive mode, spatial audio, automix, preloads
+
+**Brand typography (PRD):** the Muso wordmark is now set in Gochi Hand Regular (400) -
+a clean, slightly handwritten, non-cursive Google Font bundled as a real font resource
+(res/font/gochi_hand.ttf), no image, no effects, letter-spacing normal. Applied to the
+permanent home header (32sp), the About screen brand name (30sp), and the splash screen,
+where a white 44sp "Muso" wordmark fades and scales in under the waveform during the
+settle phase and fades out with the splash. User content (song/artist/album text) is
+untouched; only brand-name occurrences changed.
+
+**Immersive mode:** the status bar and navigation bar now auto-hide while the app runs.
+Swiping from the screen edge brings them back transiently.
+
+**Spatial audio (was skipped, now real):** a genuine stereo-widening DSP
+(SpatialAudioProcessor, mid/side widening with hard clamping so it can never clip)
+inserted into the audio processor chain when enabled. Applies on the next app start,
+like audio offload.
+
+**Automix (was skipped, now real):** manual skips (next/previous buttons and the
+artwork swipe) now fade the volume down smoothly before switching and fade back in,
+instead of a hard cut. Natural track-end crossfade stays as it was.
+
+**Preload next song + preload lyrics (were skipped, now real):** when the track changes,
+Muso looks ahead in the queue and (for each enabled setting) prefetches ~3 MB of the
+next song's audio into the player cache through the same resolving data source the
+player uses, and fetches the next song's lyrics into the lyrics cache. All background,
+silent on failure.
+
+**Google Cast:** still not possible in this build - the Cast protocol only ships inside
+Google's proprietary Play Services framework, which the FOSS build deliberately does
+not include. Integrating it means dropping the FOSS build and shipping with Play
+Services dependencies; say the word and that becomes its own round.
+
+**Automix debug overlay:** not ported - it is Echo's developer tool, not a user feature.
+
+**Critical fix:** v0.5.48 shipped with a missing closing parenthesis inside the new
+collapsing-title block of all 13 settings screens (it would not have compiled). Found
+by a per-file parenthesis depth scan and fixed everywhere; all 24 touched files now
+pass brace and paren balance checks.
+
+**Version:** 0.5.49 (versionCode 56); release tag v0.5.49, APK Muso_v0.5.49_v1.apk.
+
+## Round 33 (v0.5.48): Echo page motion, settings title collapse, permanent home header
+
+**Echo-style page transitions:** every page change now uses Echo's exact motion recipe -
+a 400 ms slide of one-eighth of the screen width with a same-length fade, driven by
+Echo's emphasized easing (cubic-bezier 0.2, 0, 0, 1.0). Direction-aware from the tab
+order: going deeper slides from the right, going back from the left, tabs slide by
+their order. Instant cut when Animations are turned off, as before.
+
+**Settings title collapse (Echo behavior):** all 13 settings screens now show a large
+bold title at the top of the scrollable content; after scrolling about 100 px the
+title fades smoothly into the top bar, and fades back out when you scroll up - the
+same hand-over as Echo's settings screens.
+
+**Permanent home header:** the Muso title with the history and settings buttons is now
+a true pinned header - it never hides, and it is drawn on an opaque surface bar, so
+the home content (quick picks, etc.) starts below it and slides under it while
+scrolling instead of showing through it. The home list got matching top content
+padding so nothing is covered.
+
+**iOS-style bounce buttons:** new BounceIconButton component (Echo's press
+treatment) - while pressed the icon zooms down to 88% and springs back with a bouncy
+spring curve, no ripple. Applied to the home header's history and settings buttons.
+
+**Version:** 0.5.48 (versionCode 55); release tag v0.5.48, APK Muso_v0.5.48_v1.apk.
+
+## Round 32 (v0.5.47): Echo Music Player and Audio settings ported
+
+New rows in Player & audio, every one wired to real playback behavior (crash-first
+review done: no new focus requests, no uncomposed state, all toggles are DataStore
+switches the service already knows how to read):
+
+**Player group:** Loudness normalization preset (Off / Normal / Strong - Strong also
+boosts quiet tracks, capped at 2x), Data saver (streams at low quality regardless of
+the quality setting), Seek accumulates (repeated double-taps on the artwork add up:
+10s, 20s, 30s...; clamped to the track duration, gesture restarts when toggled).
+
+**Queue group:** Prevent duplicate tracks in queue (playing-next / add-to-queue skip
+songs already queued).
+
+**Crossfade group:** Audio offload (hands audio to the device chip for less battery;
+disabled while crossfade is on, like Echo; takes effect on next app start).
+
+**Misc group:** Pause music when media is muted (volume observer pauses when media
+volume hits 0), Download on Wi-Fi only (DownloadManager requirements - pending
+downloads wait for an unmetered network), Listening history duration (keep forever /
+12h / 1d / 7d / 30d - pruned at startup).
+
+**Already covered by Muso (no duplicate rows):** audio/download quality, crossfade
+with duration (ours fades volume without a gap), skip silence (applies instantly),
+audio normalization, equalizer (Audio effects), persistent queue, auto load more
+(= similar content), auto-download liked songs, remember shuffle AND repeat (both
+already persist), persistent shuffle, auto skip on error, stop on task clear.
+
+**Not ported (honest):** Google Cast (needs Play Services, FOSS build has none),
+spatial audio (device-DSP level, no media3 API), automix crossfade + debug overlay
+(Echo proprietary DSP), preload next song / preload lyrics (needs a custom preload
+manager; queued as a possible future round).
+
+**Version:** 0.5.47 (versionCode 54); release tag v0.5.47, APK Muso_v0.5.47_v1.apk.
+
+## Round 31 (v0.5.46): Echo Music Appearance settings ported
+
+The Appearance screen now carries Echo Music's Appearance items alongside the SimpMusic
+Interface ones, grouped the Echo way. Everything writes a real preference the UI reads.
+
+**Interface:** Theme, Pure black, Now playing style, Theme color, Liquid glass, plus NEW
+High refresh rate (fastest display mode), and Default open tab + Grid cell size moved
+here from Player settings (where Echo keeps them in Appearance).
+
+**Player:** NEW Player background style, Player slider style (both moved here), NEW
+Player buttons style (Default / Primary color / Tertiary color - recolors every control
+icon through LocalContentColor so all four player styles pick it up), Hide player
+slider, Hide player thumbnail, Crop album art, Rotating artwork (vinyl spin, respects
+Reduced motion), and Show codec on player (the codec pill finally has an off switch).
+
+**Lyrics:** NEW Lyrics text position (Left / Center / Right, independent of the player
+text alignment), Lyrics text size + line spacing slider (x1.0-x2.0), Lyrics style,
+Romanization, Lyrics blur and Auto scroll (all now in one place).
+
+**Auto playlists:** NEW group - show/hide Liked, Downloaded, Uploaded and Cached
+playlists in the library grid.
+
+**Not ported (honest):** Echo's ten lyrics animation styles (their proprietary
+renderers - Muso already has Apple Music, Classic and karaoke word float), Canvas
+thumbnail animation (no client API), comment button (Muso has no comments), Listen
+Together (needs a sync server), app icon / app font pickers and miniplayer background
+(needs bundled assets - can be a future round), haptics / swipe-to-remove-queue /
+swipe-lyrics gestures (queued for a future round).
+
+**Version:** 0.5.46 (versionCode 53); release tag v0.5.46, APK Muso_v0.5.46_v1.apk.
+
+## Round 30 (v0.5.45): Ultra-premium morphing waveform splash
+
+The uploaded 5-bar waveform logo (cyan > blue > lavender > purple > pink) is now the
+splash screen's only hero element, animated in the Echo Nightly style, drawn 100% in
+Jetpack Compose Canvas (no bitmaps, no video, no network - GPU friendly, targets
+60/120 FPS with a single frame-clock driven master timeline).
+
+Timeline (~1.95 s total): black > staggered logo reveal (0.15-0.40) > waveform morph:
+bars compress toward the center with the outer bars shrinking (0.40-0.62) > pulse
+travels through the logo, center bar first, each neighbour delayed ~70 ms (0.62-1.20)
+> bars rebuild back into the exact original logo with a tiny overshoot (1.20-1.50) >
+settle (to 1.70) > exit: logo scales to 0.96 and cross-fades into the app over
+~250 ms, revealing the main UI which has been loading behind it the whole time.
+
+Details: per-bar height/width/translation/alpha/glow/color-shift all derived from the
+centralized state machine (SPLASH_INIT > LOGO_REVEAL > WAVE_MORPH > LOGO_REBUILD >
+LOGO_SETTLE > SPLASH_EXIT); cubic-bezier (0.22, 1.0, 0.36, 1.0) easing; controlled
+glow (15% normal, 38% peak, 12% settled) rendered with a BlurMaskFilter halo; very
+subtle colour movement toward each bar's neighbour during the pulse; rotation capped
+at 0.6 degrees; the 5-bar identity, gradients, proportions and centering of the
+original logo are preserved exactly.
+
+Accessibility: when the device's animator scale is 0 or the in-app Reduced motion
+setting is on, the splash degrades to a simple fade-in / static waveform / fade-out.
+
+Android 12+ continuity: the system splash is set to pure black with a transparent icon
+(new MusoSplashTheme on the activity + black window background on all API levels), so
+there is no white flash and no duplicate logo - system splash and the custom
+animation read as one continuous black scene.
+
+Plays once per process (cold start only, never on rotation or task-switch back).
+
+**Version:** 0.5.45 (versionCode 52); release tag v0.5.45, APK Muso_v0.5.45_v1.apk.
+
+## Round 29 (v0.5.44): Appearance and Content rebuilt to mirror SimpMusic's Interface and Content
+
+**Bug fix first:** the Animation toggles from the last update were emitted OUTSIDE the
+scrollable Column (an editing slip), which rendered them over the top of the settings
+screen and made it look broken/unresponsive. The whole screen is rebuilt, so this is
+gone. Every switch and picker in all three screens is inside the proper Column and
+writes a real DataStore preference.
+
+**Appearance (= SimpMusic Interface), exact item list:**
+- Theme (System / Dark / Light), Pure black when dark
+- Now playing style (moved here from Player): Classic / Expressive / Immersive / Apple
+- Lyrics style (moved here from Player): Apple Music / Classic
+- Lyrics romanization (moved here from Player)
+- Theme color: Default / From wallpaper / Custom - the old separate "Dynamic theme"
+  switch and color picker are merged into this one selector like SimpMusic
+- Liquid glass effect: one switch that turns on the translucent glassy navigation bar
+  AND the blurred-artwork player background together
+
+**Content (= SimpMusic Content), exact item order:**
+- YouTube account (entry relabeled to SimpMusic's name)
+- Language, Content country, Preferred audio language (relabel of content language)
+- Quality (moved here from Player) + Download quality
+- Video quality (high quality video) + Play video for video track (both moved here)
+- Auto download liked songs
+- Play explicit content (inverted Hide explicit, SimpMusic wording)
+- Lyrics providers and Proxy groups stay as before
+
+**Player settings** received everything that used to clutter Appearance (player text
+alignment, slider style with the preview dialog, default open tab, grid cell size, and
+the animation toggles), so no setting was lost - they just moved to where SimpMusic
+keeps their equivalents.
+
+Not ported (honest): video download quality (Muso does not download video), radio audio
+only / sync follows to YouTube / send listening data to Google (no such backend in this
+FOSS app).
+
+**Version:** 0.5.44 (versionCode 51); release tag v0.5.44, APK Muso_v0.5.44_v1.apk.
+
+## Round 28 (v0.5.43): SimpMusic settings categories - Listening history, AI, Spotify, theme color
+
+The SimpMusic settings list, mapped category-wise into Muso (all real, nothing fake):
+
+**Listening history (new category):** pause/resume listening history, clear history with
+a confirm dialog, and a shortcut to Stats. The switches are the same keys the player
+service already respects, so history recording actually stops and starts. The old
+duplicate rows were removed from Privacy.
+
+**AI (new category):** AI provider (OpenAI / Google Gemini / Custom OpenAI-compatible),
+API key (stored only on the device), custom model ID, custom base URL for the custom
+provider, translation target language (35 languages + system), and a "Use AI
+translation" switch that stays disabled until a key is entered. When enabled, the lyrics
+translate button in the player translates through the chosen AI provider - a real
+translator for the FOSS build, which previously had none. Any error returns the original
+lyrics instead of crashing or blanking the screen.
+
+**Spotify (new category):** log in with a real OAuth PKCE flow using the user's own
+Spotify Client ID (free at developer.spotify.com), in an in-app WebView like the Discord
+login. Logged-in users see their Spotify playlists (name + track count) with
+loading/error/retry states - never a stuck spinner. Tokens auto-refresh. Playlist import
+into the Muso library is the next update (SimpMusic's spotify backend is a closed
+binary, so this is rebuilt from scratch and lands in steps).
+
+**Interface -> Appearance:** Theme color picker with 14 presets, applied whenever the
+artwork-based dynamic theme is off.
+
+Everything else SimpMusic has under Interface/Content/Audio/Playback/Lyrics was already
+in Muso (themes, languages, providers, proxy, equalizer, crossfade, sleep timer, caches,
+Discord). The Discord category already exists in Muso's settings.
+
+**Version:** 0.5.43 (versionCode 50); release tag v0.5.43, APK Muso_v0.5.43_v1.apk.
+
+## Round 27 (v0.5.42): library crash fix, smooth transitions, SimpMusic settings port
+
+**Library tab crash fixed (root cause):** the library's in-screen search used the same
+unsafe focus pattern that crashed the search tab earlier - requesting focus on a
+FocusRequester in the same frame its TextField enters composition, which reliably throws
+"FocusRequester is not initialized" when the library tab is restored while search was
+active. Now the request is deferred one frame and wrapped in runCatching, and the search
+state is no longer saved across tab switches at all. All remaining force-unwraps in the
+library screens were removed too.
+
+**Smooth navigation (SimpMusic-style):** page transitions now use spring-physics slides
+with soft fades instead of fixed tweens - shared-axis feel between tabs, slide-and-fade
+for detail screens, and an instant cut when Animations is off in Appearance settings.
+
+**SimpMusic settings port (all real, DataStore-backed):**
+- Content: Auto-download liked songs (keeps every newly liked song available offline;
+  never re-queues failed or user-removed downloads) and a separate Download quality
+  (downloads resolve their own stream, independent of streaming quality).
+- Backup & restore: Automatic backup with Daily/Weekly frequency - writes the same
+  zip as the manual backup into the public Downloads folder via MediaStore on app
+  start, keeps the newest three, restores through the normal restore picker.
+- Player: shuffle mode now survives a restart together with repeat mode
+  (Settings toggle "Persistent queue" remains the master switch).
+
+Everything else SimpMusic has is either already in Muso (themes, languages, lyrics
+providers, proxy, equalizer/effects, crossfade, sleep timer, storage caches, Discord,
+updates) or needs external keys/services (SponsorBlock, AI, Last.fm, Listen Together,
+Canvas) and stays out rather than shipping broken toggles.
+
+**Version:** 0.5.42 (versionCode 49); release tag v0.5.42, APK Muso_v0.5.42_v1.apk.
+
 ## Round 26 fix (v0.5.41): compile fixes for the v0.5.40 build log
 
 - Player.kt: the 10 transport/shuffle/repeat IconButtons resolved to nothing because

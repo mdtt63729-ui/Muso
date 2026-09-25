@@ -63,7 +63,7 @@ class PlayerConnection(
         if (!translateEnabled || lyrics == null || lyrics.lyrics == LYRICS_NOT_FOUND) return@combine lyrics
         translating.value = true
         try {
-            TranslationHelper.translate(lyrics)
+            TranslationHelper.translate(context, lyrics)
         } catch (e: Exception) {
             reportException(e)
             lyrics

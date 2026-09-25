@@ -569,6 +569,9 @@ interface DatabaseDao {
     @Query("DELETE FROM event")
     fun clearListenHistory()
 
+    @Query("DELETE FROM event WHERE timestamp < :cutoff")
+    fun deleteEventsBefore(cutoff: LocalDateTime)
+
     @Query("SELECT * FROM search_history WHERE `query` LIKE :query || '%' ORDER BY id DESC")
     fun searchHistory(query: String = ""): Flow<List<SearchHistory>>
 

@@ -1,0 +1,9 @@
+<resources>
+    <!-- Android 12+ system splash: pure black, no icon, so it merges seamlessly into
+         the custom waveform animation with no white flash and no duplicate logo. -->
+    <style name="MusoSplashTheme" parent="@style/Theme.InnerTune">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+    </style>
+</resources>

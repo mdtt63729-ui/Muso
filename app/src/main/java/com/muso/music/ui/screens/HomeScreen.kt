@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -325,9 +328,17 @@ fun HomeScreen(
             )
         }
 
+        // The permanent home header (app name + history + settings) sits above this list;
+        // extra top padding keeps the first section clear of it.
+        val baseContentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         LazyColumn(
             state = lazylistState,
-            contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
+            contentPadding = PaddingValues(
+                top = baseContentPadding.calculateTopPadding() + 64.dp,
+                start = baseContentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                end = baseContentPadding.calculateEndPadding(LocalLayoutDirection.current),
+                bottom = baseContentPadding.calculateBottomPadding(),
+            )
         ) {
 
             quickPicks?.takeIf { it.isNotEmpty() }?.let { quickPicks ->

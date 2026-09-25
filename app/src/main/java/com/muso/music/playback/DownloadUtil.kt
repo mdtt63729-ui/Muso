@@ -16,6 +16,7 @@ import androidx.media3.exoplayer.offline.DownloadNotificationHelper
 import com.zionhuang.innertube.YouTube
 import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AudioQualityKey
+import com.muso.music.constants.DownloadQualityKey
 import com.muso.music.db.MusicDatabase
 import com.muso.music.db.entities.FormatEntity
 import com.muso.music.di.DownloadCache
@@ -33,6 +34,15 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.media3.common.Requirements
+import com.muso.music.constants.DownloadOnWifiOnlyKey
+import com.muso.music.utils.dataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
+import androidx.media3.common.C
+import androidx.media3.datasource.DataSpec
 
 @Singleton
 class DownloadUtil @Inject constructor(
@@ -44,30 +54,76 @@ class DownloadUtil @Inject constructor(
 ) {
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
+
+    // SimpMusic-style separate download quality: downloads can pick a different stream
+    // than streaming playback does.
+    private val downloadQuality by enumPreference(context, DownloadQualityKey, AudioQuality.AUTO)
+
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
-    private val dataSourceFactory = ResolvingDataSource.Factory(
-        CacheDataSource.Factory()
-            .setCache(playerCache)
-            .setUpstreamDataSourceFactory(
-                OkHttpDataSource.Factory(
-                    OkHttpClient.Builder()
-                        .proxy(YouTube.proxy)
-                        .build()
+
+    private companion object {
+        const val PRELOAD_BYTES = 3L * 1024 * 1024
+    }
+
+    /**
+     * Preload next song (Echo Player and Audio): pulls roughly 3 MB of the song's
+     * audio stream into the player cache through the same resolving data source the
+     * player uses, so the next track starts instantly. Bounded and best-effort -
+     * any failure is swallowed silently.
+     */
+    fun preloadSong(songId: String) {
+        runCatching {
+            if (playerCache.isCached(songId, 0, PRELOAD_BYTES)) return
+            val dataSource = dataSourceFactory.createDataSource()
+            val spec = DataSpec.Builder()
+                .setUri("https://muso.internal/preload".toUri())
+                .setKey(songId)
+                .setPosition(0)
+                .setLength(PRELOAD_BYTES)
+                .build()
+            val buffer = ByteArray(64 * 1024)
+            dataSource.open(spec).use { length ->
+                var total = 0L
+                while (total < PRELOAD_BYTES) {
+                    val read = dataSource.read(buffer, 0, buffer.size)
+                    if (read == C.RESULT_END_OF_INPUT) break
+                    total += read
+                }
+            }
+        }
+    }
+
+    /**
+     * One resolving data source factory per quality choice. The streaming factory keeps
+     * the URL cache shortcut; the download factory always resolves fresh so the two
+     * qualities never fight over one cached URL.
+     */
+    private fun createDataSourceFactory(quality: () -> AudioQuality, useUrlCache: Boolean) =
+        ResolvingDataSource.Factory(
+            CacheDataSource.Factory()
+                .setCache(playerCache)
+                .setUpstreamDataSourceFactory(
+                    OkHttpDataSource.Factory(
+                        OkHttpClient.Builder()
+                            .proxy(YouTube.proxy)
+                            .build()
+                    )
                 )
-            )
-    ) { dataSpec ->
-        val mediaId = dataSpec.key ?: error("No media id")
-        val length = if (dataSpec.length >= 0) dataSpec.length else 1
+        ) { dataSpec ->
+            val mediaId = dataSpec.key ?: error("No media id")
+            val length = if (dataSpec.length >= 0) dataSpec.length else 1
 
-        if (playerCache.isCached(mediaId, dataSpec.position, length)) {
-            return@Factory dataSpec
-        }
+            if (playerCache.isCached(mediaId, dataSpec.position, length)) {
+                return@Factory dataSpec
+            }
 
-        songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
-            return@Factory dataSpec.withUri(it.first.toUri())
-        }
+            if (useUrlCache) {
+                songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
+                    return@Factory dataSpec.withUri(it.first.toUri())
+                }
+            }
 
-        val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
+            val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
         val playerResponse = runBlocking(Dispatchers.IO) {
             YouTube.player(mediaId)
         }.getOrThrow()
@@ -82,7 +138,7 @@ class DownloadUtil @Inject constructor(
                 playerResponse.streamingData?.adaptiveFormats
                     ?.filter { it.isAudio }
                     ?.maxByOrNull {
-                        it.bitrate * when (audioQuality) {
+                        it.bitrate * when (quality()) {
                             AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
                             AudioQuality.HIGH -> 1
                             AudioQuality.LOW -> -1
@@ -108,11 +164,16 @@ class DownloadUtil @Inject constructor(
             )
         }
 
-        songUrlCache[mediaId] = format.url!! to playerResponse.streamingData!!.expiresInSeconds * 1000L
+        if (useUrlCache) {
+            songUrlCache[mediaId] = format.url!! to playerResponse.streamingData!!.expiresInSeconds * 1000L
+        }
         dataSpec.withUri(format.url!!.toUri())
     }
+
+    private val dataSourceFactory = createDataSourceFactory({ audioQuality }, useUrlCache = true)
+    private val downloadDataSourceFactory = createDataSourceFactory({ downloadQuality }, useUrlCache = false)
     val downloadNotificationHelper = DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)
-    val downloadManager: DownloadManager = DownloadManager(context, databaseProvider, downloadCache, dataSourceFactory, Executor(Runnable::run)).apply {
+    val downloadManager: DownloadManager = DownloadManager(context, databaseProvider, downloadCache, downloadDataSourceFactory, Executor(Runnable::run)).apply {
         maxParallelDownloads = 3
         addListener(
             ExoDownloadService.TerminalStateNotificationHelper(
@@ -144,5 +205,17 @@ class DownloadUtil @Inject constructor(
                 }
             }
         )
+
+        // Echo Player and Audio: keep downloads waiting for Wi-Fi while enabled.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            context.dataStore.data
+                .map { it[DownloadOnWifiOnlyKey] ?: false }
+                .distinctUntilChanged()
+                .collect { wifiOnly ->
+                    downloadManager.setRequirements(
+                        Requirements(if (wifiOnly) Requirements.NETWORK_UNMETERED else 0),
+                    )
+                }
+        }
     }
 }

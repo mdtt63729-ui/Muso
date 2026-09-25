@@ -15,6 +15,8 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
 import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_POSITION_DISCONTINUITY
 import androidx.media3.common.Player.EVENT_TIMELINE_CHANGED
@@ -61,8 +63,18 @@ import com.muso.music.R
 import com.muso.music.constants.AudioNormalizationKey
 import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AudioQualityKey
+import com.muso.music.constants.LoudnessPreset
+import com.muso.music.constants.LoudnessPresetKey
+import com.muso.music.constants.HistoryDurationKey
+import com.muso.music.constants.PreventDuplicateTracksKey
+import com.muso.music.constants.PauseOnMuteKey
+import com.muso.music.constants.DataSaverKey
+import com.muso.music.constants.AudioOffloadKey
+import android.database.ContentObserver
+import android.media.AudioManager
 import com.muso.music.constants.AutoLoadMoreKey
 import com.muso.music.constants.AutoSkipNextOnErrorKey
+import com.muso.music.constants.AutoDownloadLikedSongsKey
 import com.muso.music.constants.DiscordTokenKey
 import com.muso.music.constants.EnableDiscordRPCKey
 import com.muso.music.constants.HideExplicitKey
@@ -76,9 +88,16 @@ import com.muso.music.constants.CrossfadeEnabledKey
 import com.muso.music.constants.CrossfadeDurationKey
 import com.muso.music.constants.PlayerVolumeKey
 import com.muso.music.constants.RepeatModeKey
+import com.muso.music.constants.PreloadLyricsKey
+import com.muso.music.constants.PreloadNextSongKey
+import com.muso.music.constants.AutomixKey
+import com.muso.music.constants.SpatialAudioKey
+import com.muso.music.constants.ShuffleModeKey
+import com.muso.music.constants.SongSortType
 import com.muso.music.constants.ShowLyricsKey
 import com.muso.music.constants.SkipSilenceKey
 import com.muso.music.db.MusicDatabase
+import com.muso.music.db.entities.SongEntity
 import com.muso.music.db.entities.Event
 import com.muso.music.db.entities.FormatEntity
 import com.muso.music.db.entities.LyricsEntity
@@ -105,6 +124,7 @@ import com.muso.music.utils.CoilBitmapLoader
 import com.muso.music.utils.DiscordRPC
 import com.muso.music.utils.dataStore
 import com.muso.music.utils.enumPreference
+import com.muso.music.utils.preference
 import com.muso.music.utils.get
 import com.muso.music.utils.isInternetAvailable
 import com.muso.music.utils.reportException
@@ -117,6 +137,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -152,6 +173,9 @@ class MusicService : MediaLibraryService(),
     lateinit var database: MusicDatabase
 
     @Inject
+    lateinit var downloadUtil: DownloadUtil
+
+    @Inject
     lateinit var lyricsHelper: LyricsHelper
 
     @Inject
@@ -163,6 +187,10 @@ class MusicService : MediaLibraryService(),
     private lateinit var connectivityManager: ConnectivityManager
 
     private val audioQuality by enumPreference(this, AudioQualityKey, AudioQuality.AUTO)
+
+    // Echo Player and Audio settings
+    private val dataSaver by preference(this, DataSaverKey, false)
+    private var volumeObserver: ContentObserver? = null
 
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
@@ -252,12 +280,73 @@ class MusicService : MediaLibraryService(),
             .build()
         player.repeatMode = dataStore.get(RepeatModeKey, REPEAT_MODE_OFF)
 
+        // Echo Player and Audio: prune old listening history once at startup.
+        scope.launch(Dispatchers.IO) {
+            val hours = dataStore.get(HistoryDurationKey, 0)
+            if (hours > 0) {
+                database.query {
+                    deleteEventsBefore(LocalDateTime.now().minusHours(hours.toLong()))
+                }
+            }
+        }
+
+        // Echo Player and Audio: pause when the media stream is muted (volume 0).
+        volumeObserver = object : ContentObserver(null) {
+            override fun onChange(selfChange: Boolean) {
+                if (!dataStore.get(PauseOnMuteKey, false)) return
+                val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager ?: return
+                if (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) == 0) {
+                    player.pause()
+                }
+            }
+        }
+        contentResolver.registerContentObserver(
+            android.provider.Settings.System.getUriFor("volume_music_speaker"),
+            false,
+            volumeObserver!!,
+        )
+        // SimpMusic-style "save shuffle and repeat mode": both survive a restart.
+        player.shuffleModeEnabled = dataStore.get(ShuffleModeKey, false)
+
         // Keep a connected controller so that notification works
         val sessionToken = SessionToken(this, ComponentName(this, MusicService::class.java))
         val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
         controllerFuture.addListener({ controllerFuture.get() }, MoreExecutors.directExecutor())
 
         connectivityManager = getSystemService()!!
+
+        // === SimpMusic-style auto-download: keep every liked song available offline.
+        // A song is only queued when the download manager has never seen it, so failed
+        // or user-removed downloads are never retried behind the user's back, and the
+        // loop always converges (queued ids immediately appear in the downloads map).
+        scope.launch(Dispatchers.IO) {
+            dataStore.data.map { it[AutoDownloadLikedSongsKey] == true }
+                .distinctUntilChanged()
+                .collectLatest { enabled ->
+                    if (!enabled) return@collectLatest
+                    val inFlight = mutableSetOf<String>()
+                    combine(
+                        database.likedSongs(SongSortType.CREATE_DATE, true),
+                        downloadUtil.downloads,
+                    ) { songs, downloads ->
+                        songs.filter { it.id !in downloads && it.id !in inFlight }
+                    }.collect { pending ->
+                        pending.forEach { song ->
+                            inFlight += song.id
+                            val downloadRequest = DownloadRequest.Builder(song.id, song.id.toUri())
+                                .setCustomCacheKey(song.id)
+                                .setData(song.song.title.toByteArray())
+                                .build()
+                            DownloadService.sendAddDownload(
+                                this@MusicService,
+                                ExoDownloadService::class.java,
+                                downloadRequest,
+                                false,
+                            )
+                        }
+                    }
+                }
+        }
 
         combine(playerVolume, normalizeFactor, crossfadeFactor) { playerVolume, normalizeFactor, crossfadeFactor ->
             playerVolume * normalizeFactor * crossfadeFactor
@@ -347,14 +436,23 @@ class MusicService : MediaLibraryService(),
             currentFormat,
             dataStore.data
                 .map { it[AudioNormalizationKey] ?: true }
-                .distinctUntilChanged()
-        ) { format, normalizeAudio ->
-            format to normalizeAudio
-        }.collectLatest(scope) { (format, normalizeAudio) ->
-            normalizeFactor.value = if (normalizeAudio && format?.loudnessDb != null) {
-                min(10f.pow(-format.loudnessDb.toFloat() / 20), 1f)
-            } else {
-                1f
+                .distinctUntilChanged(),
+            dataStore.data
+                .map { it[LoudnessPresetKey] ?: LoudnessPreset.NORMAL.name }
+                .distinctUntilChanged(),
+        ) { format, normalizeAudio, presetName ->
+            Triple(
+                format,
+                normalizeAudio,
+                LoudnessPreset.values().firstOrNull { it.name == presetName } ?: LoudnessPreset.NORMAL,
+            )
+        }.collectLatest(scope) { (format, normalizeAudio, loudnessPreset) ->
+            normalizeFactor.value = when {
+                !normalizeAudio || format?.loudnessDb == null -> 1f
+                loudnessPreset == LoudnessPreset.OFF -> 1f
+                loudnessPreset == LoudnessPreset.STRONG ->
+                    (10f.pow(-format.loudnessDb.toFloat() / 20f)).coerceAtMost(2f)
+                else -> min(10f.pow(-format.loudnessDb.toFloat() / 20f), 1f)
             }
         }
 
@@ -531,13 +629,26 @@ class MusicService : MediaLibraryService(),
         }
     }
 
+    // Echo Player and Audio: optionally drop songs that are already queued.
+    private fun withoutQueueDuplicates(items: List<MediaItem>): List<MediaItem> {
+        if (!dataStore.get(PreventDuplicateTracksKey, false)) return items
+        val existing = HashSet<String>()
+        for (i in 0 until player.mediaItemCount) {
+            existing.add(player.getMediaItemAt(i).mediaId)
+        }
+        return items.filter { it.mediaId !in existing }
+    }
+
     fun playNext(items: List<MediaItem>) {
-        player.addMediaItems(if (player.mediaItemCount == 0) 0 else player.currentMediaItemIndex + 1, items)
+        player.addMediaItems(
+            if (player.mediaItemCount == 0) 0 else player.currentMediaItemIndex + 1,
+            withoutQueueDuplicates(items),
+        )
         player.prepare()
     }
 
     fun addToQueue(items: List<MediaItem>) {
-        player.addMediaItems(items)
+        player.addMediaItems(withoutQueueDuplicates(items))
         player.prepare()
     }
 
@@ -580,6 +691,54 @@ class MusicService : MediaLibraryService(),
         )
     }
 
+    // Automix (Echo Player and Audio): a quick volume fade when skipping, so manual
+    // skips blend as smoothly as natural track transitions do. Falls back to the plain
+    // skip when the setting is off.
+    fun fadeSkip(forward: Boolean) {
+        if (!dataStore.get(AutomixKey, false) || crossfadeEnabled) {
+            if (forward) player.seekToNext() else player.seekToPrevious()
+            return
+        }
+        fadeJob?.cancel()
+        fadeJob = scope.launch {
+            val steps = 7
+            repeat(steps) { i ->
+                crossfadeFactor.value = 1f - (i + 1f) / steps
+                delay(45)
+            }
+            if (forward) player.seekToNext() else player.seekToPrevious()
+            crossfadeFactor.value = 0f
+            // quick fade back in, mirroring the natural-transition treatment
+            repeat(steps) { i ->
+                crossfadeFactor.value = (i + 1f) / steps
+                delay(45)
+            }
+            crossfadeFactor.value = 1f
+        }
+    }
+
+    // Preload (Echo Player and Audio): cache the next song's audio and lyrics early.
+    private fun preloadNext() {
+        if (player.playbackState == STATE_IDLE) return
+        val nextIndex = player.currentMediaItemIndex + 1
+        if (nextIndex >= player.mediaItemCount) return
+        val nextId = player.getMediaItemAt(nextIndex).mediaId ?: return
+        if (dataStore.get(PreloadNextSongKey, false)) {
+            scope.launch(Dispatchers.IO + SilentHandler) {
+                runCatching { downloadUtil.preloadSong(nextId) }
+            }
+        }
+        if (dataStore.get(PreloadLyricsKey, false)) {
+            scope.launch(Dispatchers.IO + SilentHandler) {
+                runCatching {
+                    database.song(nextId).first()?.let { song ->
+                        lyricsHelper.getLyrics(song.toMediaMetadata())
+                    }
+                }
+            }
+        }
+    }
+
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         // Auto load more songs
         if (dataStore.get(AutoLoadMoreKey, true) &&
@@ -594,6 +753,8 @@ class MusicService : MediaLibraryService(),
                 }
             }
         }
+
+        preloadNext()
 
         // Crossfade: fade the volume back in after every track transition.
         if (crossfadeEnabled) {
@@ -661,6 +822,14 @@ class MusicService : MediaLibraryService(),
         scope.launch {
             dataStore.edit { settings ->
                 settings[RepeatModeKey] = repeatMode
+            }
+        }
+    }
+
+    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+        scope.launch {
+            dataStore.edit { settings ->
+                settings[ShuffleModeKey] = shuffleModeEnabled
             }
         }
     }
@@ -745,7 +914,7 @@ class MusicService : MediaLibraryService(),
                     playerResponse.streamingData?.adaptiveFormats
                         ?.filter { it.isAudio }
                         ?.maxByOrNull {
-                            it.bitrate * when (audioQuality) {
+                            it.bitrate * when (if (dataSaver) AudioQuality.LOW else audioQuality) {
                                 AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
                                 AudioQuality.HIGH -> 1
                                 AudioQuality.LOW -> -1
@@ -791,12 +960,25 @@ class MusicService : MediaLibraryService(),
             ) = DefaultAudioSink.Builder(this@MusicService)
                 .setEnableFloatOutput(enableFloatOutput)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .setOffloadMode(
+                    if (dataStore.get(AudioOffloadKey, false)) {
+                        DefaultAudioSink.OFFLOAD_MODE_ENABLED
+                    } else {
+                        DefaultAudioSink.OFFLOAD_MODE_DISABLED
+                    },
+                )
                 .setAudioProcessorChain(
+                    // Spatial audio (Echo Player and Audio): a real stereo-widening DSP,
+                    // prepended to the chain when enabled (applies on next app start).
                     DefaultAudioSink.DefaultAudioProcessorChain(
-                        emptyArray(),
-                        SilenceSkippingAudioProcessor(2_000_000, 0.01f, 2_000_000, 0, 256),
-                        SonicAudioProcessor()
-                    )
+                        *buildList {
+                            if (dataStore.get(SpatialAudioKey, false)) {
+                                add(SpatialAudioProcessor())
+                            }
+                            add(SilenceSkippingAudioProcessor(2_000_000, 0.01f, 2_000_000, 0, 256))
+                            add(SonicAudioProcessor())
+                        }.toTypedArray(),
+                    ),
                 )
                 .build()
         }
@@ -843,6 +1025,8 @@ class MusicService : MediaLibraryService(),
     }
 
     override fun onDestroy() {
+        volumeObserver?.let { contentResolver.unregisterContentObserver(it) }
+        volumeObserver = null
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }

@@ -239,6 +239,18 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/backup_restore") {
         BackupAndRestore(navController, scrollBehavior)
     }
+    composable("settings/listening_history") {
+        ListeningHistorySettings(navController, scrollBehavior)
+    }
+    composable("settings/ai") {
+        AISettings(navController, scrollBehavior)
+    }
+    composable("settings/spotify") {
+        SpotifySettings(navController, scrollBehavior)
+    }
+    composable("spotify_login") {
+        SpotifyLoginScreen(navController)
+    }
     composable("settings/discord") {
         DiscordSettings(navController, scrollBehavior)
     }

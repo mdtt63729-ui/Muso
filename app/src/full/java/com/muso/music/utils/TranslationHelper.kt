@@ -1,5 +1,6 @@
 package com.muso.music.utils
 
+import android.content.Context
 import android.util.LruCache
 import com.github.houbb.opencc4j.util.ZhConverterUtil
 import com.google.mlkit.common.model.DownloadConditions
@@ -18,7 +19,10 @@ object TranslationHelper {
     private const val MAX_CACHE_SIZE = 20
     private val cache = LruCache<String, LyricsEntity>(MAX_CACHE_SIZE)
 
-    suspend fun translate(lyrics: LyricsEntity): LyricsEntity {
+    suspend fun translate(context: Context, lyrics: LyricsEntity): LyricsEntity {
+        // AI translation (own API key) takes priority when enabled; otherwise the
+        // on-device ML Kit translator runs like before.
+        AITranslator.config(context)?.let { return AITranslator.translate(context, lyrics) }
         cache[lyrics.id]?.let { return it }
         val isSynced = lyrics.lyrics.startsWith("[")
         val sourceLanguage = TranslateLanguage.fromLanguageTag(

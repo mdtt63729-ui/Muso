@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.muso.music.LocalPlayerAwareWindowInsets
@@ -117,12 +118,21 @@ fun AudioEffectsSettings(
         }
     }
 
+    val scrollState = rememberScrollState()
+
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+
+        Text(
+            text = stringResource(R.string.audio_effects),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.audio_effects)) },
@@ -252,7 +262,16 @@ fun AudioEffectsSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.audio_effects)) },
+        title = {
+            // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
+            androidx.compose.animation.AnimatedVisibility(
+                visible = scrollState.value > 100,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut(),
+            ) {
+                Text(stringResource(R.string.audio_effects))
+            }
+        },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,

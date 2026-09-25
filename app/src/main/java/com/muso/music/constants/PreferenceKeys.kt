@@ -2,6 +2,7 @@ package com.muso.music.constants
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 
@@ -14,6 +15,27 @@ val PlayerStyleKey = stringPreferencesKey("playerStyle")
 val AnimationsEnabledKey = booleanPreferencesKey("animationsEnabled")
 val GestureAnimationsKey = booleanPreferencesKey("gestureAnimations")
 val ReducedMotionKey = booleanPreferencesKey("reducedMotion")
+val AutoDownloadLikedSongsKey = booleanPreferencesKey("autoDownloadLikedSongs")
+val DownloadQualityKey = stringPreferencesKey("downloadQuality")
+val AutoBackupKey = booleanPreferencesKey("autoBackup")
+val AutoBackupFrequencyKey = stringPreferencesKey("autoBackupFrequency")
+val LastAutoBackupKey = longPreferencesKey("lastAutoBackup")
+val ShuffleModeKey = booleanPreferencesKey("shuffleModeEnabled")
+val CustomThemeColorKey = intPreferencesKey("customThemeColor")
+
+// --- AI (SimpMusic port) ---
+val AIProviderKey = stringPreferencesKey("aiProvider")
+val AIApiKeyKey = stringPreferencesKey("aiApiKey")
+val AICustomModelKey = stringPreferencesKey("aiCustomModel")
+val AICustomBaseURLKey = stringPreferencesKey("aiCustomBaseURL")
+val UseAITranslationKey = booleanPreferencesKey("useAITranslation")
+val AITargetLanguageKey = stringPreferencesKey("aiTargetLanguage")
+
+// --- Spotify (SimpMusic port) ---
+val SpotifyClientIDKey = stringPreferencesKey("spotifyClientID")
+val SpotifyAccessTokenKey = stringPreferencesKey("spotifyAccessToken")
+val SpotifyRefreshTokenKey = stringPreferencesKey("spotifyRefreshToken")
+val SpotifyDisplayNameKey = stringPreferencesKey("spotifyDisplayName")
 val LyricsStyleKey = stringPreferencesKey("lyricsStyle")
 val LyricsTextSizeKey = intPreferencesKey("lyricsTextSize")
 val LyricsBlurEnabledKey = booleanPreferencesKey("lyricsBlurEnabled")
@@ -41,6 +63,17 @@ enum class MixSortType {
 enum class LyricsStyle {
     APPLE_MUSIC,
     CLASSIC,
+}
+
+enum class AIProvider {
+    OPENAI,
+    GEMINI,
+    CUSTOM_OPENAI,
+}
+
+enum class AutoBackupFrequency {
+    DAILY,
+    WEEKLY,
 }
 
 enum class PlayerStyle {
@@ -460,3 +493,39 @@ val AppLanguageToName = mapOf(
 // Animated artwork (Ken Burns) + lyrics romanization
 val AnimatedArtworkKey = booleanPreferencesKey("animatedArtwork")
 val LyricsRomanizationKey = booleanPreferencesKey("lyricsRomanization")
+val LyricsTextPositionKey = stringPreferencesKey("lyricsTextPosition")
+val LyricsLineSpacingKey = floatPreferencesKey("lyricsLineSpacing")
+val PlayerButtonsStyleKey = stringPreferencesKey("playerButtonsStyle")
+val HidePlayerSliderKey = booleanPreferencesKey("hidePlayerSlider")
+val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
+val CropAlbumArtKey = booleanPreferencesKey("cropAlbumArt")
+val RotatingArtworkKey = booleanPreferencesKey("rotatingArtwork")
+val ShowCodecOnPlayerKey = booleanPreferencesKey("showCodecOnPlayer")
+val HighRefreshRateKey = booleanPreferencesKey("highRefreshRate")
+val ShowLikedPlaylistKey = booleanPreferencesKey("showLikedPlaylist")
+val ShowDownloadedPlaylistKey = booleanPreferencesKey("showDownloadedPlaylist")
+val ShowUploadedPlaylistKey = booleanPreferencesKey("showUploadedPlaylist")
+val ShowCachedPlaylistKey = booleanPreferencesKey("showCachedPlaylist")
+
+enum class PlayerButtonsStyle { DEFAULT, PRIMARY, TERTIARY }
+
+// Echo Player and Audio settings
+val DataSaverKey = booleanPreferencesKey("dataSaver")
+val DownloadOnWifiOnlyKey = booleanPreferencesKey("downloadOnWifiOnly")
+val AudioOffloadKey = booleanPreferencesKey("audioOffload")
+val PreventDuplicateTracksKey = booleanPreferencesKey("preventDuplicateTracks")
+val PauseOnMuteKey = booleanPreferencesKey("pauseOnMute")
+val SeekExtraSecondsKey = booleanPreferencesKey("seekExtraSeconds")
+val HistoryDurationKey = intPreferencesKey("historyDurationHours")
+val LoudnessPresetKey = stringPreferencesKey("loudnessPreset")
+
+enum class LoudnessPreset { OFF, NORMAL, STRONG }
+val SpatialAudioKey = booleanPreferencesKey("spatialAudio")
+val AutomixKey = booleanPreferencesKey("automix")
+val PreloadNextSongKey = booleanPreferencesKey("preloadNextSong")
+val PreloadLyricsKey = booleanPreferencesKey("preloadLyrics")
+val ArtworkBackgroundKey = booleanPreferencesKey("artworkBackground")
+val LastArtworkBackgroundColorKey = intPreferencesKey("lastArtworkBackgroundColor")
+enum class LyricsPosition { LEFT, CENTER, RIGHT }
+
+// Echo-style appearance toggles: see AppearanceSettings.

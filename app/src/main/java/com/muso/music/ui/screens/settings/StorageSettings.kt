@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.annotation.ExperimentalCoilApi
@@ -104,12 +105,21 @@ fun StorageSettings(
         }
     }
 
+    val scrollState = rememberScrollState()
+
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+
+        Text(
+            text = stringResource(R.string.storage),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
 
         PreferenceGroupTitle(
             title = stringResource(R.string.downloaded_songs)
@@ -229,7 +239,16 @@ fun StorageSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.storage)) },
+        title = {
+            // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
+            androidx.compose.animation.AnimatedVisibility(
+                visible = scrollState.value > 100,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut(),
+            ) {
+                Text(stringResource(R.string.storage))
+            }
+        },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,

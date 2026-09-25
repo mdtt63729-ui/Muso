@@ -26,7 +26,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +53,10 @@ import com.muso.music.constants.LibraryViewType
 import com.muso.music.constants.MixSortDescendingKey
 import com.muso.music.constants.MixSortType
 import com.muso.music.constants.MixSortTypeKey
+import com.muso.music.constants.ShowCachedPlaylistKey
+import com.muso.music.constants.ShowUploadedPlaylistKey
+import com.muso.music.constants.ShowDownloadedPlaylistKey
+import com.muso.music.constants.ShowLikedPlaylistKey
 import com.muso.music.constants.MixViewTypeKey
 import com.muso.music.db.entities.Album
 import com.muso.music.db.entities.Artist
@@ -106,7 +109,9 @@ fun LibraryMixScreen(
     val (sortDescending, onSortDescendingChange) = rememberPreference(MixSortDescendingKey, true)
     var viewType by rememberEnumPreference(MixViewTypeKey, LibraryViewType.GRID)
 
-    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    // Plain remember (not rememberSaveable): restoring the library tab must never come
+    // back in search mode, so the focus race cannot happen on tab restore at all.
+    var isSearchActive by remember { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsState()
     val debouncedSearchQuery by viewModel.debouncedSearchQuery.collectAsState()
 
@@ -121,11 +126,16 @@ fun LibraryMixScreen(
         !searching || values.any { it?.contains(query, ignoreCase = true) == true }
     }
 
-    val autoPlaylists = listOf(
-        Playlist(PlaylistEntity(id = PlaylistEntity.LIKED_PLAYLIST_ID, name = stringResource(R.string.liked)), songCount = 0, thumbnails = emptyList()),
-        Playlist(PlaylistEntity(id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID, name = stringResource(R.string.offline)), songCount = 0, thumbnails = emptyList()),
-        Playlist(PlaylistEntity(id = "LP_UPLOADED", name = stringResource(R.string.uploaded)), songCount = 0, thumbnails = emptyList()),
-        Playlist(PlaylistEntity(id = "LP_CACHED", name = stringResource(R.string.cached)), songCount = 0, thumbnails = emptyList()),
+    // Auto playlists (Echo appearance settings): each one can be hidden from the grid.
+    val showLiked by rememberPreference(ShowLikedPlaylistKey, true)
+    val showDownloaded by rememberPreference(ShowDownloadedPlaylistKey, true)
+    val showUploaded by rememberPreference(ShowUploadedPlaylistKey, true)
+    val showCached by rememberPreference(ShowCachedPlaylistKey, true)
+    val autoPlaylists = listOfNotNull(
+        if (showLiked) Playlist(PlaylistEntity(id = PlaylistEntity.LIKED_PLAYLIST_ID, name = stringResource(R.string.liked)), songCount = 0, thumbnails = emptyList()) else null,
+        if (showDownloaded) Playlist(PlaylistEntity(id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID, name = stringResource(R.string.offline)), songCount = 0, thumbnails = emptyList()) else null,
+        if (showUploaded) Playlist(PlaylistEntity(id = "LP_UPLOADED", name = stringResource(R.string.uploaded)), songCount = 0, thumbnails = emptyList()) else null,
+        if (showCached) Playlist(PlaylistEntity(id = "LP_CACHED", name = stringResource(R.string.cached)), songCount = 0, thumbnails = emptyList()) else null,
     )
     val visibleAutoPlaylists = autoPlaylists.filter { matches(arrayOf(it.playlist.name)) }
 

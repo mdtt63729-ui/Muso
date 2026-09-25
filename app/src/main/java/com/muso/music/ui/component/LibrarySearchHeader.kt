@@ -14,6 +14,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -43,7 +44,11 @@ fun LibrarySearchHeader(
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
-            focusRequester.requestFocus()
+            // The request must be deferred to the next frame: requesting it in the same
+            // frame the TextField enters composition crashes with "FocusRequester is not
+            // initialized" (the same class of bug as the search tab crash).
+            withFrameNanos { }
+            runCatching { focusRequester.requestFocus() }
             keyboardController?.show()
         }
     }

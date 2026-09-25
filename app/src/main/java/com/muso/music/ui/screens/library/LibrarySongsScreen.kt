@@ -285,7 +285,7 @@ fun LibrarySongsScreen(
                 playerConnection.playQueue(
                     ListQueue(
                         title = context.getString(R.string.queue_all_songs),
-                        items = songs!!.shuffled().map { it.toMediaItem() },
+                        items = songs.orEmpty().shuffled().map { it.toMediaItem() },
                     )
                 )
             }

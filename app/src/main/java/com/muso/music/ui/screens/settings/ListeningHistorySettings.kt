@@ -2,15 +2,13 @@ package com.muso.music.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -26,13 +24,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.zionhuang.innertube.YouTube
 import com.muso.music.LocalDatabase
 import com.muso.music.LocalPlayerAwareWindowInsets
 import com.muso.music.R
-import com.muso.music.constants.DisableScreenshotKey
-import com.muso.music.constants.PauseSearchHistoryKey
-import com.muso.music.constants.UseLoginForBrowse
+import com.muso.music.constants.PauseListenHistoryKey
 import com.muso.music.ui.component.DefaultDialog
 import com.muso.music.ui.component.IconButton
 import com.muso.music.ui.component.PreferenceEntry
@@ -40,47 +35,49 @@ import com.muso.music.ui.component.PreferenceGroupTitle
 import com.muso.music.ui.component.SwitchPreference
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberPreference
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 
+/**
+ * SimpMusic's "Listening history" settings, as its own category: the pause switches and
+ * the clear actions for what the app remembers, plus a shortcut to the stats screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PrivacySettings(
+fun ListeningHistorySettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val database = LocalDatabase.current
-    val (pauseSearchHistory, onPauseSearchHistoryChange) = rememberPreference(key = PauseSearchHistoryKey, defaultValue = false)
-    val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(key = UseLoginForBrowse, defaultValue = false)
-    val (disableScreenshot, onDisableScreenshotChange) = rememberPreference(key = DisableScreenshotKey, defaultValue = false)
 
-    var showClearSearchHistoryDialog by remember { mutableStateOf(false) }
-    if (showClearSearchHistoryDialog) {
+    val (pauseListenHistory, onPauseListenHistoryChange) = rememberPreference(key = PauseListenHistoryKey, defaultValue = false)
+
+    var showClearListenHistoryDialog by remember { mutableStateOf(false) }
+    if (showClearListenHistoryDialog) {
         DefaultDialog(
-            onDismiss = { showClearSearchHistoryDialog = false },
+            onDismiss = { showClearListenHistoryDialog = false },
             content = {
                 Text(
-                    text = stringResource(R.string.clear_search_history_confirm),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp)
+                    text = stringResource(R.string.clear_listen_history_confirm),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(horizontal = 18.dp),
                 )
             },
             buttons = {
-                TextButton(
-                    onClick = { showClearSearchHistoryDialog = false }
-                ) {
+                TextButton(onClick = { showClearListenHistoryDialog = false }) {
                     Text(text = stringResource(android.R.string.cancel))
                 }
-
                 TextButton(
                     onClick = {
-                        showClearSearchHistoryDialog = false
+                        showClearListenHistoryDialog = false
                         database.query {
-                            clearSearchHistory()
+                            clearListenHistory()
                         }
-                    }
+                    },
                 ) {
                     Text(text = stringResource(android.R.string.ok))
                 }
-            }
+            },
         )
     }
 
@@ -89,59 +86,38 @@ fun PrivacySettings(
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(scrollState)
+            .verticalScroll(scrollState),
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
 
         Text(
-            text = stringResource(R.string.privacy),
+            text = stringResource(R.string.listening_history),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         PreferenceGroupTitle(
-            title = stringResource(R.string.search_history)
+            title = stringResource(R.string.listening_history),
         )
 
         SwitchPreference(
-            title = { Text(stringResource(R.string.pause_search_history)) },
-            icon = { Icon(painterResource(R.drawable.search_off), null) },
-            checked = pauseSearchHistory,
-            onCheckedChange = onPauseSearchHistoryChange
+            title = { Text(stringResource(R.string.pause_listen_history)) },
+            icon = { Icon(painterResource(R.drawable.history), null) },
+            checked = !pauseListenHistory,
+            onCheckedChange = { onPauseListenHistoryChange(!it) },
         )
 
         PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_search_history)) },
-            icon = { Icon(painterResource(R.drawable.clear_all), null) },
-            onClick = { showClearSearchHistoryDialog = true }
+            title = { Text(stringResource(R.string.clear_listen_history)) },
+            icon = { Icon(painterResource(R.drawable.delete_history), null) },
+            onClick = { showClearListenHistoryDialog = true },
         )
 
-        PreferenceGroupTitle(
-            title = stringResource(R.string.account)
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.use_login_for_browse)) },
-            description = stringResource(R.string.use_login_for_browse_desc),
-            icon = { Icon(painterResource(R.drawable.person), null) },
-            checked = useLoginForBrowse,
-            onCheckedChange = {
-                YouTube.useLoginForBrowse = it
-                onUseLoginForBrowseChange(it)
-            }
-        )
-
-        PreferenceGroupTitle(
-            title = stringResource(R.string.misc)
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.disable_screenshot)) },
-            description = stringResource(R.string.disable_screenshot_desc),
-            icon = { Icon(painterResource(R.drawable.screenshot), null) },
-            checked = disableScreenshot,
-            onCheckedChange = onDisableScreenshotChange
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.stats)) },
+            icon = { Icon(painterResource(R.drawable.trending_up), null) },
+            onClick = { navController.navigate("stats") },
         )
     }
 
@@ -153,20 +129,20 @@ fun PrivacySettings(
                 enter = androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.fadeOut(),
             ) {
-                Text(stringResource(R.string.privacy))
+                Text(stringResource(R.string.listening_history))
             }
         },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain
+                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),
-                    contentDescription = null
+                    contentDescription = null,
                 )
             }
         },
-        scrollBehavior = scrollBehavior
+        scrollBehavior = scrollBehavior,
     )
 }

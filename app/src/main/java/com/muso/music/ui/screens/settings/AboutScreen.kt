@@ -33,6 +33,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -50,14 +53,23 @@ fun AboutScreen(
 ) {
     val uriHandler = LocalUriHandler.current
 
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+
+        Text(
+            text = stringResource(R.string.about),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
 
         Spacer(Modifier.height(4.dp))
 
@@ -76,8 +88,10 @@ fun AboutScreen(
         ) {
             Text(
                 text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                // Brand wordmark: Gochi Hand, weight 400, no effects.
+                fontFamily = FontFamily(Font(R.font.gochi_hand)),
+                fontWeight = FontWeight.Normal,
+                fontSize = 30.sp,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
             )
         }
@@ -170,7 +184,16 @@ fun AboutScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.about)) },
+        title = {
+            // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
+            androidx.compose.animation.AnimatedVisibility(
+                visible = scrollState.value > 100,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut(),
+            ) {
+                Text(stringResource(R.string.about))
+            }
+        },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,

@@ -10,4 +10,9 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+
+    <!-- Black window so the splash never flashes white, on any API level. -->
+    <style name="MusoSplashTheme" parent="@style/Theme.InnerTune">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
 </resources>

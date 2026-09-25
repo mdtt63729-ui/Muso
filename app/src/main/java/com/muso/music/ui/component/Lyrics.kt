@@ -59,9 +59,9 @@ import com.muso.music.constants.LyricsStyle
 import com.muso.music.constants.LyricsAutoScrollKey
 import com.muso.music.constants.ReducedMotionKey
 import com.muso.music.constants.LyricsBlurEnabledKey
-import com.muso.music.constants.LyricsStyleKey
+import com.muso.music.constants.LyricsLineSpacingKey
+import com.muso.music.constants.LyricsPosition
 import com.muso.music.constants.LyricsTextSizeKey
-import com.muso.music.constants.PlayerTextAlignmentKey
 import com.muso.music.constants.TranslateLyricsKey
 import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.muso.music.lyrics.LyricsEntry
@@ -71,7 +71,6 @@ import com.muso.music.lyrics.LyricsUtils.parseLyrics
 import com.muso.music.ui.component.shimmer.ShimmerHost
 import com.muso.music.ui.component.shimmer.TextPlaceholder
 import com.muso.music.ui.menu.LyricsMenu
-import com.muso.music.ui.screens.settings.PlayerTextAlignment
 import com.muso.music.ui.utils.fadingEdge
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.Romanizer
@@ -102,7 +101,18 @@ fun Lyrics(
     val menuState = LocalMenuState.current
     val density = LocalDensity.current
 
-    val playerTextAlignment by rememberEnumPreference(PlayerTextAlignmentKey, PlayerTextAlignment.CENTER)
+    val lyricsPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    val lyricsTextAlign = when (lyricsPosition) {
+        LyricsPosition.LEFT -> TextAlign.Start
+        LyricsPosition.CENTER -> TextAlign.Center
+        LyricsPosition.RIGHT -> TextAlign.End
+    }
+    val lyricsBoxAlignment = when (lyricsPosition) {
+        LyricsPosition.LEFT -> Alignment.CenterStart
+        LyricsPosition.CENTER -> Alignment.Center
+        LyricsPosition.RIGHT -> Alignment.CenterEnd
+    }
+    val lyricsLineSpacing by rememberPreference(LyricsLineSpacingKey, 1.3f)
     val lyricsStyle by rememberEnumPreference(LyricsStyleKey, LyricsStyle.APPLE_MUSIC)
     var translationEnabled by rememberPreference(TranslateLyricsKey, false)
     val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 26)
@@ -224,6 +234,7 @@ fun Lyrics(
     ) {
         LazyColumn(
             state = lazyListState,
+            verticalArrangement = Arrangement.spacedBy((lyricsLineSpacing - 1f) * 24f.dp),
             contentPadding = WindowInsets.systemBars
                 .only(WindowInsetsSides.Top)
                 .add(WindowInsets(top = maxHeight / 2, bottom = maxHeight / 2))
@@ -251,10 +262,7 @@ fun Lyrics(
                     ShimmerHost {
                         repeat(10) {
                             Box(
-                                contentAlignment = when (playerTextAlignment) {
-                                    PlayerTextAlignment.SIDED -> Alignment.CenterStart
-                                    PlayerTextAlignment.CENTER -> Alignment.Center
-                                },
+                                contentAlignment = lyricsBoxAlignment,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 24.dp, vertical = 4.dp)
@@ -277,14 +285,24 @@ fun Lyrics(
                             words = item.words,
                             isCurrentLine = isCurrentLine,
                             isPastLine = hasActiveLine && index < displayedCurrentLineIndex,
+                            lineAlpha = when {
+                                isCurrentLine || !hasActiveLine -> 1f
+                                else -> {
+                                    val d = index - displayedCurrentLineIndex
+                                    val dist = if (d < 0) -d else d
+                                    when (dist) {
+                                        1, 2 -> 0.2f
+                                        3 -> 0.15f
+                                        4 -> 0.1f
+                                        else -> 0.08f
+                                    }
+                                }
+                            },
                             position = playbackPosition,
                             fontSize = lyricsTextSize,
-                            accent = MaterialTheme.colorScheme.primary,
-                            inactiveColor = AppleMusicInactiveLineColor,
-                            textAlign = when (playerTextAlignment) {
-                                PlayerTextAlignment.SIDED -> TextAlign.Start
-                                PlayerTextAlignment.CENTER -> TextAlign.Center
-                            },
+                            accent = Color.White,
+                            inactiveColor = Color.White,
+                            textAlign = lyricsTextAlign,
                             onTapLine = {
                                 playerConnection.player.seekTo(item.time)
                                 lastPreviewTime = 0L
@@ -297,7 +315,7 @@ fun Lyrics(
                     val isAppleMusicStyle = lyricsStyle == LyricsStyle.APPLE_MUSIC
                     val lineColor by animateColorAsState(
                         targetValue = when {
-                            isCurrentLine -> MaterialTheme.colorScheme.primary
+                            isCurrentLine -> Color.White
                             isAppleMusicStyle -> AppleMusicInactiveLineColor
                             else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                         },
@@ -308,10 +326,7 @@ fun Lyrics(
                         text = item.text,
                         fontSize = if (isAppleMusicStyle) lyricsTextSize.sp else (lyricsTextSize - 10).sp,
                         color = lineColor,
-                        textAlign = when (playerTextAlignment) {
-                            PlayerTextAlignment.SIDED -> TextAlign.Start
-                            PlayerTextAlignment.CENTER -> TextAlign.Center
-                        },
+                        textAlign = lyricsTextAlign,
                         fontWeight = if (isAppleMusicStyle) FontWeight.Bold else FontWeight.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -346,10 +361,7 @@ fun Lyrics(
                 text = stringResource(R.string.lyrics_not_found),
                 fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.secondary,
-                textAlign = when (playerTextAlignment) {
-                    PlayerTextAlignment.SIDED -> TextAlign.Start
-                    PlayerTextAlignment.CENTER -> TextAlign.Center
-                },
+                textAlign = lyricsTextAlign,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -414,6 +426,7 @@ private fun KaraokeLyricsLine(
     words: List<LyricsWord>,
     isCurrentLine: Boolean,
     isPastLine: Boolean,
+    lineAlpha: Float,
     position: Long,
     fontSize: Int,
     accent: Color,
@@ -421,9 +434,12 @@ private fun KaraokeLyricsLine(
     textAlign: TextAlign,
     onTapLine: () -> Unit,
 ) {
+    // kimi_5.html parity: no line zoom - distance focus is a pure alpha fade
+    // (1/2 -> .2, 3 -> .15, 4 -> .1, 5+ -> .08), active line fully opaque.
     FlowRow(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(lineAlpha)
             .clickable(onClick = onTapLine)
             .padding(
                 horizontal = 24.dp,
@@ -477,7 +493,7 @@ private fun KaraokeWord(
     val reducedMotion by rememberPreference(ReducedMotionKey, false)
 
     val sinProgress = sin(progress * PI).toFloat()
-    val wordScale = if (reducedMotion) 1f else 1f + (0.015f * sinProgress)
+    val wordScale = if (reducedMotion) 1f else 1f + (0.02f * sinProgress)
 
     val targetFloat = if (reducedMotion) 0f else if (isWordActive) -4f * sinProgress else 0f
     val floatOffset by animateFloatAsState(
@@ -489,12 +505,13 @@ private fun KaraokeWord(
         label = "WordFloatOffset",
     )
 
-    val glowAlpha = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 0.45f else 0f
+    val glowAlpha = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 0.35f else 0f
     val glowRadius = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 12f else 0f
 
     val style = MaterialTheme.typography.headlineMedium.copy(
         fontSize = fontSize.sp,
-        fontWeight = if (isLineActive) FontWeight.Bold else FontWeight.Medium,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = (-0.5).sp,
         shadow = if (glowAlpha > 0f) {
             Shadow(color = accent.copy(alpha = glowAlpha), offset = Offset.Zero, blurRadius = glowRadius.coerceAtLeast(1f))
         } else null,
@@ -510,10 +527,12 @@ private fun KaraokeWord(
         Text(
             text = word.text,
             style = style,
-            color = inactiveColor,
+            color = if (isLineActive) inactiveColor.copy(alpha = 0.3f) else inactiveColor,
         )
 
-        if (isWordComplete || isWordActive) {
+        // kimi_5.html parity: the accent fill layer renders only inside the singing
+        // line; once the line passes, words return to the dim white base.
+        if (isLineActive && (isWordComplete || isWordActive)) {
             Text(
                 text = word.text,
                 style = style,

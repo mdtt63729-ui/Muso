@@ -72,6 +72,9 @@ fun SettingsScreen(
     val effectsDesc = stringResource(R.string.settings_desc_audio_effects)
     val storageDesc = stringResource(R.string.settings_desc_storage)
     val backupDesc = stringResource(R.string.settings_desc_backup)
+    val historyDesc = stringResource(R.string.settings_desc_history)
+    val aiDesc = stringResource(R.string.settings_desc_ai)
+    val spotifyDesc = stringResource(R.string.settings_desc_spotify)
     val discordDesc = stringResource(R.string.settings_desc_discord)
     val privacyDesc = stringResource(R.string.settings_desc_privacy)
     val aboutDesc = stringResource(R.string.settings_desc_about)
@@ -112,6 +115,24 @@ fun SettingsScreen(
             description = backupDesc,
             iconRes = R.drawable.restore,
             route = "settings/backup_restore",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.listening_history),
+            description = historyDesc,
+            iconRes = R.drawable.history,
+            route = "settings/listening_history",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.ai),
+            description = aiDesc,
+            iconRes = R.drawable.auto_awesome,
+            route = "settings/ai",
+        ),
+        SettingsPage(
+            title = stringResource(R.string.spotify),
+            description = spotifyDesc,
+            iconRes = R.drawable.spotify,
+            route = "settings/spotify",
         ),
         SettingsPage(
             title = stringResource(R.string.discord_integration),
@@ -163,13 +184,22 @@ fun SettingsScreen(
         )
     }
 
+    val scrollState = rememberScrollState()
+
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(horizontal = 16.dp)
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+
+        Text(
+            text = stringResource(R.string.settings),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
 
         Text(
             text = stringResource(R.string.settings),
@@ -225,7 +255,16 @@ fun SettingsScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.settings)) },
+        title = {
+            // Echo-style collapse: the big in-content title hands over to the top bar while scrolling.
+            androidx.compose.animation.AnimatedVisibility(
+                visible = scrollState.value > 100,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut(),
+            ) {
+                Text(stringResource(R.string.settings))
+            }
+        },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import android.content.ServiceConnection
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
@@ -15,7 +16,11 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -77,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -86,6 +92,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.Dialog
@@ -93,6 +100,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -108,6 +119,12 @@ import com.zionhuang.innertube.models.SongItem
 import com.muso.music.constants.AppBarHeight
 import com.muso.music.constants.DarkModeKey
 import com.muso.music.constants.DefaultOpenTabKey
+import com.muso.music.constants.AnimationsEnabledKey
+import com.muso.music.constants.CustomThemeColorKey
+import com.muso.music.constants.LastAutoBackupKey
+import com.muso.music.constants.AutoBackupFrequencyKey
+import com.muso.music.constants.AutoBackupFrequency
+import com.muso.music.constants.AutoBackupKey
 import com.muso.music.constants.DisableScreenshotKey
 import com.muso.music.constants.DynamicThemeKey
 import com.muso.music.constants.MiniPlayerHeight
@@ -126,6 +143,7 @@ import com.muso.music.playback.MusicService
 import com.muso.music.playback.MusicService.MusicBinder
 import com.muso.music.playback.PlayerConnection
 import com.muso.music.ui.component.BottomSheetMenu
+import com.muso.music.ui.component.BounceIconButton
 import com.muso.music.ui.component.UpdateDialog
 import com.muso.music.ui.component.IconButton
 import com.muso.music.ui.component.LocalMenuState
@@ -134,7 +152,10 @@ import com.muso.music.ui.component.rememberBottomSheetState
 import com.muso.music.ui.component.shimmer.ShimmerTheme
 import com.muso.music.ui.menu.YouTubeSongMenu
 import com.muso.music.ui.player.BottomSheetPlayer
+import com.muso.music.ui.screens.MusoSplash
+import com.muso.music.constants.HighRefreshRateKey
 import com.muso.music.ui.screens.Screens
+import com.muso.music.ui.screens.splashAlreadyShown
 import com.muso.music.ui.screens.navigationBuilder
 import com.muso.music.ui.screens.search.LocalSearchScreen
 import com.muso.music.ui.screens.search.OnlineSearchScreen
@@ -148,12 +169,17 @@ import com.muso.music.ui.utils.appBarScrollBehavior
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.ui.utils.resetHeightOffset
 import com.muso.music.utils.Updater
+import com.muso.music.utils.AutoBackup
 import android.content.res.Configuration
 import com.muso.music.constants.AppLanguageKey
 import com.muso.music.constants.SYSTEM_DEFAULT
 import java.util.Locale
 import kotlinx.coroutines.runBlocking
 import com.muso.music.utils.dataStore
+import com.muso.music.utils.edit
+import com.muso.music.constants.LastArtworkBackgroundColorKey
+import com.muso.music.constants.ArtworkBackgroundKey
+import androidx.datastore.preferences.core.edit
 import com.muso.music.utils.get
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
@@ -163,6 +189,7 @@ import com.muso.music.utils.urlEncode
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -170,6 +197,9 @@ import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
+
+// Echo's emphasized easing for page transitions.
+val EmphasizedEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -258,6 +288,24 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
+        // High refresh rate (Echo appearance): pick the fastest display mode matching
+        // the current resolution. Re-applied whenever the setting changes.
+        fun applyHighRefreshRate() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                runCatching {
+                    val mode = display?.supportedModes?.maxByOrNull { it.refreshRate } ?: return
+                    window.attributes = window.attributes.apply {
+                        preferredDisplayModeId = mode.modeId
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            dataStore.data.collectLatest { settings ->
+                if (settings[HighRefreshRateKey] == true) applyHighRefreshRate()
+            }
+        }
+
         setContent {
             LaunchedEffect(Unit) {
                 if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
@@ -267,9 +315,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Ultra-premium waveform splash: plays once per process, over the main UI.
+            var showSplash by remember { mutableStateOf(!splashAlreadyShown) }
+
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
             val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
+            val customThemeColor by rememberPreference(CustomThemeColorKey, defaultValue = 0)
             val isSystemInDarkTheme = isSystemInDarkTheme()
             val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
                 if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
@@ -281,10 +333,25 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(DefaultThemeColor)
             }
 
-            LaunchedEffect(playerConnection, enableDynamicTheme, isSystemInDarkTheme) {
+            // Background from artwork (Appearance): the last extracted artwork color is
+            // persisted, so the tint is already there the instant the app opens - no
+            // waiting for the artwork, no flash, no lag.
+            var artworkBackgroundColor by remember {
+                mutableStateOf(
+                    Color(
+                        runCatching {
+                            applicationContext.dataStore.get(LastArtworkBackgroundColorKey, 0)
+                        }.getOrDefault(0)
+                    )
+                )
+            }
+
+            LaunchedEffect(playerConnection, enableDynamicTheme, isSystemInDarkTheme, customThemeColor) {
                 val playerConnection = playerConnection
                 if (!enableDynamicTheme || playerConnection == null) {
-                    themeColor = DefaultThemeColor
+                    // SimpMusic-style custom theme color: used only when the artwork-based
+                    // dynamic theme is off, so the two never fight over the palette.
+                    themeColor = if (customThemeColor != 0) Color(customThemeColor) else DefaultThemeColor
                     return@LaunchedEffect
                 }
                 playerConnection.service.currentMediaMetadata.collectLatest { song ->
@@ -299,6 +366,12 @@ class MainActivity : ComponentActivity() {
                             (result.drawable as? BitmapDrawable)?.bitmap?.extractThemeColor() ?: DefaultThemeColor
                         }
                     } else DefaultThemeColor
+                    // Persist for the artwork background tint so it survives restarts.
+                    runCatching {
+                        applicationContext.dataStore.edit {
+                            it[LastArtworkBackgroundColorKey] = themeColor.toArgb()
+                        }
+                    }
                 }
             }
 
@@ -312,6 +385,15 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.surface)
                 ) {
+                // Background from artwork: a soft full-UI tint of the current song's
+                // artwork color, applied on top of the surface.
+                if (applicationContext.dataStore.get(ArtworkBackgroundKey, true)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(artworkBackgroundColor.copy(alpha = 0.30f))
+                    )
+                }
                     val focusManager = LocalFocusManager.current
                     val density = LocalDensity.current
                     val windowsInsets = WindowInsets.systemBars
@@ -523,6 +605,38 @@ class MainActivity : ComponentActivity() {
                         onDispose { removeOnNewIntentListener(listener) }
                     }
 
+                    // Navigation motion (SimpMusic-style): spring-physics slides with a soft
+                    // fade, shared-axis feel between tabs; an instant cut when animations are off.
+                    val animationsEnabled by rememberPreference(AnimationsEnabledKey, defaultValue = true)
+
+                    // === SimpMusic-style automatic backup: on start, if enabled and due,
+                    // write the backup zip into the public Downloads folder. Runs fully off
+                    // the main thread; failures are silent (best-effort, no crash paths).
+                    val autoBackupContext = LocalContext.current
+                    LaunchedEffect(Unit) {
+                        runCatching {
+                            val prefs = autoBackupContext.dataStore.data.first()
+                            if (prefs[AutoBackupKey] != true) return@LaunchedEffect
+                            val frequency = prefs[AutoBackupFrequencyKey].toEnum(AutoBackupFrequency.DAILY)
+                            val intervalMillis = when (frequency) {
+                                AutoBackupFrequency.DAILY -> 24L * 60L * 60L * 1000L
+                                AutoBackupFrequency.WEEKLY -> 7L * 24L * 60L * 60L * 1000L
+                            }
+                            val last = prefs[LastAutoBackupKey] ?: 0L
+                            if (System.currentTimeMillis() - last < intervalMillis) return@LaunchedEffect
+                            if (AutoBackup.writeBackup(autoBackupContext, database)) {
+                                autoBackupContext.dataStore.edit {
+                                    it[LastAutoBackupKey] = System.currentTimeMillis()
+                                }
+                                Toast.makeText(
+                                    autoBackupContext,
+                                    R.string.auto_backup_saved,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
+
                     CompositionLocalProvider(
                         LocalDatabase provides database,
                         LocalContentColor provides contentColorFor(MaterialTheme.colorScheme.surface),
@@ -537,44 +651,66 @@ class MainActivity : ComponentActivity() {
                                 NavigationTab.HOME -> Screens.Home
                                 NavigationTab.LIBRARY -> Screens.Library
                             }.route,
+                            // Echo-style page motion: emphasized-easing slide + fade,
+                            // direction-aware from the tab order; an instant cut when animations are off.
                             enterTransition = {
-                                if (initialState.destination.route in topLevelScreens && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
-                                    slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { if (forward) it / 3 else -it / 3 } +
-                                            fadeIn(tween(320, easing = FastOutSlowInEasing))
+                                if (!animationsEnabled) {
+                                    fadeIn(snap())
                                 } else {
-                                    fadeIn(tween(280, easing = FastOutSlowInEasing)) + slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { it / 2 }
+                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
+                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                    if (targetIndex == -1 || targetIndex > initialIndex) {
+                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
+                                                fadeIn(tween(400, easing = EmphasizedEasing))
+                                    } else {
+                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
+                                                fadeIn(tween(400, easing = EmphasizedEasing))
+                                    }
                                 }
                             },
                             exitTransition = {
-                                if (initialState.destination.route in topLevelScreens && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
-                                    slideOutHorizontally(tween(280, easing = FastOutSlowInEasing)) { if (forward) -it / 6 else it / 6 } +
-                                            fadeOut(tween(280, easing = FastOutSlowInEasing))
+                                if (!animationsEnabled) {
+                                    fadeOut(snap())
                                 } else {
-                                    fadeOut(tween(280, easing = FastOutSlowInEasing)) + slideOutHorizontally(tween(320, easing = FastOutSlowInEasing)) { -it / 2 }
+                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
+                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                    if (targetIndex == -1 || targetIndex > initialIndex) {
+                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
+                                                fadeOut(tween(400, easing = EmphasizedEasing))
+                                    } else {
+                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
+                                                fadeOut(tween(400, easing = EmphasizedEasing))
+                                    }
                                 }
                             },
                             popEnterTransition = {
-                                if ((initialState.destination.route in topLevelScreens || initialState.destination.route?.startsWith("search/") == true) && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
-                                    slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { if (forward) it / 3 else -it / 3 } +
-                                            fadeIn(tween(320, easing = FastOutSlowInEasing))
+                                if (!animationsEnabled) {
+                                    fadeIn(snap())
                                 } else {
-                                    fadeIn(tween(280, easing = FastOutSlowInEasing)) + slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { -it / 2 }
+                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
+                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                    if (initialIndex != -1 && initialIndex < targetIndex) {
+                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
+                                                fadeIn(tween(400, easing = EmphasizedEasing))
+                                    } else {
+                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
+                                                fadeIn(tween(400, easing = EmphasizedEasing))
+                                    }
                                 }
                             },
                             popExitTransition = {
-                                if ((initialState.destination.route in topLevelScreens || initialState.destination.route?.startsWith("search/") == true) && targetState.destination.route in topLevelScreens) {
-                                    val forward = topLevelScreens.indexOfFirst { it == targetState.destination.route } >=
-                                            topLevelScreens.indexOfFirst { it == initialState.destination.route }
-                                    slideOutHorizontally(tween(280, easing = FastOutSlowInEasing)) { if (forward) -it / 6 else it / 6 } +
-                                            fadeOut(tween(280, easing = FastOutSlowInEasing))
+                                if (!animationsEnabled) {
+                                    fadeOut(snap())
                                 } else {
-                                    fadeOut(tween(280, easing = FastOutSlowInEasing)) + slideOutHorizontally(tween(320, easing = FastOutSlowInEasing)) { it / 2 }
+                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
+                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
+                                    if (initialIndex != -1 && initialIndex < targetIndex) {
+                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
+                                                fadeOut(tween(400, easing = EmphasizedEasing))
+                                    } else {
+                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
+                                                fadeOut(tween(400, easing = EmphasizedEasing))
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -738,29 +874,29 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Home header: app name at the top, small history button next to the
-                        // settings button - replaces the search bar on the home tab only.
-                        AnimatedVisibility(
-                            visible = onHomeTop,
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
+                        // Permanent home header: the app name with the history and settings
+                        // buttons, drawn on an opaque bar that never hides or scrolls away -
+                        // content passes UNDER it instead of through it.
+                        if (onHomeTop) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .windowInsetsPadding(WindowInsets.statusBars)
                                     .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .windowInsetsPadding(WindowInsets.statusBars)
                                     .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
                             ) {
                                 Text(
                                     text = "Muso",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    // Brand wordmark: Gochi Hand, weight 400, no effects.
+                                    fontFamily = FontFamily(Font(R.font.gochi_hand)),
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 32.sp,
                                     modifier = Modifier.weight(1f),
                                 )
-                                IconButton(
+                                BounceIconButton(
                                     onClick = { navController.navigate("history") },
-                                    onLongClick = {},
+                                    buttonSize = 44.dp,
                                 ) {
                                     Icon(
                                         painterResource(R.drawable.history),
@@ -768,12 +904,9 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.size(24.dp),
                                     )
                                 }
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .clickable { navController.navigate("settings") }
+                                BounceIconButton(
+                                    onClick = { navController.navigate("settings") },
+                                    buttonSize = 48.dp,
                                 ) {
                                     BadgedBox(
                                         badge = {
@@ -921,6 +1054,16 @@ class MainActivity : ComponentActivity() {
                             openSearchImmediately = false
                         }
                     }
+
+                    // Waveform splash overlay: cross-fades away into the app underneath.
+                    if (showSplash) {
+                        MusoSplash(
+                            onFinish = {
+                                showSplash = false
+                                splashAlreadyShown = true
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -931,6 +1074,10 @@ class MainActivity : ComponentActivity() {
         WindowCompat.getInsetsController(window, window.decorView.rootView).apply {
             isAppearanceLightStatusBars = !isDark
             isAppearanceLightNavigationBars = !isDark
+            // Immersive app: the status and navigation bars auto-hide; a swipe from the
+            // edge brings them back transiently.
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             window.statusBarColor = (if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.2f)).toArgb()
