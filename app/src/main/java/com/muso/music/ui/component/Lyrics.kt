@@ -1,0 +1,335 @@
+package com.muso.music.ui.component
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.muso.music.BuildConfig
+import com.muso.music.LocalPlayerConnection
+import com.muso.music.R
+import com.muso.music.constants.LyricsStyle
+import com.muso.music.constants.LyricsAutoScrollKey
+import com.muso.music.constants.LyricsBlurEnabledKey
+import com.muso.music.constants.LyricsStyleKey
+import com.muso.music.constants.LyricsTextSizeKey
+import com.muso.music.constants.PlayerTextAlignmentKey
+import com.muso.music.constants.TranslateLyricsKey
+import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
+import com.muso.music.lyrics.LyricsEntry
+import com.muso.music.lyrics.LyricsEntry.Companion.HEAD_LYRICS_ENTRY
+import com.muso.music.lyrics.LyricsUtils.findCurrentLineIndex
+import com.muso.music.lyrics.LyricsUtils.parseLyrics
+import com.muso.music.ui.component.shimmer.ShimmerHost
+import com.muso.music.ui.component.shimmer.TextPlaceholder
+import com.muso.music.ui.menu.LyricsMenu
+import com.muso.music.ui.screens.settings.PlayerTextAlignment
+import com.muso.music.ui.utils.fadingEdge
+import com.muso.music.utils.rememberEnumPreference
+import com.muso.music.utils.Romanizer
+import com.muso.music.utils.rememberPreference
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.time.Duration.Companion.seconds
+
+@Composable
+fun Lyrics(
+    sliderPositionProvider: () -> Long?,
+    modifier: Modifier = Modifier,
+) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val menuState = LocalMenuState.current
+    val density = LocalDensity.current
+
+    val playerTextAlignment by rememberEnumPreference(PlayerTextAlignmentKey, PlayerTextAlignment.CENTER)
+    val lyricsStyle by rememberEnumPreference(LyricsStyleKey, LyricsStyle.APPLE_MUSIC)
+    var translationEnabled by rememberPreference(TranslateLyricsKey, false)
+    val lyricsTextSize by rememberPreference(LyricsTextSizeKey, 26)
+    val lyricsBlurEnabled by rememberPreference(LyricsBlurEnabledKey, true)
+    val lyricsAutoScroll by rememberPreference(LyricsAutoScrollKey, true)
+    val romanizeLyrics by rememberPreference(LyricsRomanizationKey, false)
+
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val translating by playerConnection.translating.collectAsState()
+    val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+    val lyrics = remember(lyricsEntity, translating) {
+        if (translating) null
+        else lyricsEntity?.lyrics
+    }
+
+    val lines = remember(lyrics, romanizeLyrics) {
+        if (lyrics == null || lyrics == LYRICS_NOT_FOUND) emptyList()
+        else if (lyrics.startsWith("[")) {
+            val parsed = listOf(HEAD_LYRICS_ENTRY) + parseLyrics(lyrics)
+            if (romanizeLyrics) parsed.map { LyricsEntry(it.time, Romanizer.romanize(it.text)) } else parsed
+        } else {
+            lyrics.lines().mapIndexed { index, line ->
+                LyricsEntry(index * 100L, if (romanizeLyrics) Romanizer.romanize(line) else line)
+            }
+        }
+    }
+    val isSynced = remember(lyrics) {
+        !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
+    }
+
+    var currentLineIndex by remember {
+        mutableIntStateOf(-1)
+    }
+    // Because LaunchedEffect has delay, which leads to inconsistent with current line color and scroll animation,
+    // we use deferredCurrentLineIndex when user is scrolling
+    var deferredCurrentLineIndex by rememberSaveable {
+        mutableIntStateOf(0)
+    }
+
+    var lastPreviewTime by rememberSaveable {
+        mutableLongStateOf(0L)
+    }
+    var isSeeking by remember {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(lyrics) {
+        if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
+            currentLineIndex = -1
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            delay(50)
+            val sliderPosition = sliderPositionProvider()
+            isSeeking = sliderPosition != null
+            currentLineIndex = findCurrentLineIndex(lines, sliderPosition ?: playerConnection.player.currentPosition)
+        }
+    }
+
+    LaunchedEffect(isSeeking, lastPreviewTime) {
+        if (isSeeking) {
+            lastPreviewTime = 0L
+        } else if (lastPreviewTime != 0L) {
+            delay(LyricsPreviewTime)
+            lastPreviewTime = 0L
+        }
+    }
+
+    val lazyListState = rememberLazyListState()
+
+    LaunchedEffect(currentLineIndex, lastPreviewTime) {
+        if (!isSynced || !lyricsAutoScroll) return@LaunchedEffect
+        if (currentLineIndex != -1) {
+            deferredCurrentLineIndex = currentLineIndex
+            if (lastPreviewTime == 0L) {
+                if (isSeeking) {
+                    lazyListState.scrollToItem(currentLineIndex, with(density) { 36.dp.toPx().toInt() })
+                } else {
+                    lazyListState.animateScrollToItem(currentLineIndex, with(density) { 36.dp.toPx().toInt() })
+                }
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .fillMaxSize()
+            .padding(bottom = 12.dp)
+    ) {
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = WindowInsets.systemBars
+                .only(WindowInsetsSides.Top)
+                .add(WindowInsets(top = maxHeight / 2, bottom = maxHeight / 2))
+                .asPaddingValues(),
+            modifier = Modifier
+                .fadingEdge(vertical = 64.dp)
+                .nestedScroll(remember {
+                    object : NestedScrollConnection {
+                        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                            lastPreviewTime = System.currentTimeMillis()
+                            return super.onPostScroll(consumed, available, source)
+                        }
+
+                        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                            lastPreviewTime = System.currentTimeMillis()
+                            return super.onPostFling(consumed, available)
+                        }
+                    }
+                })
+        ) {
+            val displayedCurrentLineIndex = if (isSeeking) deferredCurrentLineIndex else currentLineIndex
+
+            if (lyrics == null || translating) {
+                item {
+                    ShimmerHost {
+                        repeat(10) {
+                            Box(
+                                contentAlignment = when (playerTextAlignment) {
+                                    PlayerTextAlignment.SIDED -> Alignment.CenterStart
+                                    PlayerTextAlignment.CENTER -> Alignment.Center
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 4.dp)
+                            ) {
+                                TextPlaceholder()
+                            }
+                        }
+                    }
+                }
+            } else {
+                itemsIndexed(
+                    items = lines
+                ) { index, item ->
+                    val isCurrentLine = index == displayedCurrentLineIndex
+                    val hasActiveLine = isSynced && displayedCurrentLineIndex != -1
+                    // Apple Music style: the active line is lit, the rest dim and blur with
+                    // distance (depth of field), color animates smoothly on line change.
+                    val isAppleMusicStyle = lyricsStyle == LyricsStyle.APPLE_MUSIC
+                    val lineColor by animateColorAsState(
+                        targetValue = when {
+                            isCurrentLine -> MaterialTheme.colorScheme.primary
+                            isAppleMusicStyle -> AppleMusicInactiveLineColor
+                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                        },
+                        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+                        label = "lyricsLineColor"
+                    )
+                    Text(
+                        text = item.text,
+                        fontSize = if (isAppleMusicStyle) lyricsTextSize.sp else (lyricsTextSize - 10).sp,
+                        color = lineColor,
+                        textAlign = when (playerTextAlignment) {
+                            PlayerTextAlignment.SIDED -> TextAlign.Start
+                            PlayerTextAlignment.CENTER -> TextAlign.Center
+                        },
+                        fontWeight = if (isAppleMusicStyle) FontWeight.Bold else FontWeight.Medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = isSynced) {
+                                playerConnection.player.seekTo(item.time)
+                                lastPreviewTime = 0L
+                            }
+                            .padding(
+                                horizontal = 24.dp,
+                                vertical = if (isAppleMusicStyle) 10.dp else 6.dp
+                            )
+                            .then(
+                                if (isAppleMusicStyle) {
+                                    Modifier.appleMusicLyricFocus(
+                                        distanceFromCurrent = index - displayedCurrentLineIndex,
+                                        hasActiveLine = hasActiveLine,
+                                        allLinesCurrent = !isSynced,
+                                        fontSize = lyricsTextSize.sp,
+                                        blurEnabled = lyricsBlurEnabled
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    )
+                }
+            }
+        }
+
+        if (lyrics == LYRICS_NOT_FOUND) {
+            Text(
+                text = stringResource(R.string.lyrics_not_found),
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = when (playerTextAlignment) {
+                    PlayerTextAlignment.SIDED -> TextAlign.Start
+                    PlayerTextAlignment.CENTER -> TextAlign.Center
+                },
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .alpha(0.5f)
+            )
+        }
+
+        mediaMetadata?.let { mediaMetadata ->
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 12.dp)
+            ) {
+                if (BuildConfig.FLAVOR != "foss") {
+                    IconButton(
+                        onClick = {
+                            translationEnabled = !translationEnabled
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.translate),
+                            contentDescription = null,
+                            tint = LocalContentColor.current.copy(alpha = if (translationEnabled) 1f else 0.3f)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = {
+                        menuState.show {
+                            LyricsMenu(
+                                lyricsProvider = { lyricsEntity },
+                                mediaMetadataProvider = { mediaMetadata },
+                                onDismiss = menuState::dismiss
+                            )
+                        }
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.more_horiz),
+                        contentDescription = null
+                    )
+                }
+            }
+        }
+    }
+}
+
+const val animateScrollDuration = 300L
+val LyricsPreviewTime = 4.seconds

@@ -18,15 +18,15 @@ if (isFullBuild && System.getenv("PULL_REQUEST") == null) {
 }
 
 android {
-    namespace = "com.zionhuang.music"
+    namespace = "com.muso.music"
     compileSdk = 35
     buildToolsVersion = "35.0.0"
     defaultConfig {
-        applicationId = "com.zionhuang.music"
+        applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 27
-        versionName = "0.5.20"
+        versionCode = 40
+        versionName = "0.5.33"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {

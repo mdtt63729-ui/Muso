@@ -33,6 +33,8 @@ import com.zionhuang.innertube.models.response.SearchResponse
 import com.zionhuang.innertube.pages.AlbumPage
 import com.zionhuang.innertube.pages.ArtistItemsContinuationPage
 import com.zionhuang.innertube.pages.ArtistItemsPage
+import com.zionhuang.innertube.pages.PodcastShowItem
+import com.zionhuang.innertube.pages.LibraryExtras
 import com.zionhuang.innertube.pages.ArtistPage
 import com.zionhuang.innertube.pages.BrowseResult
 import com.zionhuang.innertube.pages.ExplorePage
@@ -428,6 +430,70 @@ object YouTube {
             .mapNotNull {
                 ArtistItemsPage.fromMusicTwoRowItemRenderer(it) as? PlaylistItem
             }
+    }
+
+    /** Saved podcast shows from the user's YouTube Music library (online, ReTune port). */
+    suspend fun savedPodcasts(): Result<List<PodcastShowItem>> = runCatching {
+        val response = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = "FEmusic_library_non_music_audio_channels_list",
+            setLogin = true
+        ).body<BrowseResponse>()
+        response.contents?.singleColumnBrowseResultsRenderer?.tabs.orEmpty()
+            .flatMap { it?.tabRenderer?.content?.sectionListRenderer?.contents.orEmpty() }
+            .mapNotNull { it.gridRenderer }
+            .flatMap { it.items }
+            .mapNotNull(GridRenderer.Item::musicTwoRowItemRenderer)
+            .mapNotNull(LibraryExtras::podcastShowFromMusicTwoRowItemRenderer)
+    }
+
+    /** Episodes of a podcast show (online, ReTune port). */
+    suspend fun podcastEpisodes(podcastId: String): Result<List<SongItem>> = runCatching {
+        val response = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = podcastId,
+            setLogin = true
+        ).body<BrowseResponse>()
+        val show = response.header?.musicImmersiveHeaderRenderer?.title?.runs?.firstOrNull()?.text
+            ?.let { PodcastShowItem(id = podcastId, title = it, author = null, thumbnail = null) }
+        val sections = response.contents?.sectionListRenderer?.contents.orEmpty() +
+                response.contents?.twoColumnBrowseResultsRenderer?.tabs.orEmpty()
+                    .flatMap { it?.tabRenderer?.content?.sectionListRenderer?.contents.orEmpty() } +
+                response.contents?.singleColumnBrowseResultsRenderer?.tabs.orEmpty()
+                    .flatMap { it?.tabRenderer?.content?.sectionListRenderer?.contents.orEmpty() }
+        sections.flatMap { content ->
+            content.musicShelfRenderer?.contents.orEmpty()
+                .mapNotNull { it.musicResponsiveListItemRenderer }
+                .mapNotNull { LibraryExtras.songFromMusicResponsiveListItemRenderer(it, show) } +
+                    content.musicPlaylistShelfRenderer?.contents.orEmpty()
+                        .mapNotNull { it.musicResponsiveListItemRenderer }
+                        .mapNotNull { LibraryExtras.songFromMusicResponsiveListItemRenderer(it, show) } +
+                    content.itemSectionRenderer?.contents.orEmpty()
+                        .mapNotNull { it.musicMultiRowListItemRenderer }
+                        .mapNotNull { LibraryExtras.episodeFromMusicMultiRowListItemRenderer(it, show) }
+        }
+    }
+
+    /** The user's uploaded (privately owned) songs (online, ReTune port). */
+    suspend fun uploadedSongs(): Result<List<SongItem>> = runCatching {
+        val response = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = "FEmusic_library_privately_owned_tracks",
+            setLogin = true
+        ).body<BrowseResponse>()
+        val sections = response.contents?.sectionListRenderer?.contents.orEmpty() +
+                response.contents?.singleColumnBrowseResultsRenderer?.tabs.orEmpty()
+                    .flatMap { it?.tabRenderer?.content?.sectionListRenderer?.contents.orEmpty() } +
+                response.contents?.twoColumnBrowseResultsRenderer?.tabs.orEmpty()
+                    .flatMap { it?.tabRenderer?.content?.sectionListRenderer?.contents.orEmpty() }
+        sections.flatMap { content ->
+            content.musicPlaylistShelfRenderer?.contents.orEmpty()
+                .mapNotNull { it.musicResponsiveListItemRenderer }
+                .mapNotNull(LibraryExtras::songFromMusicResponsiveListItemRenderer) +
+                    content.musicShelfRenderer?.contents.orEmpty()
+                        .mapNotNull { it.musicResponsiveListItemRenderer }
+                        .mapNotNull(LibraryExtras::songFromMusicResponsiveListItemRenderer)
+        }
     }
 
     suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResponse> = runCatching {
