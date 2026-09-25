@@ -274,6 +274,20 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 39 (v0.5.54): v0.5.53 build fix - duplicate listener override
+
+The v0.5.53 build failed in kapt (Dagger metadata processing) with
+"Multiple entries with same key: onShuffleModeEnabledChanged" - the
+Player.Listener in MusicService had onShuffleModeEnabledChanged
+overridden twice (the InnerTune shuffle-order handler and a separate
+shuffle-persist handler). The two bodies are now merged into a single
+override: the notification update, the current-item-first shuffle order,
+and the DataStore persistence of the shuffle state all run from one
+method. A full-app scan confirmed no other file has duplicate override
+names.
+
+**Version:** 0.5.54 (versionCode 61); release tag v0.5.54, APK Muso_v0.5.54_v1.apk.
+
 ## Round 38 (v0.5.53): v0.5.52 build fix - drawable tint attrs
 
 The v0.5.52 build failed because five vector drawables (crop, disc,

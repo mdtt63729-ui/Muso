@@ -815,6 +815,12 @@ class MusicService : MediaLibraryService(),
             shuffledIndices[0] = player.currentMediaItemIndex
             player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
         }
+        // Persist the shuffle state across restarts.
+        scope.launch {
+            dataStore.edit { settings ->
+                settings[ShuffleModeKey] = shuffleModeEnabled
+            }
+        }
     }
 
     override fun onRepeatModeChanged(repeatMode: Int) {
@@ -822,14 +828,6 @@ class MusicService : MediaLibraryService(),
         scope.launch {
             dataStore.edit { settings ->
                 settings[RepeatModeKey] = repeatMode
-            }
-        }
-    }
-
-    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-        scope.launch {
-            dataStore.edit { settings ->
-                settings[ShuffleModeKey] = shuffleModeEnabled
             }
         }
     }
