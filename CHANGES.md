@@ -118,6 +118,12 @@ removed. The workflow now goes straight from JDK setup to `./gradlew assembleFos
   of the active one — far lines only dim. Fast scrolling no longer creates dozens of
   RenderEffects on low-end devices.
 
+## Round 5: compile fix
+
+- About screen referenced the old `R.drawable.launcher_monochrome` (moved to `mipmap` together
+  with the icon rework). Now points at `R.mipmap.launcher_monochrome` — the only compile error
+  from the first successful Gradle run.
+
 ## Build / CI
 
 - `versionName` 0.5.20, `versionCode` 27, app name changed to **Muso**.
