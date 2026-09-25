@@ -315,9 +315,9 @@
     <string name="preload_next_song">Preload next song</string>
     <string name="preload_next_song_desc">Cache the next track early so it starts instantly</string>
     <string name="preload_lyrics">Preload lyrics</string>
-    <string name="preload_lyrics_desc">Fetch the next song's lyrics in the background</string>
+    <string name="preload_lyrics_desc">Fetch the next song\'s lyrics in the background</string>
     <string name="artwork_background">Background from artwork</string>
-    <string name="artwork_background_desc">Tint the whole app with the current song's colors; remembered across restarts</string>
+    <string name="artwork_background_desc">Tint the whole app with the current song\'s colors; remembered across restarts</string>
     <string name="bigger_lyrics">Bigger lyrics</string>
     <string name="smaller_lyrics">Smaller lyrics</string>
     <string name="spotify_load_failed">Couldn\'t load your playlists. Check your connection and try again.</string>

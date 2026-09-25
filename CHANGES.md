@@ -274,6 +274,16 @@ check, default open tab, default library chips.
 
 **Version:** 0.5.25 (versionCode 32); release tag v0.5.25, APK Muso_v0.5.25_v1.apk.
 
+## Round 37 (v0.5.52): v0.5.51 build fix - string XML escapes
+
+The v0.5.51 CI build failed at resource linking: two strings
+(preload_lyrics_desc, artwork_background_desc) contained raw apostrophes
+("song's"), which Android XML requires to be escaped. Both now use \'.
+A full scan confirmed no other unescaped apostrophes remain. No Kotlin
+compile errors were in the log.
+
+**Version:** 0.5.52 (versionCode 59); release tag v0.5.52, APK Muso_v0.5.52_v1.apk.
+
 ## Round 36 (v0.5.51): karaoke lyrics matched exactly to kimi_5.html
 
 The reference HTML (kimi_5.html) was decoded and the word-level karaoke was
