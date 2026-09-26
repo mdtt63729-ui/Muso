@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import android.os.Build
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -75,7 +76,7 @@ private const val T_EXIT_END = 1.95f
 
 /** After the animation completes, the whole overlay fades out over this duration
  * so the home screen appears through a smooth transition, never a hard cut. */
-private const val SPLASH_HANDOFF = 0.15f
+private const val SPLASH_HANDOFF = 0.25f
 private const val WAVE_DELAY = 0.035f
 
 // ---------- Original logo geometry (heights relative to the center bar) ----------
@@ -256,14 +257,19 @@ internal fun MusoSplash(onFinish: () -> Unit) {
     }
     val reduced = reducedMotionPref || animatorScale == 0f
 
-    var t by remember { mutableFloatStateOf(0f) }
+    // On Android 12+ the system splash has ALREADY played the bars rising
+    // (windowSplashScreenAnimatedIcon) while the process started - the custom
+    // animation continues from there instead of replaying the reveal, so the
+    // handoff between the two reads as one continuous animation.
+    val initialT = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.40f else 0f
+    var t by remember { mutableFloatStateOf(initialT) }
 
     LaunchedEffect(Unit) {
         val startNanos = withFrameNanos { it }
         val total = if (reduced) 1.20f else T_EXIT_END + SPLASH_HANDOFF
         while (true) {
             withFrameNanos { now ->
-                t = ((now - startNanos) / 1_000_000_000f).coerceAtLeast(0f)
+                t = initialT + ((now - startNanos) / 1_000_000_000f).coerceAtLeast(0f)
             }
             if (t >= total) break
         }
@@ -288,7 +294,8 @@ internal fun MusoSplash(onFinish: () -> Unit) {
                 alpha = if (reduced) {
                     1f
                 } else {
-                    1f - pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF)
+                    // Eased (iOS-style) reveal: home arrives quickly and settles gently.
+                    1f - easeBezier(pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF))
                 }
             }
             .pointerInput(Unit) { detectTapGestures { } },

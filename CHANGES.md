@@ -1,3 +1,67 @@
+## Round 57 (v0.5.72): system splash uses the app icon colors
+
+The rising waveform in the Android 12+ system splash is no longer plain
+white - it now matches your app icon: the five bars carry the icon's neon
+gradient (azure blue through indigo and purple to magenta), each with a
+soft halo glow of the same color, on the same black background. The
+staggered rise animation is unchanged.
+
+**Version:** 0.5.72 (versionCode 79); release tag v0.5.72, APK Muso_v0.5.72_v1.apk.
+
+## Round 56 (v0.5.71): Echo-style instant splash - no black screen
+
+Ported the technique from Echo Nightly: the Android 12+ system splash now
+plays an AnimatedVectorDrawable of the five waveform bars rising the exact
+moment the app starts - before any app code runs - so there is never an
+empty black screen while the app initializes. The custom Compose waveform
+then continues from where the system animation ended (it no longer replays
+the reveal phase on Android 12+, so the two read as one continuous
+animation), runs its full sequence, and hands off into home with the eased
+fade. windowSplashScreenAnimationDuration is set to 900ms like Echo.
+
+Pre-Android 12 devices keep the previous behaviour (black window, then the
+full custom animation from the start).
+
+**Version:** 0.5.71 (versionCode 78); release tag v0.5.71, APK Muso_v0.5.71_v1.apk.
+
+## Round 55 (v0.5.70): new app icon + clean splash entry + iOS-style handoff
+
+- **New app icon**: your neon waveform artwork is now the launcher icon -
+  full-artwork legacy icons, adaptive (black background, glowing bars
+  foreground with the luminance kept as transparency for the glow), and a
+  matching white monochrome icon for Android 13+ themed icons.
+- **No icon before the splash**: the Android 12+ system splash was showing a
+  white waveform mark before the custom animation - it is now fully blank,
+  so the cold start goes straight from black into the waveform animation.
+- **iOS-style handoff**: after the animation completes, the fade into home
+  is now 250ms with an eased curve (fast arrive, gentle settle) instead of a
+  linear 150ms.
+
+**Version:** 0.5.70 (versionCode 77); release tag v0.5.70, APK Muso_v0.5.70_v1.apk.
+
+## Round 54 (v0.5.69): the Library crash, finally fixed
+
+The in-app crash reporter did its job. The Library-tab crash was:
+
+    java.lang.RuntimeException: Cannot create an instance of
+        com.muso.music.viewmodels.LibraryMixViewModel
+    Caused by: NoSuchMethodException: LibraryMixViewModel.<init> []
+
+LibraryMixViewModel was missing its @HiltViewModel annotation, so Hilt never
+generated its provider and the default factory looked for a no-argument
+constructor that does not exist - instant crash every time the Library tab
+opened the mixed view. AutoPlaylistViewModel had the same problem (it would
+have crashed on opening the Liked / Offline playlists). Both now carry the
+annotation.
+
+The crash reporter also caught a one-off DataStore FileNotFoundException
+(missing settings file on a background thread, right before the other
+crash). That one recovered on the next launch by itself - most likely an
+install-moment race. If it comes back, the reporter will show it again and
+we can harden it.
+
+**Version:** 0.5.69 (versionCode 76); release tag v0.5.69, APK Muso_v0.5.69_v1.apk.
+
 ## Round 53 (v0.5.68): v0.5.67 build fix
 
 Two small omissions that broke the v0.5.67 build: the AlertDialog import

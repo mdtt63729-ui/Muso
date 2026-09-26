@@ -227,6 +227,7 @@ class ArtistSongsViewModel @Inject constructor(
  * Feeds the ReTune-style mixed library: songs / artists / albums / playlists, with a
  * debounced in-library search query.
  */
+@HiltViewModel
 class LibraryMixViewModel @Inject constructor(
     database: MusicDatabase,
 ) : ViewModel() {
@@ -257,6 +258,7 @@ class LibraryMixViewModel @Inject constructor(
 /**
  * Backs the auto playlists (Liked / Offline) opened from the library mix grid.
  */
+@HiltViewModel
 class AutoPlaylistViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     database: MusicDatabase,
