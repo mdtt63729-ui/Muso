@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background" />
-    <foreground android:drawable="@mipmap/launcher_foreground" />
-</adaptive-icon>
+<!-- System splash icon: the neon-waveform launcher logo, centered on the black
+     splash background. A plain layer-list (NOT an adaptive-icon, which needs
+     API 26 and is not a valid splash icon type) so it links on every minSdk. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:drawable="@mipmap/launcher_foreground"
+        android:gravity="center" />
+</layer-list>

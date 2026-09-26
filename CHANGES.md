@@ -1,3 +1,17 @@
+## Round 65 (v0.5.80): build fix - splash_icon
+
+- v0.5.79 failed to build at processResources: res/drawable/splash_icon.xml was
+  an <adaptive-icon>, which cannot sit in plain drawable/ (needs drawable-v26)
+  and is not a valid windowSplashScreenAnimatedIcon type anyway.
+- Fixed by rewriting splash_icon.xml as a plain layer-list that centers the
+  neon-waveform launcher logo (@mipmap/launcher_foreground) - the user's logo
+  still shows in the Android 12+ system splash, on the existing black
+  background, and it links on every API level.
+- Everything else in v0.5.79 compiled clean - this was the ONLY error in the
+  build log.
+
+**Version:** 0.5.80 (versionCode 87); release tag v0.5.80, APK Muso_v0.5.80_v1.apk.
+
 ## Round 64 (v0.5.79): Echo Music's Apple player + Playing-from + ultra thumbnails
 
 - APPLE STYLE = Echo Music's player, 1:1 from its layouts: the artwork fills the
