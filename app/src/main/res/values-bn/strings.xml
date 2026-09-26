@@ -279,4 +279,14 @@
     <string name="options">বিকল্পসমূহ</string>
     <string name="preview">প্রিভিউ</string>
     <string name="enable_discord_rpc">রিচ প্রেজেন্স সক্ষম করুন</string>
+    <string name="update_notification_channel">অ্যাপ আপডেট</string>
+    <string name="update_notification_channel_desc">Muso-র নতুন রিলিজ প্রকাশিত হলে জানায়</string>
+    <string name="update_notification_title">Muso আপডেট এসেছে</string>
+    <string name="update_notification_text">ভার্সন %1$s প্রস্তুত। ইনস্টল করতে ট্যাপ করুন।</string>
+    <string name="video_quality">ভিডিও কোয়ালিটি</string>
+    <string name="video_quality_360">360p (ডেটা সেভার)</string>
+    <string name="video_quality_720">720p (প্রস্তাবিত)</string>
+    <string name="video_quality_1080">1080p (হাই)</string>
+    <string name="show">দেখাও</string>
+    <string name="song_views">%1$s বার দেখা হয়েছে</string>
 </resources>

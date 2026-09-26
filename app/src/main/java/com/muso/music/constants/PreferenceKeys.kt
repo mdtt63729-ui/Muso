@@ -82,6 +82,11 @@ enum class PlayerStyle {
     APPLE,
 }
 
+/** Video quality for the in-player video stream (SimpMusic setting). */
+enum class VideoQuality {
+    Q360, Q720, Q1080
+}
+
 enum class SliderStyle {
     DEFAULT, SQUIGGLY
 }
@@ -205,7 +210,7 @@ enum class AlbumFilter {
 
 val ShowLyricsKey = booleanPreferencesKey("showLyrics")
 val ShowVideoInPlayerKey = booleanPreferencesKey("showVideoInPlayer")
-val HighQualityVideoKey = booleanPreferencesKey("highQualityVideo")
+val VideoQualityKey = stringPreferencesKey("videoQuality")
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 val LockQueueKey = booleanPreferencesKey("lockQueue")
 

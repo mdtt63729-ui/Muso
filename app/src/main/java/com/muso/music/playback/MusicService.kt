@@ -65,7 +65,8 @@ import com.muso.music.MainActivity
 import com.muso.music.R
 import com.muso.music.constants.AudioNormalizationKey
 import com.muso.music.constants.ShowVideoInPlayerKey
-import com.muso.music.constants.HighQualityVideoKey
+import com.muso.music.constants.VideoQuality
+import com.muso.music.constants.VideoQualityKey
 import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AudioQualityKey
 import com.muso.music.constants.LoudnessPreset
@@ -196,7 +197,7 @@ class MusicService : MediaLibraryService(),
     // Echo Player and Audio settings
     private val dataSaver by preference(this, DataSaverKey, false)
     private val showVideoInPlayer by preference(this, ShowVideoInPlayerKey, true)
-    private val highQualityVideo by preference(this, HighQualityVideoKey, true)
+    private val videoQuality by enumPreference(this, VideoQualityKey, VideoQuality.Q720)
 
     /** True while the current stream is a muxed (video+audio) format - the single-stream
      * video mode: the picture comes from the MAIN player, so position and controls are
@@ -918,9 +919,16 @@ class MusicService : MediaLibraryService(),
             // on, a muxed (video+audio) format plays through the MAIN player - one
             // stream, so the picture, the position and every control stay in sync.
             val videoFormat = if (showVideoInPlayer) {
+                // SimpMusic video quality setting: the muxed stream closest to the
+                // user's chosen height (360p / 720p / 1080p).
+                val targetHeight = when (videoQuality) {
+                    VideoQuality.Q360 -> 360
+                    VideoQuality.Q720 -> 720
+                    VideoQuality.Q1080 -> 1080
+                }
                 playerResponse.streamingData?.formats.orEmpty()
                     .filter { !it.url.isNullOrEmpty() && (it.height ?: 0) > 0 }
-                    .minByOrNull { kotlin.math.abs((it.height ?: 0) - if (highQualityVideo) 720 else 360) }
+                    .minByOrNull { kotlin.math.abs((it.height ?: 0) - targetHeight) }
             } else {
                 null
             }

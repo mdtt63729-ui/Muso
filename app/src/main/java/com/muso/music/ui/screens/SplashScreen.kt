@@ -282,7 +282,10 @@ private class GlowPaintCache {
 }
 
 @Composable
-internal fun MusoSplash(onFinish: () -> Unit) {
+internal fun MusoSplash(
+    onFinish: () -> Unit,
+    onContentNeeded: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val (reducedMotionPref) = rememberPreference(ReducedMotionKey, defaultValue = false)
     val animatorScale = remember {
@@ -315,13 +318,31 @@ internal fun MusoSplash(onFinish: () -> Unit) {
         // SAFETY NET: if frames ever stop arriving (window surface lost, screen
         // locked mid-splash, choreographer stall), the timeout still fires and
         // hands off to the app. The splash can never get stuck on screen.
+        // Ask for the app UI to be composed during the quiet settled phase,
+        // right before the exit fade begins: the heavy startup composition
+        // then runs underneath the fade/handoff where a hitch is invisible,
+        // instead of starving the animation's own frames. With reduced motion
+        // the screen is static, so the UI can start composing immediately.
+        val contentRequestT = if (reduced) 0.20f else T_SETTLE_END
+        var contentRequested = false
         withTimeoutOrNull(SPLASH_SAFETY_TIMEOUT_MS) {
             while (true) {
                 withFrameNanos { now ->
                     t = initialT + (now - startNanos) / 1_000_000_000f
                 }
+                if (!contentRequested && t >= contentRequestT) {
+                    contentRequested = true
+                    onContentNeeded?.invoke()
+                }
                 if (t >= total) break
             }
+        }
+        // SAFETY: even if frames stopped arriving early (timeout), ALWAYS let the
+        // app UI start composing before handing off - otherwise the splash would
+        // wait forever for a UI that is never composed.
+        if (!contentRequested) {
+            contentRequested = true
+            onContentNeeded?.invoke()
         }
         onFinish()
     }

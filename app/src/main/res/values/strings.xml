@@ -539,4 +539,14 @@
     <string name="romanize_lyrics_desc">Show lyrics written in Latin letters (works offline for Bengali, Hindi, Korean, Japanese kana, Cyrillic and Greek)</string>
     <string name="animated_artwork">Animated artwork</string>
     <string name="animated_artwork_desc">Slow breathing zoom on the player artwork (Ken Burns effect)</string>
+    <string name="update_notification_channel">App updates</string>
+    <string name="update_notification_channel_desc">Notifies when a new Muso release is published</string>
+    <string name="update_notification_title">Muso update available</string>
+    <string name="update_notification_text">Version %1$s is ready. Tap to install it.</string>
+    <string name="video_quality">Video quality</string>
+    <string name="video_quality_360">360p (data saver)</string>
+    <string name="video_quality_720">720p (recommended)</string>
+    <string name="video_quality_1080">1080p (high)</string>
+    <string name="show">Show</string>
+    <string name="song_views">%1$s views</string>
 </resources>

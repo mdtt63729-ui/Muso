@@ -3,7 +3,9 @@ package com.muso.music
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.widget.Toast
 import android.content.ServiceConnection
 import android.graphics.drawable.BitmapDrawable
@@ -12,7 +14,10 @@ import android.os.Bundle
 import android.os.IBinder
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -168,6 +173,7 @@ import com.muso.music.ui.theme.extractThemeColor
 import com.muso.music.ui.utils.appBarScrollBehavior
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.ui.utils.resetHeightOffset
+import com.muso.music.utils.UpdateNotification
 import com.muso.music.utils.Updater
 import com.muso.music.utils.AutoBackup
 import android.content.res.Configuration
@@ -195,6 +201,7 @@ import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlinx.coroutines.delay
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
@@ -229,6 +236,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
+
+    // Set when the update notification is tapped: force-shows the update popup
+    // even if that same version was previously dismissed with "Later".
+    private var forceShowUpdate by mutableStateOf(false)
 
     override fun onStart() {
         super.onStart()
@@ -287,6 +298,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        // Launched by tapping the update notification: fetch the latest release
+        // right away and bring the update popup straight up.
+        handleUpdateNotificationTap(intent)
+
         lifecycleScope.launch {
             dataStore.data
                 .map { it[DisableScreenshotKey] ?: false }
@@ -323,16 +338,53 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LaunchedEffect(Unit) {
-                if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
-                    Updater.getLatestVersionName().onSuccess {
-                        latestVersionName = it
+                // Check for a new release at most every 6 hours while the app is
+                // running; when one is found, the in-app popup shows AND the update
+                // notification is posted (once per version). The background worker
+                // covers the time while the app is closed.
+                if (System.currentTimeMillis() - Updater.lastCheckTime > 6.hours.inWholeMilliseconds) {
+                    Updater.getLatestVersionName(force = true).onSuccess { latest ->
+                        latestVersionName = latest
+                        if (latest != BuildConfig.VERSION_NAME) {
+                            UpdateNotification.notifyIfNew(this@MainActivity, latest)
+                        }
                     }
                 }
             }
 
-            // Ultra-premium waveform splash: plays once per process, over the main UI.
+            // Ultra-premium waveform splash: plays once per process.
             var showSplash by remember { mutableStateOf(!splashAlreadyShown) }
+            // The main UI is composed only when the splash asks for it (during its
+            // quiet settled phase), or immediately when there is no splash. Composing
+            // the whole app WHILE the animation plays is what froze the splash on real
+            // devices: the startup composition burst is the heaviest main-thread work
+            // of the entire launch, and the animation only gets frames when the main
+            // thread is free.
+            var composeMainUi by remember { mutableStateOf(!showSplash) }
+            // The splash holds its (fully faded) final frame until the main UI has
+            // actually rendered, so the handoff never flashes black.
+            var splashAnimationDone by remember { mutableStateOf(false) }
 
+            // Android 13+ requires asking before ANY notification can appear -
+            // needed both for the music notification and the update notification.
+            // Asked once the splash is over so it never interrupts the animation.
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { }
+            LaunchedEffect(showSplash) {
+                if (
+                    !showSplash &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+
+            if (composeMainUi) {
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
             val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
@@ -998,12 +1050,15 @@ class MainActivity : ComponentActivity() {
                         val (updateDismissedVersion, onUpdateDismissedVersionChange) =
                             rememberPreference(UpdateDismissedVersionKey, defaultValue = "")
                         if (latestVersionName != BuildConfig.VERSION_NAME &&
-                            updateDismissedVersion != latestVersionName &&
+                            (forceShowUpdate || updateDismissedVersion != latestVersionName) &&
                             !showSplash
                         ) {
                             UpdatePopup(
                                 version = latestVersionName,
-                                onDismiss = { onUpdateDismissedVersionChange(latestVersionName) },
+                                onDismiss = {
+                                    onUpdateDismissedVersionChange(latestVersionName)
+                                    forceShowUpdate = false
+                                },
                             )
                         }
 
@@ -1096,17 +1151,43 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     }
-
-                    // Waveform splash overlay: cross-fades away into the app underneath.
-                    if (showSplash) {
-                        MusoSplash(
-                            onFinish = {
-                                showSplash = false
-                                splashAlreadyShown = true
-                            },
-                        )
-                    }
                 }
+            }
+            } // composeMainUi
+
+            // The splash overlay composes OUTSIDE the app's UI tree: it never competes
+            // with the startup composition for frames, and it outlives the app's first
+            // frame so the reveal is seamless.
+            if (showSplash) {
+                MusoSplash(
+                    onContentNeeded = { composeMainUi = true },
+                    onFinish = { splashAnimationDone = true },
+                )
+            }
+            LaunchedEffect(splashAnimationDone, composeMainUi) {
+                if (splashAnimationDone && composeMainUi) {
+                    // One more frame so the freshly composed UI is genuinely on screen
+                    // before the splash overlay is removed - no black flash, no pop.
+                    withFrameNanos { }
+                    showSplash = false
+                    splashAlreadyShown = true
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Notification tap while the app was already running (singleTask).
+        handleUpdateNotificationTap(intent)
+    }
+
+    private fun handleUpdateNotificationTap(intent: Intent?) {
+        if (intent?.getBooleanExtra(UpdateNotification.EXTRA_SHOW_UPDATE, false) != true) return
+        lifecycleScope.launch {
+            Updater.getLatestVersionName(force = true).onSuccess {
+                latestVersionName = it
+                forceShowUpdate = true
             }
         }
     }

@@ -29,11 +29,17 @@ object Updater {
     /**
      * The release's tag (e.g. "v0.5.20" or "v0.5.20-v1"), normalized so it can be compared with
      * BuildConfig.VERSION_NAME: leading "v" stripped, trailing "-vN" iteration dropped.
+     *
+     * [force] skips the in-memory JSON cache so a genuinely fresh GitHub call is made -
+     * used by the periodic update worker and by notification taps.
      */
-    suspend fun getLatestVersionName(): Result<String> = fetchRelease().map { json ->
-        json.optString("tag_name", json.optString("name", ""))
-            .removePrefix("v")
-            .substringBefore("-v")
+    suspend fun getLatestVersionName(force: Boolean = false): Result<String> {
+        if (force) cachedJson = null
+        return fetchRelease().map { json ->
+            json.optString("tag_name", json.optString("name", ""))
+                .removePrefix("v")
+                .substringBefore("-v")
+        }
     }
 
     /** Browser-download URL of the release's first APK asset (Muso_v0.5.20_v1.apk). */

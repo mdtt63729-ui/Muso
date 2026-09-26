@@ -72,6 +72,7 @@ data class PlayerResponse(
         val lengthSeconds: String,
         val musicVideoType: String?,
         val viewCount: String,
+        val shortDescription: String? = null,
         val thumbnail: Thumbnails,
     )
 }

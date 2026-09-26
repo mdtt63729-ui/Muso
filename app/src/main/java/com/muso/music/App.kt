@@ -28,6 +28,7 @@ import com.muso.music.constants.UseLoginForBrowse
 import com.muso.music.constants.VisitorDataKey
 import com.muso.music.extensions.toEnum
 import com.muso.music.extensions.toInetSocketAddress
+import com.muso.music.utils.UpdateCheckWorker
 import com.muso.music.utils.dataStore
 import com.muso.music.utils.get
 import com.muso.music.utils.reportException
@@ -40,6 +41,10 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.net.Proxy
 import java.util.Locale
+import java.util.concurrent.TimeUnit
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 
 @HiltAndroidApp
 class App : Application(), ImageLoaderFactory {
@@ -65,6 +70,19 @@ class App : Application(), ImageLoaderFactory {
             defaultHandler?.uncaughtException(thread, throwable)
         }
         Timber.plant(Timber.DebugTree())
+
+        // Update notification: check GitHub for a newer release roughly every
+        // 15 minutes (WorkManager's minimum period) even while the app is closed,
+        // and post a system notification as soon as one is published. The check
+        // is a single tiny API call; Doze/App Standby may defer it, which is fine.
+        // KEEP means the schedule survives repeated process starts untouched.
+        runCatching {
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "muso_update_check",
+                ExistingPeriodicWorkPolicy.KEEP,
+                PeriodicWorkRequestBuilder<UpdateCheckWorker>(15, TimeUnit.MINUTES).build(),
+            )
+        }
 
         val locale = Locale.getDefault()
         val languageTag = locale.toLanguageTag().replace("-Hant", "") // replace zh-Hant-* to zh-*

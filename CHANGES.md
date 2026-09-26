@@ -1,3 +1,118 @@
+## Round 78 (v0.5.93): SimpMusic player port, part 2 - below-fold cards, Apple tabs, device volume
+
+- **Classic below-the-fold cards (SimpMusic)**: the Spotify/Classic player page
+  now scrolls - the artwork becomes a square card and under the controls sit
+  three SimpMusic cards: a **Lyrics card** (embedded 300dp lyrics preview on the
+  artwork palette with a Show button that opens the full lyrics view), an
+  **Artist card** (the artist's channel art with song count, linking to the
+  artist page), and a **Description card** (the song's view count and video
+  description, fetched from the player response - the innertube VideoDetails
+  model gained a shortDescription field).
+- **Apple Music tabbed bodies (SimpMusic)**: the dock's Lyrics and Queue
+  buttons now switch the artwork area between a **LYRICS body** (compact header
+  + full lyrics renderer) and a **QUEUE body** (numbered queue list, current
+  row highlighted, tap to play); re-tapping the active tab returns to MAIN.
+  The Queue dock button no longer opens the bottom sheet.
+- **Device volume slider (SimpMusic Apple Music)**: a volume row between the
+  transport and the dock, bound to the SYSTEM media volume with a live
+  ContentObserver so hardware keys stay in sync.
+- Sheet-collapse nested scroll moved to the page column (works with the new
+  scrollable Classic layout and the pager alike).
+
+**Version:** 0.5.93 (versionCode 100); release tag v0.5.93, APK Muso_v0.5.93_v100.apk.
+
+## Round 77 (v0.5.92): SimpMusic player port - Classic rewrite, artwork pager, video parity
+
+The player styles were re-ported toward SimpMusic's actual behaviour (the M3
+Expressive and Apple Music styles were already 1:1 ports; this round rebuilt
+the Spotify style to match SimpMusic's "Classic / Spotify" Now Playing and
+brought the shared shell to parity):
+
+- **Spotify style = SimpMusic Classic now playing**: force-dark layout with
+  the artwork palette sliding down a diagonal gradient into #121212, "NOW
+  PLAYING" top bar with the playlist name and dismiss chevron, marquee
+  title/artists row with the heart, a buffered-progress indicator under the
+  slider (the DEFAULT slider style now renders a real slider again - it used
+  to render nothing), codec pill in the times row, ONE five-slot transport
+  row (shuffle | prev | play | next | repeat) and an info / add-to-playlist /
+  queue action row.
+- **Artwork pager (all styles, SimpMusic's signature gesture)**: the queue's
+  covers now live in a real HorizontalPager - swipe through upcoming covers,
+  and the song changes when the swipe settles; a song change settles the
+  pager (single-page moves animate, multi-page jumps cut). Disabled while
+  repeat-one is active, exactly like SimpMusic. Replaces the old
+  drag-past-quarter-width skip gesture.
+- **Video, SimpMusic-style in the artwork slot**: the single-stream video is
+  now framed INSIDE the artwork area per style (Classic: 8dp rounded box at
+  the stream's real aspect ratio; Expressive: the 28dp card takes the video's
+  shape, capped at square; Apple: centred, 12dp corners when portrait) - the
+  transport sits below it in normal flow, not overlaid.
+- **Over-video overlay (SimpMusic)**: fullscreen button (top-end), -5s/+5s
+  (centred), lyric-subtitle toggle (bottom-end), 3s auto-hide, tap to toggle.
+- **Landscape fullscreen video route (SimpMusic FullscreenPlayer)**: locks
+  landscape + immersive bars, single tap toggles the overlay, double tap on
+  either half seeks -5s/+5s; overlay has title, transport, slider, times.
+- **Video quality setting (SimpMusic)**: 360p / 720p / 1080p picker replaces
+  the old boolean "high quality video" (Content settings).
+- **Shared inline lyric line**: the Expressive gap lyric is now shared by the
+  Classic style and the over-video subtitle (extracted to one composable).
+- Dead code removed: the secondary PlayerVideo player, ThinProgressSlider,
+  ExpressiveControlSlot.
+
+**Version:** 0.5.92 (versionCode 99); release tag v0.5.92, APK Muso_v0.5.92_v99.apk.
+
+## Round 76 (v0.5.91): update notification alongside the update popup
+
+New release published on GitHub now also triggers a system notification, not
+just the in-app popup.
+
+- New background worker (WorkManager, ~every 15 minutes) checks GitHub for a
+  newer release even while Muso is closed, and posts a notification as soon
+  as one is published. Doze may defer the check, which is expected.
+- When the app is OPEN, the existing version check (now refreshed at most
+  every 6 hours instead of once per day) posts the same notification together
+  with the in-app popup.
+- The notification is shown ONCE per version (remembered in a tiny prefs
+  file), so it never repeats or spams.
+- Tapping the notification opens Muso and force-shows the update popup - even
+  if that version had been dismissed with "Later" - with the one-tap
+  DownloadManager install right there.
+- Updater.getLatestVersionName() gained a force flag to bypass the in-memory
+  cache (used by the worker and notification taps).
+- Android 13+: the POST_NOTIFICATIONS permission is requested once after the
+  splash (needed for the music notification too).
+- New "App updates" notification channel; strings in English and Bengali.
+- New dependency: androidx.work:work-runtime-ktx 2.9.1.
+
+**Version:** 0.5.91 (versionCode 98); release tag v0.5.91, APK Muso_v0.5.91_v98.apk.
+
+## Round 75 (v0.5.90): splash freeze fix - startup composition deferred
+
+Frame-by-frame analysis of the user's screen recording showed the splash
+animation was FROZEN for 0.3-0.5s stretches and jumping between phases, and
+the handoff ended on a black flash before the home screen popped in. The
+splash's own render architecture was already draw-phase-only - the problem
+was that the ENTIRE app UI (NavHost, database flows, preference reads,
+image loading) was composed at the same time, on the same main thread, while
+the animation played. The animation simply never got frames.
+
+- The main UI is now composed ONLY when the splash asks for it: during its
+  quiet settled phase at t=1.70s (wordmark fully in, logo static), just before
+  the exit fade begins. The heavy startup composition then runs underneath
+  the fade/handoff, where a hitch is invisible. During the rest of the
+  animation the splash has the main thread to itself and runs at the
+  display's full refresh rate.
+- The splash overlay moved OUT of the app's UI tree (it used to live inside
+  InnerTuneTheme/BoxWithConstraints) so it outlives the app's first frame.
+- The splash now HOLDS its fully-faded final frame until the main UI has
+  actually rendered one frame, and only then removes itself - no more black
+  flash / hard cut into the home screen.
+- Safety: even if the frame timeout fires early, the app UI is always asked
+  to compose before the splash hands off, so it can never wait forever.
+- Warm starts (no splash) compose exactly as before - zero behavior change.
+
+**Version:** 0.5.90 (versionCode 97); release tag v0.5.90, APK Muso_v0.5.90_v97.apk.
+
 ## Round 74 (v0.5.89): CI build fix - two compile errors from Round 73
 
 - ShimmerImage.kt: the cached shimmer colors use remember() but the file never

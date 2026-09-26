@@ -23,7 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavController
 import com.zionhuang.innertube.utils.parseCookieString
 import com.muso.music.LocalPlayerAwareWindowInsets
-import com.muso.music.constants.HighQualityVideoKey
+import com.muso.music.constants.VideoQuality
+import com.muso.music.constants.VideoQualityKey
 import com.muso.music.constants.ShowVideoInPlayerKey
 import com.muso.music.constants.AudioQualityKey
 import com.muso.music.R
@@ -109,7 +110,7 @@ fun ContentSettings(
     val (autoDownloadLikedSongs, onAutoDownloadLikedSongsChange) = rememberPreference(key = AutoDownloadLikedSongsKey, defaultValue = false)
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.AUTO)
     val (showVideoInPlayer, onShowVideoInPlayerChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
-    val (highQualityVideo, onHighQualityVideoChange) = rememberPreference(HighQualityVideoKey, defaultValue = true)
+    val (videoQuality, onVideoQualityChange) = rememberEnumPreference(VideoQualityKey, defaultValue = VideoQuality.Q720)
     val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(key = DownloadQualityKey, defaultValue = AudioQuality.AUTO)
 
 
@@ -209,12 +210,18 @@ fun ContentSettings(
             }
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.high_quality_video)) },
-            description = stringResource(R.string.high_quality_video_desc),
+        EnumListPreference(
+            title = { Text(stringResource(R.string.video_quality)) },
             icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
-            checked = highQualityVideo,
-            onCheckedChange = onHighQualityVideoChange
+            selectedValue = videoQuality,
+            onValueSelected = onVideoQualityChange,
+            valueText = {
+                when (it) {
+                    VideoQuality.Q360 -> stringResource(R.string.video_quality_360)
+                    VideoQuality.Q720 -> stringResource(R.string.video_quality_720)
+                    VideoQuality.Q1080 -> stringResource(R.string.video_quality_1080)
+                }
+            },
         )
 
         SwitchPreference(
