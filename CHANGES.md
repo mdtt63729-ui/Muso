@@ -1,3 +1,15 @@
+## Round 72 (v0.5.87): CI build fix - duplicate UpdateState enum
+
+- The release build failed because the obsolete UpdateDialog.kt was still in
+  the tree: it declared a top-level `UpdateState` enum that collided with the
+  same-named (private) enum in the new UpdatePopup.kt - "Redeclaration" in
+  the same package. UpdateDialog.kt is fully replaced by UpdatePopup.kt and
+  nothing referenced it anymore, so the file is removed. This was the only
+  compile error in the CI log; everything else (keystore decode, signing
+  setup) was already running fine.
+
+**Version:** 0.5.87 (versionCode 94); release tag v0.5.87, APK Muso_v0.5.87_v94.apk.
+
 ## Round 71 (v0.5.86): release APK signing in CI
 
 - The build workflow now signs the release APK: the keystore is decoded from
