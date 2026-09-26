@@ -2,8 +2,20 @@ package com.muso.music.ui.component
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -67,11 +79,10 @@ import com.muso.music.constants.LyricsStyleKey
 import com.muso.music.constants.LyricsTextPositionKey
 import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.muso.music.lyrics.LyricsEntry
+import com.muso.music.lyrics.LyricsUtils
 import com.muso.music.lyrics.LyricsEntry.Companion.HEAD_LYRICS_ENTRY
 import com.muso.music.lyrics.LyricsUtils.findCurrentLineIndex
 import com.muso.music.lyrics.LyricsUtils.parseLyrics
-import com.muso.music.ui.component.shimmer.ShimmerHost
-import com.muso.music.ui.component.shimmer.TextPlaceholder
 import com.muso.music.ui.menu.LyricsMenu
 import com.muso.music.ui.utils.fadingEdge
 import com.muso.music.utils.rememberEnumPreference
@@ -89,6 +100,9 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.PI
 import kotlin.math.abs
+import androidx.compose.ui.graphics.drawscope.rotate
+import kotlin.math.min
+import kotlin.math.cos
 import kotlin.math.sin
 import com.muso.music.utils.rememberPreference
 import kotlinx.coroutines.delay
@@ -136,12 +150,25 @@ fun Lyrics(
         !lyrics.isNullOrEmpty() &&
                 (lyrics.trimStart().startsWith("<?xml") || lyrics.trimStart().startsWith("<tt"))
     }
-    val lines = remember(lyrics, romanizeLyrics) {
+    // The parse and the "is this actually synced" verdict are computed together:
+    // SimpMusic's sync-type sanity demotes a file whose timestamps are all
+    // identical (every row "0") to unsynced - no fake active line, nothing
+    // highlighted - and any badly merged LRC (time tags inside the text,
+    // metadata rows) is cleaned so ONLY lyric text can ever render.
+    val hasLrcTags = remember(lyrics, isTTML) {
+        !isTTML && !lyrics.isNullOrEmpty() && lyrics != LYRICS_NOT_FOUND &&
+                LyricsUtils.hasTimestampedLines(lyrics)
+    }
+    val (lines, isSynced) = remember(lyrics, romanizeLyrics, hasLrcTags) {
+        fun plain(raw: String): List<LyricsEntry> = LyricsUtils.sanitizeUnsynced(raw)
+            .mapIndexed { index, line ->
+                LyricsEntry(index * 100L, if (romanizeLyrics) Romanizer.romanize(line) else line)
+            }
         when {
-            lyrics == null || lyrics == LYRICS_NOT_FOUND -> emptyList()
+            lyrics == null || lyrics == LYRICS_NOT_FOUND -> emptyList<LyricsEntry>() to false
             // TTML karaoke: line entries with per-word start/end times. Romanizing would
             // break the word timing, so it falls back to plain romanized line text.
-            isTTML && !romanizeLyrics -> listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(lyrics).map { line ->
+            isTTML && !romanizeLyrics -> (listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(lyrics).map { line ->
                 LyricsEntry(
                     time = (line.startTime * 1000).toLong(),
                     text = line.text,
@@ -153,23 +180,22 @@ fun Lyrics(
                         )
                     },
                 )
-            }
-            isTTML -> listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(lyrics).map { line ->
+            }) to true
+            isTTML -> (listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(lyrics).map { line ->
                 LyricsEntry((line.startTime * 1000).toLong(), Romanizer.romanize(line.text))
-            }
-            lyrics.startsWith("[") -> {
-                val parsed = listOf(HEAD_LYRICS_ENTRY) + parseLyrics(lyrics)
-                if (romanizeLyrics) parsed.map { LyricsEntry(it.time, Romanizer.romanize(it.text)) } else parsed
-            }
-            else -> {
-                lyrics.lines().mapIndexed { index, line ->
-                    LyricsEntry(index * 100L, if (romanizeLyrics) Romanizer.romanize(line) else line)
+            }) to true
+            hasLrcTags -> {
+                val parsed = parseLyrics(lyrics)
+                if (parsed.size > 1 && parsed.map { it.time }.distinct().size > 1) {
+                    val withHead = listOf(HEAD_LYRICS_ENTRY) + parsed
+                    (if (romanizeLyrics) withHead.map { LyricsEntry(it.time, Romanizer.romanize(it.text)) } else withHead) to true
+                } else {
+                    // Every timestamp identical - the file is unsynced text.
+                    plain(lyrics) to false
                 }
             }
+            else -> plain(lyrics) to false
         }
-    }
-    val isSynced = remember(lyrics) {
-        !lyrics.isNullOrEmpty() && (lyrics.startsWith("[") || isTTML)
     }
 
     var currentLineIndex by remember {
@@ -191,7 +217,7 @@ fun Lyrics(
     }
 
     LaunchedEffect(lyrics) {
-        if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
+        if (lyrics.isNullOrEmpty() || (!isSynced && !isTTML)) {
             currentLineIndex = -1
             return@LaunchedEffect
         }
@@ -262,18 +288,13 @@ fun Lyrics(
 
             if (lyrics == null || translating) {
                 item {
-                    ShimmerHost {
-                        repeat(10) {
-                            Box(
-                                contentAlignment = lyricsBoxAlignment,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 4.dp)
-                            ) {
-                                TextPlaceholder()
-                            }
-                        }
-                    }
+                    // SimpMusic-style loading: the animated neon equalizer - no
+                    // text skeletons anywhere in the lyrics view.
+                    LyricsMorphLoading(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                    )
                 }
             } else {
                 itemsIndexed(
@@ -379,40 +400,53 @@ fun Lyrics(
             )
         }
 
+        // SimpMusic floating lyrics actions: white-24% circles bottom-end.
         mediaMetadata?.let { mediaMetadata ->
             Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 12.dp)
+                    .padding(end = 20.dp, bottom = 16.dp)
             ) {
                 if (BuildConfig.FLAVOR != "foss") {
-                    IconButton(
-                        onClick = {
-                            translationEnabled = !translationEnabled
-                        }
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.24f))
+                            .clickable { translationEnabled = !translationEnabled },
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.translate),
                             contentDescription = null,
-                            tint = LocalContentColor.current.copy(alpha = if (translationEnabled) 1f else 0.3f)
+                            tint = Color.White.copy(alpha = if (translationEnabled) 1f else 0.5f),
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
 
-                IconButton(
-                    onClick = {
-                        menuState.show {
-                            LyricsMenu(
-                                lyricsProvider = { lyricsEntity },
-                                mediaMetadataProvider = { mediaMetadata },
-                                onDismiss = menuState::dismiss
-                            )
-                        }
-                    }
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.24f))
+                        .clickable {
+                            menuState.show {
+                                LyricsMenu(
+                                    lyricsProvider = { lyricsEntity },
+                                    mediaMetadataProvider = { mediaMetadata },
+                                    onDismiss = menuState::dismiss
+                                )
+                            }
+                        },
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.more_horiz),
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -564,6 +598,108 @@ private fun KaraokeWord(
                         }
                 } else Modifier,
             )
+        }
+    }
+}
+
+
+/**
+ * SimpMusic / Material-3 expressive lyrics loading: a single morphing shape
+ * indicator - the blob continuously morphs between circle and rounded square
+ * (corner radius + breathing size out of phase) while it rotates, drawn in the
+ * theme's primary color and centered on the lyrics area while they load.
+ */
+@Composable
+private fun LyricsMorphLoading(
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "lyricsMorph")
+    val t by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = LinearEasing),
+        ),
+        label = "lyricsMorphT",
+    )
+    val color = MaterialTheme.colorScheme.primary
+    Canvas(modifier = modifier.size(64.dp)) {
+        val full = min(size.width, size.height)
+        // Shape morph: corner radius swings between square-ish and circle.
+        val cornerPhase = 0.5f + 0.5f * cos(t * 2f * PI).toFloat()
+        // Breathing size, offset half a cycle from the corners.
+        val scalePhase = 0.5f + 0.5f * sin(t * 2f * PI).toFloat()
+        val side = full * (0.66f + 0.22f * scalePhase)
+        val half = side / 2f
+        val corner = half * (0.18f + 0.82f * cornerPhase)
+        rotate(degrees = t * 180f, pivot = center) {
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(center.x - half, center.y - half),
+                size = Size(side, side),
+                cornerRadius = CornerRadius(corner, corner),
+            )
+        }
+    }
+}
+) {
+    val transition = rememberInfiniteTransition(label = "lyricsMorph")
+    val t by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+        ),
+        label = "lyricsMorphT",
+    )
+    Canvas(modifier = modifier.height(120.dp)) {
+        val barCount = 5
+        val gap = 12.dp.toPx()
+        val barWidth = 16.dp.toPx()
+        val totalWidth = barCount * barWidth + (barCount - 1) * gap
+        var x = (size.width - totalWidth) / 2f
+        val centerY = size.height / 2f
+        // Symmetric heights around the tall centre bar (SimpMusic reference).
+        val shape = floatArrayOf(0.34f, 0.62f, 1f, 0.62f, 0.34f)
+        val neon = Brush.horizontalGradient(
+            listOf(Color(0xFF22D3EE), Color(0xFF818CF8), Color(0xFFE879F9)),
+        )
+        for (i in 0 until barCount) {
+            val wave = 0.74f + 0.26f * sin(t + i * 0.85f)
+            val h = (size.height * shape[i] * wave).coerceAtLeast(barWidth)
+            val radius = CornerRadius(barWidth / 2f, barWidth / 2f)
+            // Soft outer glow (bloom): the same bar drawn larger, very low alpha.
+            val grow = 5.dp.toPx()
+            drawRoundRect(
+                brush = neon,
+                topLeft = Offset(x - grow / 2f, centerY - h / 2f - grow / 2f),
+                size = Size(barWidth + grow, h + grow),
+                cornerRadius = CornerRadius(barWidth / 2f + grow / 2f),
+                alpha = 0.22f,
+            )
+            // The bar itself.
+            drawRoundRect(
+                brush = neon,
+                topLeft = Offset(x, centerY - h / 2f),
+                size = Size(barWidth, h),
+                cornerRadius = radius,
+            )
+            // Glossy sheen: a white fade over the top third of the bar.
+            drawRoundRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.45f),
+                        Color.Transparent,
+                    ),
+                    startY = centerY - h / 2f,
+                    endY = centerY - h / 6f,
+                ),
+                topLeft = Offset(x, centerY - h / 2f),
+                size = Size(barWidth, h),
+                cornerRadius = radius,
+                alpha = 0.5f,
+            )
+            x += barWidth + gap
         }
     }
 }

@@ -53,7 +53,7 @@ class DownloadUtil @Inject constructor(
     @PlayerCache val playerCache: SimpleCache,
 ) {
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
-    private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
+    private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.HIGH)
 
     // SimpMusic-style separate download quality: downloads can pick a different stream
     // than streaming playback does.

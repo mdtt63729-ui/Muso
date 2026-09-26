@@ -1,10 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Android 12+ system splash: pure black, no icon, so it merges seamlessly into
-         the custom waveform animation with no white flash and no duplicate logo. -->
+    <!-- Android 12+ system splash: pure black with a TRANSPARENT icon - the user
+         never sees the app icon at launch; the custom waveform animation fades
+         straight in over the black window with no gap and no duplicate logo. -->
     <style name="MusoSplashTheme" parent="@style/Theme.InnerTune">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:windowSplashScreenBackground">@android:color/black</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
-        <item name="android:windowSplashScreenAnimationDuration">900</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon_transparent</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
     </style>
 </resources>

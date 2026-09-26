@@ -286,6 +286,24 @@ fun LyricsMenu(
             bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
         )
     ) {
+        // Share: the lyrics text straight into the system share sheet.
+        GridMenuItem(
+            icon = R.drawable.share,
+            title = R.string.share
+        ) {
+            val lyricsText = lyricsProvider()?.lyrics.orEmpty()
+            if (lyricsText.isNotEmpty() && lyricsText != LYRICS_NOT_FOUND) {
+                onDismiss()
+                context.startActivity(
+                    Intent.createChooser(
+                        Intent(Intent.ACTION_SEND)
+                            .setType("text/plain")
+                            .putExtra(Intent.EXTRA_TEXT, lyricsText),
+                        null,
+                    )
+                )
+            }
+        }
         GridMenuItem(
             icon = R.drawable.edit,
             title = R.string.edit

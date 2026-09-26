@@ -1,3 +1,173 @@
+## Round 90 (v0.5.105): light mode fixed for all player styles, lyrics-card popup, morph loading
+
+- **LIGHT MODE FIXED ON ALL THREE PLAYER STYLES.** The players are SimpMusic
+  surfaces - dark, white-text - in BOTH themes now, instead of the broken mix
+  that put white text on pale light-mode backgrounds:
+  - Apple: the frosted wash now deepens automatically when the artwork's seed
+    color is light, so the white text reads on any artwork in any theme.
+  - Expressive: the blurred-artwork scrim is always dark (no longer follows
+    the theme), a flat dark base covers the non-blurred case, and the header
+    row (collapse circle, NOW PLAYING, playing-from, details) is white.
+  - Classic: unchanged dark gradient; its shuffle/repeat accents turn white
+    in light mode (the pale theme primary washed out).
+  - Player button styles (Primary/Tertiary) and the dock chips turn white in
+    light mode for the same reason.
+- **LYRICS CARD (Classic scroll):** the Show text button is gone. Its place:
+  a fullscreen button (the same fullscreen Show used) + a 3-dot button opening
+  a compact popup with SHARE (lyrics text to the system share sheet), EDIT,
+  SEARCH and REFRESH (re-fetch) - every action fully working.
+- **LYRICS LOADING = Material-3 morphing indicator:** a single blob that
+  continuously morphs shape (circle to rounded square, breathing size) while
+  it rotates, in the theme primary color - replacing the equalizer bars.
+
+**Version:** 0.5.105 (versionCode 112); release tag v0.5.105, APK Muso_v0.5.105_v112.apk.
+
+## Round 89 (v0.5.104): HIGH quality default, codec kbps, serial settings, equalizer loading
+
+- **AUDIO QUALITY DEFAULTS TO HIGH** everywhere the default is read - the
+  playback selection in MusicService, the download selection, and the
+  Content settings screen. Fresh installs (and any install that never
+  touched the setting) now stream high-quality audio out of the box.
+- **CODEC PILL NOW SHOWS THE BITRATE**: "OPUS • 128 kbps". The media3 track
+  rarely reports a bitrate for progressive streams, which is why the pill
+  showed the codec alone - the stored format (written on every first play,
+  straight from the YouTube stream data) now fills the kbps when the track
+  does not carry one, and the codec name is standardised to upper-case.
+- **SETTINGS REORDERED SERIAL-BY-IMPORTANCE** in every category: Content
+  leads with Audio/Download/Video quality then language, region and account;
+  the Player page leads with playback behaviour (skip silence, audio
+  normalization + loudness, spatial) before niceties; Appearance leads with
+  the Now Playing style, then theme, then chrome; Lyrics follow
+  style -> position -> size -> spacing -> scroll -> blur -> romanization.
+- **LYRICS LOADING IS THE SIMPMUSIC NEON EQUALIZER**: the old text-skeleton
+  shimmer is completely gone from the lyrics view - while lyrics load, five
+  symmetric rounded bars breathe like an equalizer with a cyan-to-magenta
+  neon gradient, a soft outer glow and a glossy sheen, centered on the
+  lyrics area.
+
+**Version:** 0.5.104 (versionCode 111); release tag v0.5.104, APK Muso_v0.5.104_v111.apk.
+
+## Round 88 (v0.5.103): SimpMusic-clean lyrics - nothing but the words
+
+The lyrics view had junk leaking into the lines on some songs - raw
+[mm:ss.xx] timestamps, [ar:]/[ti:]/[by:] LRC metadata tags - because synced
+detection only checked whether the file STARTED with "[", and the parser let
+time tags embedded mid-text through. All of that is gone (SimpMusic logic):
+
+- ROBUST SYNCED DETECTION: a lyrics file counts as synced when ANY line
+  starts with a timestamp - leading blank lines or a BOM can no longer push
+  a synced file down the unsynced path that dumped raw timestamps as text.
+- SANITIZED EVERYWHERE: inline time tags are stripped from every parsed
+  line, LRC metadata rows are dropped, blank leftovers removed - only actual
+  lyric text can ever render, synced or unsynced.
+- SYNC-TYPE SANITY (SimpMusic): timestamps all identical (a "synced" file
+  whose rows are all 0) is demoted to unsynced - no fake active line.
+- Apple LYRICS body header is now SimpMusic's compact header actions:
+  favourite (heart, live) + more (the song's real menu) instead of a close
+  cross - re-tapping the dock's Lyrics button still returns to MAIN.
+- Floating lyrics actions restyled as SimpMusic white-24% circles (38 dp,
+  18 dp icons): translate toggle + lyrics menu.
+
+**Version:** 0.5.103 (versionCode 110); release tag v0.5.103, APK Muso_v0.5.103_v110.apk.
+
+## Round 87 (v0.5.102): Spotify-Canvas-style fullscreen video experience
+
+The whole video system is rebuilt around one idea - like Spotify's canvas:
+
+- THE THUMBNAIL STAYS while the video loads behind it. No video available?
+  The thumbnail simply stays; there is never a black box. When the video
+  is actually ready, the thumbnail fades out with a smooth fade animation.
+- THE VIDEO PLAYS REALLY FULLSCREEN - edge to edge, top to bottom and side
+  to side, behind the whole player (portrait and landscape), cropped with
+  the minimal zoom that still covers every edge.
+- ONLY A 7-10s HIGHLIGHT LOOPS: the video plays from ~25% in as a clipped
+  8-second window with a seamless repeat (Spotify-canvas style), muted,
+  from its own dedicated ExoPlayer - the audio always comes from the main
+  player, so the loop can never drift the playback or the controls. The
+  main player now always plays the audio stream; MusicService publishes the
+  video stream URL for the canvas (respects the video-quality setting).
+- CONTROLS: 3s after the LAST touch (button, slider, tap - every touch
+  restarts the countdown) the whole UI - top bars, artwork, controls, dock -
+  fades out smoothly. While hidden, a tap catcher sits above everything:
+  the faded buttons cannot be hit, the first tap only brings everything
+  back with a smooth fade-in; after that they work normally again.
+- Tap on the open video area hides everything with a fade; tap anywhere
+  brings it back.
+- Removed with the old system: the in-artwork video slot, the fullscreen
+  button, the +/-5s overlay, and the FullscreenVideoPlayer route.
+
+**Version:** 0.5.102 (versionCode 109); release tag v0.5.102, APK Muso_v0.5.102_v109.apk.
+
+## Round 86 (v0.5.101): the real cause of the video-time bottom overlay removed
+
+The dark strip with the pill that appeared at the bottom whenever a video
+played was the SYSTEM NAVIGATION BAR: the player's immersive-mode logic
+deliberately showed the navigation bar while a video was active in the
+normal (non-fullscreen) player. That branch is deleted - the regular player
+now renders the system bars exactly like the rest of the app whether or not
+a video is playing; only the full-screen video route still hides them.
+
+**Version:** 0.5.101 (versionCode 108); release tag v0.5.101, APK Muso_v0.5.101_v108.apk.
+
+## Round 85 (v0.5.100): queue overlay removed entirely
+
+The queue bottom-sheet overlay that appeared over the bottom of the player
+(especially noticeable during video playback) is gone from the project:
+
+- Queue.kt (the queue sheet, with its peeking strip and drag handle) is
+  deleted from the project - it can never appear again, in any style or
+  during video playback.
+- The Classic action row's queue button and the Expressive connected group's
+  queue slot were removed with it (the Expressive group now ends with the
+  rounded cap on the add-to-playlist slot).
+- The Apple Music style keeps its QUEUE tab body - that is an in-player tab,
+  not the overlay.
+
+**Version:** 0.5.100 (versionCode 107); release tag v0.5.100, APK Muso_v0.5.100_v107.apk.
+
+## Round 84 (v0.5.99): Apple player back to SimpMusic's signature frosted look + codec badge
+
+Following the reference screenshots, the Apple Music style returns to
+SimpMusic's classic design:
+
+- Frosted backdrop restored: the artwork heavily blurred under the
+  translucent three-stop wash of its dominant colour, darkest at the bottom.
+- The artwork is full-bleed at the top of the sheet again (not a centered
+  card); video keeps its portrait-cropped framing.
+- Transport uses SimpMusic's FastRewind / FastForward glyphs for
+  previous/next (fast_rewind drawable is the mirrored fast_forward).
+- The times row now carries SimpMusic's codec badge pill in the center slot:
+  a GraphicEq glyph + the real codec/bitrate of the playing stream (OPUS,
+  AAC...) on a white-16% rounded pill. Respects the existing
+  "show codec on player" appearance setting.
+
+**Version:** 0.5.99 (versionCode 106); release tag v0.5.99, APK Muso_v0.5.99_v106.apk.
+
+## Round 83 (v0.5.98): Apple player rework to match SimpMusic's latest, search filter fix, iconless launch
+
+Apple Music player (matching SimpMusic's current look):
+
+- Flat near-black surface instead of the frosted blurred-artwork backdrop.
+- The artwork is now a centered square card (~87% width, 20dp corners) with a
+  soft lift shadow, centered in its slot; video keeps the same card framing.
+- Airier vertical rhythm (wider artwork-to-title gap, wider transport gaps).
+
+Search:
+
+- The Songs/albums/artists filters showed nothing: a filtered search response
+  can contain several sections and the parser took the LAST one, which is
+  often an empty or unrelated shelf. It now takes the first NON-EMPTY
+  musicShelfRenderer, so every filter returns its items.
+
+Launch/splash:
+
+- The Android 12+ system splash no longer shows the app icon at all (fully
+  transparent splash icon + 0 duration): opening the app goes straight into
+  the custom waveform animation, which now plays from the very beginning and
+  fades IN over the black launch window - no icon, no gap, no pop.
+
+**Version:** 0.5.98 (versionCode 105); release tag v0.5.98, APK Muso_v0.5.98_v105.apk.
+
 ## Round 82 (v0.5.97): ultra-high thumbnails everywhere (2160px, no compromise)
 
 - The global thumbnail interceptor now upgrades EVERY YouTube art URL to

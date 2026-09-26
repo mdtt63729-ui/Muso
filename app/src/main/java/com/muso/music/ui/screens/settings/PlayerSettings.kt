@@ -112,33 +112,6 @@ fun PlayerSettings(
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
 
-        PreferenceGroupTitle(
-            title = stringResource(R.string.player)
-        )
-
-        EnumListPreference(
-            title = { Text(stringResource(R.string.player_text_alignment)) },
-            icon = {
-                Icon(
-                    painter = painterResource(
-                        when (playerTextAlignment) {
-                            PlayerTextAlignment.CENTER -> R.drawable.format_align_center
-                            PlayerTextAlignment.SIDED -> R.drawable.format_align_left
-                        }
-                    ),
-                    contentDescription = null
-                )
-            },
-            selectedValue = playerTextAlignment,
-            onValueSelected = onPlayerTextAlignmentChange,
-            valueText = {
-                when (it) {
-                    PlayerTextAlignment.SIDED -> stringResource(R.string.sided)
-                    PlayerTextAlignment.CENTER -> stringResource(R.string.center)
-                }
-            }
-        )
-
 
         SwitchPreference(
             title = { Text(stringResource(R.string.skip_silence)) },
@@ -169,6 +142,14 @@ fun PlayerSettings(
         )
 
         SwitchPreference(
+            title = { Text(stringResource(R.string.spatial_audio)) },
+            description = stringResource(R.string.spatial_audio_desc),
+            icon = { Icon(painterResource(R.drawable.surround_sound), null) },
+            checked = spatialAudio,
+            onCheckedChange = onSpatialAudioChange
+        )
+
+        SwitchPreference(
             title = { Text(stringResource(R.string.data_saver)) },
             description = stringResource(R.string.data_saver_desc),
             icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
@@ -184,12 +165,27 @@ fun PlayerSettings(
             onCheckedChange = onSeekExtraSecondsChange
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.spatial_audio)) },
-            description = stringResource(R.string.spatial_audio_desc),
-            icon = { Icon(painterResource(R.drawable.surround_sound), null) },
-            checked = spatialAudio,
-            onCheckedChange = onSpatialAudioChange
+        EnumListPreference(
+            title = { Text(stringResource(R.string.player_text_alignment)) },
+            icon = {
+                Icon(
+                    painter = painterResource(
+                        when (playerTextAlignment) {
+                            PlayerTextAlignment.CENTER -> R.drawable.format_align_center
+                            PlayerTextAlignment.SIDED -> R.drawable.format_align_left
+                        }
+                    ),
+                    contentDescription = null
+                )
+            },
+            selectedValue = playerTextAlignment,
+            onValueSelected = onPlayerTextAlignmentChange,
+            valueText = {
+                when (it) {
+                    PlayerTextAlignment.SIDED -> stringResource(R.string.sided)
+                    PlayerTextAlignment.CENTER -> stringResource(R.string.center)
+                }
+            }
         )
 
         SwitchPreference(
@@ -232,6 +228,10 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.lock), null) },
             checked = keepScreenOn,
             onCheckedChange = onKeepScreenOnChange
+        )
+
+        PreferenceGroupTitle(
+            title = stringResource(R.string.player)
         )
 
         PreferenceGroupTitle(

@@ -192,17 +192,18 @@ class MusicService : MediaLibraryService(),
 
     private lateinit var connectivityManager: ConnectivityManager
 
-    private val audioQuality by enumPreference(this, AudioQualityKey, AudioQuality.AUTO)
+    private val audioQuality by enumPreference(this, AudioQualityKey, AudioQuality.HIGH)
 
     // Echo Player and Audio settings
     private val dataSaver by preference(this, DataSaverKey, false)
     private val showVideoInPlayer by preference(this, ShowVideoInPlayerKey, true)
     private val videoQuality by enumPreference(this, VideoQualityKey, VideoQuality.Q720)
 
-    /** True while the current stream is a muxed (video+audio) format - the single-stream
-     * video mode: the picture comes from the MAIN player, so position and controls are
-     * always in sync with what you hear. */
-    val isVideoPlayback = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** While "show video in player" is on and the current song has a video: the
+     * URL of that video stream, for the player's fullscreen canvas surface (a
+     * muted, looping highlight that runs independently of the audio). Null when
+     * the setting is off or the song has no video - the thumbnail then stays. */
+    val videoStreamUrl = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     private var volumeObserver: ContentObserver? = null
 
     private var currentQueue: Queue = EmptyQueue
@@ -915,26 +916,31 @@ class MusicService : MediaLibraryService(),
                 throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
             }
 
-            // SimpMusic-style single-stream video: while "show video in player" is
-            // on, a muxed (video+audio) format plays through the MAIN player - one
-            // stream, so the picture, the position and every control stay in sync.
-            val videoFormat = if (showVideoInPlayer) {
-                // SimpMusic video quality setting: the muxed stream closest to the
-                // user's chosen height (360p / 720p / 1080p).
+            // Spotify-Canvas-style video: the MAIN player always plays the audio
+            // selection. When "show video in player" is on and the song has a
+            // video, its URL is published to [videoStreamUrl] for the player's
+            // fullscreen canvas surface, which loops a short muted highlight
+            // independently of the audio position.
+            val canvasVideoFormat = if (showVideoInPlayer) {
+                // SimpMusic video quality setting: the VIDEO-ONLY adaptive stream
+                // closest to the user's chosen height (360p / 720p / 1080p),
+                // falling back to a muxed stream when there is no adaptive video.
                 val targetHeight = when (videoQuality) {
                     VideoQuality.Q360 -> 360
                     VideoQuality.Q720 -> 720
                     VideoQuality.Q1080 -> 1080
                 }
-                playerResponse.streamingData?.formats.orEmpty()
-                    .filter { !it.url.isNullOrEmpty() && (it.height ?: 0) > 0 }
+                playerResponse.streamingData?.adaptiveFormats.orEmpty()
+                    .filter { !it.url.isNullOrEmpty() && !it.isAudio && (it.height ?: 0) > 0 }
                     .minByOrNull { kotlin.math.abs((it.height ?: 0) - targetHeight) }
+                    ?: playerResponse.streamingData?.formats.orEmpty()
+                        .filter { !it.url.isNullOrEmpty() && (it.height ?: 0) > 0 }
+                        .minByOrNull { kotlin.math.abs((it.height ?: 0) - targetHeight) }
             } else {
                 null
             }
 
-            val format = videoFormat
-                ?: playedFormat?.let { pf ->
+            val format = playedFormat?.let { pf ->
                     playerResponse.streamingData?.adaptiveFormats?.find {
                         // Use itag to identify previously played format
                         it.itag == pf.itag
@@ -951,11 +957,11 @@ class MusicService : MediaLibraryService(),
                     }
                 ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
 
-            // The muxed stream is a display choice - the stored audio format (and the
-            // audio-quality selection) stays untouched while it plays.
-            isVideoPlayback.value = videoFormat != null
+            // Null when the setting is off or the song has no video - the player's
+            // thumbnail then simply stays in place.
+            videoStreamUrl.value = canvasVideoFormat?.url
 
-            if (videoFormat == null) database.query {
+            database.query {
                 upsert(
                     FormatEntity(
                         id = mediaId,

@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -52,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.lerp
@@ -113,6 +113,9 @@ import androidx.media3.common.Player.STATE_BUFFERING
 import androidx.annotation.DrawableRes
 import com.muso.music.LocalPlayerConnection
 import com.muso.music.LocalDatabase
+import com.muso.music.ui.menu.LyricsMenu
+import com.muso.music.ui.menu.SongMenu
+import com.muso.music.ui.component.LocalMenuState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.mutableFloatStateOf
@@ -120,12 +123,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.SliderDefaults
-import androidx.media3.common.VideoSize
 import android.content.pm.ActivityInfo
 import android.app.Activity
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
@@ -145,7 +149,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import coil.compose.AsyncImage
 import com.muso.music.constants.PlayerBackgroundStyle
 import com.muso.music.constants.PlayerBackgroundStyleKey
-import com.muso.music.constants.QueuePeekHeight
 import com.muso.music.constants.ShowVideoInPlayerKey
 import com.muso.music.constants.KeepScreenOnKey
 import com.muso.music.constants.SliderStyle
@@ -217,6 +220,7 @@ fun BottomSheetPlayer(
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    val menuState = LocalMenuState.current
 
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
@@ -269,10 +273,6 @@ fun BottomSheetPlayer(
         }
     }
 
-    val queueSheetState = rememberBottomSheetState(
-        dismissedBound = QueuePeekHeight + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
-        expandedBound = state.expandedBound,
-    )
 
     BottomSheet(
         state = state,
@@ -313,11 +313,22 @@ fun BottomSheetPlayer(
                 ?.getTrackFormat(0)
             onDispose { playerToListen.removeListener(listener) }
         }
-        val codecLabel = remember(currentAudioFormat) { formatAudioInfo(currentAudioFormat) }
+        // The stored format (written on first play) is the reliable source of the
+        // stream's real bitrate - the media3 track format often carries none for
+        // progressive streams, which is why the pill used to show no kbps.
+        val dbFormat by database.format(mediaMetadata?.id).collectAsState(initial = null)
+        val codecLabel = remember(currentAudioFormat, dbFormat) {
+            formatAudioInfo(currentAudioFormat, dbFormat)
+        }
 
-        val videoEnabled = showVideo && !showLyrics && state.progress > 0.5f
+        // The canvas video (when one exists) plays from the moment it loads -
+        // not from halfway through the song.
+        val videoEnabled = showVideo && !showLyrics
         var videoActive by remember(mediaMetadata?.id) { mutableStateOf(false) }
         var controlsVisible by rememberSaveable { mutableStateOf(true) }
+        // Bumped by EVERY touch on the player while the canvas video plays, so the
+        // 3-second auto-hide countdown restarts on interaction.
+        var interactionTick by remember { mutableStateOf(0) }
 
         var showSongInfoDialog by rememberSaveable { mutableStateOf(false) }
         var showAddToPlaylistDialog by rememberSaveable { mutableStateOf(false) }
@@ -377,27 +388,6 @@ fun BottomSheetPlayer(
                 }
         }
 
-        // The stream's real aspect ratio: every style sizes its video frame from
-        // this ONE value (SimpMusic), so frame and layout can never drift.
-        var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
-        DisposableEffect(playerConnection.player) {
-            val playerToListen = playerConnection.player
-            val listener = object : androidx.media3.common.Player.Listener {
-                override fun onVideoSizeChanged(videoSize: VideoSize) {
-                    if (videoSize.width > 0 && videoSize.height > 0) {
-                        videoAspectRatio = videoSize.width.toFloat() / videoSize.height.toFloat()
-                    }
-                }
-            }
-            playerToListen.addListener(listener)
-            onDispose { playerToListen.removeListener(listener) }
-        }
-
-        // Landscape fullscreen video route (SimpMusic FullscreenPlayer), entered
-        // from the fullscreen button in the over-video overlay.
-        var fullscreenVideo by rememberSaveable { mutableStateOf(false) }
-        // Over-video subtitle (SimpMusic): the current lyric line over the video.
-        var videoSubtitles by rememberSaveable { mutableStateOf(false) }
         // Apple Music tabbed bodies (SimpMusic): the dock switches the artwork
         // area between the LYRICS and QUEUE bodies; re-tapping returns to MAIN.
         var appleView by rememberSaveable { mutableStateOf(AppleMusicView.MAIN) }
@@ -592,7 +582,7 @@ fun BottomSheetPlayer(
                     Icon(
                         painter = painterResource(R.drawable.shuffle),
                         contentDescription = null,
-                        tint = if (isShuffle) MaterialTheme.colorScheme.primary else fgDim.copy(alpha = 0.5f),
+                        tint = if (isShuffle) { if (isSystemInDarkTheme()) MaterialTheme.colorScheme.primary else Color.White } else fgDim.copy(alpha = 0.5f),
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -663,7 +653,7 @@ fun BottomSheetPlayer(
                     Icon(
                         painter = painterResource(if (repeatMode == REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat),
                         contentDescription = null,
-                        tint = if (repeatMode != REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else fgDim.copy(alpha = 0.5f),
+                        tint = if (repeatMode != REPEAT_MODE_OFF) { if (isSystemInDarkTheme()) MaterialTheme.colorScheme.primary else Color.White } else fgDim.copy(alpha = 0.5f),
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -691,14 +681,6 @@ fun BottomSheetPlayer(
                     IconButton(onClick = { showAddToPlaylistDialog = true }, modifier = Modifier.size(32.dp)) {
                         Icon(
                             painter = painterResource(R.drawable.playlist_add),
-                            contentDescription = null,
-                            tint = fgDim,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                    IconButton(onClick = { queueSheetState.expandSoft() }, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            painter = painterResource(R.drawable.queue_music),
                             contentDescription = null,
                             tint = fgDim,
                             modifier = Modifier.size(24.dp),
@@ -820,7 +802,6 @@ fun BottomSheetPlayer(
                 lyricsActive = showLyrics,
                 onShowInfo = { showSongInfoDialog = true },
                 onAddToPlaylist = { showAddToPlaylistDialog = true },
-                onShowQueue = { queueSheetState.expandSoft() },
             )
             // SimpMusic M3 Expressive: the connected group's Details and
             // Add-to-playlist slots run real dialogs - song info (metadata +
@@ -848,7 +829,9 @@ fun BottomSheetPlayer(
             // + applemusic/AppleMusicShared.kt: white-on-dark text over the frosted
             // artwork backdrop, the thin 7dp thumbless progress bar that swells to
             // 14dp while touched, plain white transport (46dp skips, 66dp play,
-            // 58dp gaps), and the Lyrics | Queue dock with its light active pill.
+            // 58dp gaps) with the FastRewind/FastForward glyphs SimpMusic uses, the
+            // codec badge pill in the times row, the device volume row, and the
+            // Lyrics | Queue dock with its light active pill.
             val onVideo = videoEnabled && videoActive
             val fg = Color.White
             val fgSoft = if (onVideo) Color.White.copy(alpha = 0.72f) else Color.White.copy(alpha = 0.72f)
@@ -1029,6 +1012,30 @@ fun BottomSheetPlayer(
                     color = fgSoft,
                     modifier = Modifier.weight(1f),
                 )
+                // SimpMusic's codec badge pill (AppleMusicTimesRow center slot):
+                // GraphicEq glyph + the real codec of the playing stream.
+                if (showCodecOnPlayer && codecLabel.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(Color.White.copy(alpha = 0.16f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.graphic_eq),
+                            contentDescription = null,
+                            tint = fgSoft,
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Text(
+                            text = codecLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = fgSoft,
+                        )
+                    }
+                }
                 PositionTimeText(
                     positionProvider = { position },
                     sliderPosition = sliderPosition,
@@ -1062,7 +1069,7 @@ fun BottomSheetPlayer(
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.skip_previous),
+                        painter = painterResource(R.drawable.fast_rewind),
                         contentDescription = null,
                         tint = fg.copy(alpha = if (canSkipPrevious) 1f else 0.4f),
                         modifier = Modifier.size(46.dp),
@@ -1107,7 +1114,7 @@ fun BottomSheetPlayer(
                     modifier = Modifier.size(56.dp),
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.skip_next),
+                        painter = painterResource(R.drawable.fast_forward),
                         contentDescription = null,
                         tint = fg.copy(alpha = if (canSkipNext) 1f else 0.4f),
                         modifier = Modifier.size(46.dp),
@@ -1194,7 +1201,7 @@ fun BottomSheetPlayer(
         // SimpMusic Apple Music backdrop: the frosted cover art (heavy blur)
         // under a translucent three-stop wash of the artwork's dominant colour,
         // darkest at the bottom so the white text reads comfortably.
-        if (playerStyle == PlayerStyle.APPLE && !(showVideo && !showLyrics && state.progress > 0.5f)) {
+        if (playerStyle == PlayerStyle.APPLE && !videoActive) {
             val seed = appleSeedColor ?: MaterialTheme.colorScheme.primary
             mediaMetadata?.thumbnailUrl?.let { thumbnailUrl ->
                 Box(Modifier.matchParentSize()) {
@@ -1211,9 +1218,12 @@ fun BottomSheetPlayer(
                             .matchParentSize()
                             .alpha(0.85f)
                             .background(
+                                // The wash deepens automatically when the artwork's
+                                // seed is light, so white text reads on ANY artwork
+                                // in EITHER theme - light mode included.
                                 Brush.verticalGradient(
-                                    0f to lerp(seed, Color.Black, 0.05f),
-                                    0.48f to lerp(seed, Color.Black, 0.32f),
+                                    0f to lerp(seed, Color.Black, if ((0.2126f * seed.red + 0.7152f * seed.green + 0.0722f * seed.blue) > 0.4f) 0.5f else 0.05f),
+                                    0.48f to lerp(seed, Color.Black, if ((0.2126f * seed.red + 0.7152f * seed.green + 0.0722f * seed.blue) > 0.4f) 0.62f else 0.32f),
                                     1f to lerp(seed, Color.Black, 0.78f),
                                 ),
                             ),
@@ -1225,7 +1235,7 @@ fun BottomSheetPlayer(
         // SimpMusic Classic backdrop: the artwork's dominant colour slides down
         // a diagonal gradient into the near-black player surface (#121212).
         if (playerStyle == PlayerStyle.SPOTIFY &&
-            !(showVideo && !showLyrics && state.progress > 0.5f)
+            !videoActive
         ) {
             val seed = appleSeedColor
             val startColor by animateColorAsState(
@@ -1257,7 +1267,7 @@ fun BottomSheetPlayer(
         if (playerBackgroundStyle == PlayerBackgroundStyle.BLURRED_ARTWORK &&
 
             playerStyle == PlayerStyle.EXPRESSIVE &&
-            !(showVideo && !showLyrics && state.progress > 0.5f)
+            !videoActive
         ) {
             mediaMetadata?.thumbnailUrl?.let { thumbnailUrl ->
                 Box(Modifier.matchParentSize()) {
@@ -1279,7 +1289,10 @@ fun BottomSheetPlayer(
                         Modifier
                             .matchParentSize()
                             .background(
-                                backgroundColor.copy(
+                                // SimpMusic keeps the player a DARK white-text
+                                // surface in light mode too - the scrim never follows
+                                // the theme.
+                                Color(0xFF0E0E10).copy(
                                     alpha = if (useBlackBackground) 0.72f else 0.86f
                                 )
                             )
@@ -1288,35 +1301,64 @@ fun BottomSheetPlayer(
             }
         }
 
-        // SimpMusic-style single-stream video: the MAIN player renders its own
-        // output. In PORTRAIT the video is framed inside the artwork slot (per
-        // style, at the stream's real aspect ratio); in LANDSCAPE it fills the
-        // whole screen behind everything.
-        val isVideoStream by playerConnection.service.isVideoPlayback.collectAsState()
-        LaunchedEffect(videoEnabled, isVideoStream) {
-            videoActive = videoEnabled && isVideoStream
-        }
-        if (videoEnabled && LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            MainPlayerVideo(
-                player = playerConnection.player,
-                modifier = Modifier.matchParentSize(),
-            )
+        // Expressive without the blurred-artwork background: the player still
+        // keeps its dark, white-text surface (SimpMusic) in light mode too.
+        if (playerBackgroundStyle != PlayerBackgroundStyle.BLURRED_ARTWORK &&
+            playerStyle == PlayerStyle.EXPRESSIVE &&
+            !videoActive
+        ) {
+            Box(Modifier.matchParentSize().background(Color(0xFF121212)))
         }
 
-        // SimpMusic-style auto-hide: 3s after the controls appear over the
-        // fullscreen video they fade away again.
-        LaunchedEffect(controlsVisible, videoEnabled, videoActive) {
-            if (controlsVisible && videoEnabled && videoActive) {
+        // Spotify-Canvas-style fullscreen video: when the current song has a
+        // video, it plays edge-to-edge BEHIND the whole player as a muted,
+        // seamlessly looping 7-10s highlight - the audio always comes from the
+        // main player. The thumbnail keeps covering the slot while the canvas
+        // loads (there is never a black box); when the canvas reports READY the
+        // thumbnail fades out. With no video available the thumbnail just stays.
+        val videoStreamUrl by playerConnection.service.videoStreamUrl.collectAsState()
+        val currentVideoUrl = videoStreamUrl
+        var canvasReady by remember(currentVideoUrl) { mutableStateOf(false) }
+        LaunchedEffect(videoEnabled, currentVideoUrl, canvasReady) {
+            videoActive = videoEnabled && currentVideoUrl != null && canvasReady
+        }
+        if (videoEnabled && currentVideoUrl != null) {
+            CanvasVideoPlayer(
+                videoUrl = currentVideoUrl,
+                playing = isPlaying,
+                onReady = { canvasReady = true },
+            )
+            // Tap on the open video area (the empty parts around the controls)
+            // hides every component with a fade; buttons keep their own taps.
+            if (videoActive) {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures {
+                                if (controlsVisible) controlsVisible = false
+                            }
+                        },
+                )
+            }
+        }
+
+        // SimpMusic-style auto-hide: 3s after the last touch (button, slider or
+        // tap - interactionTick restarts the countdown) the whole UI fades away.
+        LaunchedEffect(controlsVisible, videoActive, interactionTick) {
+            if (controlsVisible && videoActive) {
                 delay(3000)
                 controlsVisible = false
             }
         }
 
-        // Immersive mode: while the full-screen video plays, the status bar always hides and
-        // the navigation bar hides once the controls are toggled away. Everything comes back
-        // when the sheet collapses or the player leaves composition.
+        // Immersive mode: ONLY the full-screen video route hides the system bars
+        // (status + navigation). The regular player - video or not - keeps the
+        // system bars exactly as the rest of the app renders them; the old code
+        // forced the navigation bar visible whenever a video played, which drew
+        // the dark strip overlay at the bottom over the player.
         val immersiveView = LocalView.current
-        LaunchedEffect(state.isExpanded, videoEnabled, videoActive, controlsVisible, keepScreenOn, fullscreenVideo) {
+        LaunchedEffect(state.isExpanded, keepScreenOn) {
             val window = (immersiveView.context as? Activity)?.window ?: return@LaunchedEffect
             // Echo-Music "keep screen on when player is expanded" — keeps the screen awake
             // whenever the player sheet is open (lyrics reading, video watching).
@@ -1328,18 +1370,7 @@ fun BottomSheetPlayer(
             val insetsController = WindowCompat.getInsetsController(window, immersiveView)
             insetsController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            if (fullscreenVideo) {
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            } else if (state.isExpanded && videoEnabled && videoActive) {
-                if (controlsVisible) {
-                    insetsController.show(WindowInsetsCompat.Type.navigationBars())
-                } else {
-                    insetsController.hide(WindowInsetsCompat.Type.navigationBars())
-                }
-                insetsController.hide(WindowInsetsCompat.Type.statusBars())
-            } else {
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            }
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
         }
         DisposableEffect(immersiveView) {
             onDispose {
@@ -1350,6 +1381,15 @@ fun BottomSheetPlayer(
             }
         }
 
+        // While the canvas video plays, EVERYTHING - top bars, artwork,
+        // controls - fades with this one alpha; PlayerControls adds its own
+        // fade + scrim on top of it.
+        val uiAlpha by animateFloatAsState(
+            targetValue = if (videoActive && !controlsVisible) 0f else 1f,
+            animationSpec = tween(350),
+            label = "playerUiAlpha",
+        )
+        Box(Modifier.graphicsLayer { alpha = uiAlpha }) {
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 Row(
@@ -1490,7 +1530,7 @@ fun BottomSheetPlayer(
                     // label. The more button opens the real song Details dialog.
                     // SimpMusic Apple Music grabber: the style's only top chrome.
                     // Tap to collapse the player sheet.
-                    if (playerStyle == PlayerStyle.APPLE && !videoVisible) {
+                    if (playerStyle == PlayerStyle.APPLE) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1511,7 +1551,7 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    if (playerStyle == PlayerStyle.SPOTIFY && !videoVisible) {
+                    if (playerStyle == PlayerStyle.SPOTIFY) {
                         // SimpMusic Classic top bar: dismiss chevron, the centered
                         // NOW PLAYING + playlist stack, more-vert on the right.
                         Row(
@@ -1567,7 +1607,7 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    if (playerStyle == PlayerStyle.EXPRESSIVE && !videoVisible) {
+                    if (playerStyle == PlayerStyle.EXPRESSIVE) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -1578,8 +1618,8 @@ fun BottomSheetPlayer(
                             Surface(
                                 onClick = { state.collapseSoft() },
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                contentColor = MaterialTheme.colorScheme.onSurface,
+                                color = Color.White.copy(alpha = 0.12f),
+                                contentColor = Color.White,
                                 modifier = Modifier.size(44.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -1598,13 +1638,13 @@ fun BottomSheetPlayer(
                                 Text(
                                     text = stringResource(R.string.now_playing_upper).uppercase(),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = Color.White,
                                 )
                                 playingFrom?.let {
                                     Text(
                                         text = it,
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = Color.White.copy(alpha = 0.72f),
                                         maxLines = 1,
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1615,8 +1655,8 @@ fun BottomSheetPlayer(
                             Surface(
                                 onClick = { showSongInfoDialog = true },
                                 shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                contentColor = MaterialTheme.colorScheme.onSurface,
+                                color = Color.White.copy(alpha = 0.12f),
+                                contentColor = Color.White,
                                 modifier = Modifier.size(44.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -1640,7 +1680,19 @@ fun BottomSheetPlayer(
                             AppleMusicLyricsBody(
                                 mediaMetadata = mediaMetadata,
                                 sliderPositionProvider = { sliderPosition },
-                                onBack = { appleView = AppleMusicView.MAIN },
+                                isLiked = currentSong?.song?.liked == true,
+                                onToggleLike = { playerConnection.toggleLike() },
+                                onShowMenu = {
+                                    currentSong?.song?.let { song ->
+                                        menuState.show {
+                                            SongMenu(
+                                                originalSong = song,
+                                                navController = navController,
+                                                onDismiss = menuState::dismiss,
+                                            )
+                                        }
+                                    }
+                                },
                             )
                         }
                     } else if (playerStyle == PlayerStyle.APPLE && appleView == AppleMusicView.QUEUE) {
@@ -1718,155 +1770,6 @@ fun BottomSheetPlayer(
                                         )
                                         .graphicsLayer { alpha = artworkAlpha },
                                 )
-                                if (videoEnabled) {
-                                    // SimpMusic framing: Classic = an 8dp-rounded box at
-                                    // the video's own aspect ratio; Expressive = the 28dp
-                                    // card takes the video's shape (capped at square so a
-                                    // tall video cannot push the fold); Apple = centred,
-                                    // 12dp corners only when the video is portrait.
-                                    val videoAlpha by animateFloatAsState(
-                                        targetValue = if (videoVisible) 1f else 0f,
-                                        animationSpec = tween(300),
-                                        label = "videoFade",
-                                    )
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .graphicsLayer { alpha = videoAlpha },
-                                    ) {
-                                        MainPlayerVideo(
-                                            player = playerConnection.player,
-                                            modifier = when (playerStyle) {
-                                                PlayerStyle.EXPRESSIVE -> Modifier
-                                                    .padding(horizontal = 20.dp)
-                                                    .fillMaxWidth()
-                                                    .aspectRatio(videoAspectRatio.coerceAtLeast(1f))
-                                                    .clip(RoundedCornerShape(28.dp))
-                                                PlayerStyle.APPLE -> Modifier
-                                                    .fillMaxWidth()
-                                                    .aspectRatio(videoAspectRatio)
-                                                    .then(
-                                                        if (videoAspectRatio < 1f) {
-                                                            Modifier.clip(RoundedCornerShape(12.dp))
-                                                        } else Modifier
-                                                    )
-                                                else -> Modifier
-                                                    .fillMaxWidth()
-                                                    .aspectRatio(videoAspectRatio)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                            },
-                                            crop = true,
-                                        )
-                                        if (videoVisible && videoSubtitles) {
-                                            Spacer(Modifier.height(10.dp))
-                                            PlayerInlineLyricLine(
-                                                positionProvider = { position },
-                                                color = Color.White,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                chip = true,
-                                            )
-                                        }
-                                    }
-                                    if (videoVisible) {
-                                        // Over-video overlay (SimpMusic): fullscreen
-                                        // top-end, -5s/+5s centred, subtitle toggle
-                                        // bottom-end; a tap toggles, 3s auto-hide.
-                                        Box(
-                                            modifier = Modifier
-                                                .matchParentSize()
-                                                .pointerInput(Unit) {
-                                                    detectTapGestures {
-                                                        controlsVisible = !controlsVisible
-                                                    }
-                                                },
-                                        )
-                                        if (controlsVisible) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .matchParentSize()
-                                                    .background(
-                                                        Brush.verticalGradient(
-                                                            0f to Color.Black.copy(alpha = 0.4f),
-                                                            0.2f to Color.Transparent,
-                                                            0.8f to Color.Transparent,
-                                                            1f to Color.Black.copy(alpha = 0.4f),
-                                                        ),
-                                                    ),
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(56.dp),
-                                                    contentAlignment = Alignment.CenterEnd,
-                                                ) {
-                                                    IconButton(
-                                                        onClick = { fullscreenVideo = true },
-                                                        modifier = Modifier
-                                                            .size(56.dp)
-                                                            .padding(12.dp),
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.fullscreen),
-                                                            contentDescription = null,
-                                                            tint = Color.White.copy(alpha = 0.8f),
-                                                        )
-                                                    }
-                                                }
-                                                Spacer(Modifier.weight(1f))
-                                                Row(
-                                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                ) {
-                                                    IconButton(
-                                                        onClick = { playerConnection.player.seekBack() },
-                                                        modifier = Modifier.size(48.dp),
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.replay),
-                                                            contentDescription = null,
-                                                            tint = Color.White.copy(alpha = 0.8f),
-                                                            modifier = Modifier.size(30.dp),
-                                                        )
-                                                    }
-                                                    IconButton(
-                                                        onClick = { playerConnection.player.seekForward() },
-                                                        modifier = Modifier.size(48.dp),
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.fast_forward),
-                                                            contentDescription = null,
-                                                            tint = Color.White.copy(alpha = 0.8f),
-                                                            modifier = Modifier.size(30.dp),
-                                                        )
-                                                    }
-                                                }
-                                                Spacer(Modifier.weight(1f))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(56.dp),
-                                                    contentAlignment = Alignment.CenterEnd,
-                                                ) {
-                                                    IconButton(
-                                                        onClick = { videoSubtitles = !videoSubtitles },
-                                                        modifier = Modifier
-                                                            .size(56.dp)
-                                                            .padding(12.dp),
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.lyrics),
-                                                            contentDescription = null,
-                                                            tint = Color.White.copy(alpha = 0.8f),
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
                             } else {
                                 // Adjacent queue page: the cover of the song that comes
                                 // next / before in the queue.
@@ -1902,14 +1805,13 @@ fun BottomSheetPlayer(
                         // between the artwork and the info block (Expressive + Classic).
                         PlayerInlineLyricLine(
                             positionProvider = { position },
-                            color = if (playerStyle == PlayerStyle.SPOTIFY) Color.White.copy(alpha = 0.72f)
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = Color.White.copy(alpha = 0.72f),
                             style = MaterialTheme.typography.labelMedium,
                         )
                     }
 
                     PlayerControls(
-                        videoActive = false,
+                        videoActive = videoActive,
                         controlsVisible = controlsVisible,
                     ) {
                         mediaMetadata?.let {
@@ -1933,50 +1835,37 @@ fun BottomSheetPlayer(
                 }
             }
         }
+        }
 
-        // No collapsed-queue peek bar: the queue sheet only composes once it is
-        // actually being pulled up (a queue button opens it via expandSoft()).
-        // SimpMusic landscape fullscreen video route: the over-video fullscreen
-        // button locks the screen landscape, hides the system bars and fills the
-        // whole player with the video plus its control overlay.
-        if (fullscreenVideo) {
-            FullscreenVideoPlayer(
-                player = playerConnection.player,
-                mediaMetadata = mediaMetadata,
-                positionProvider = { position },
-                durationProvider = { duration },
-                isPlaying = isPlaying,
-                playbackState = playbackState,
-                canSkipPrevious = canSkipPrevious,
-                canSkipNext = canSkipNext,
-                onPrevious = { playerConnection.service.fadeSkip(false) },
-                onNext = { playerConnection.service.fadeSkip(true) },
-                onPlayPause = {
-                    if (playbackState == STATE_ENDED) {
-                        playerConnection.player.seekTo(0, 0)
-                        playerConnection.player.playWhenReady = true
-                    } else {
-                        playerConnection.player.togglePlayPause()
-                    }
-                },
-                onSeek = {
-                    playerConnection.player.seekTo(it)
-                    position = it
-                },
-                onShowInfo = { showSongInfoDialog = true },
-                onExit = { fullscreenVideo = false },
+        // While the UI is hidden over the canvas video, this catcher sits ABOVE
+        // everything: the faded buttons cannot be hit (a tap on their spot does
+        // nothing else) - the first tap only brings all the components back.
+        if (videoActive && !controlsVisible) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures { controlsVisible = true }
+                    },
             )
         }
 
-        if (!queueSheetState.isCollapsed) {
-
-            Queue(
-                state = queueSheetState,
-                playerBottomSheetState = state,
-                backgroundColor = backgroundColor,
-                navController = navController
+        // Every touch (anywhere, on anything) restarts the 3s auto-hide timer.
+        // This layer only OBSERVES the pointer - nothing is consumed, so
+        // buttons, sliders and the layers below keep working untouched.
+        if (videoActive) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            interactionTick++
+                        }
+                    },
             )
         }
+
     }
 }
 
@@ -2030,8 +1919,10 @@ private fun PlayerControls(
             val playerButtonsStyle by rememberEnumPreference(PlayerButtonsStyleKey, PlayerButtonsStyle.DEFAULT)
             val buttonsTint = when (playerButtonsStyle) {
                 PlayerButtonsStyle.DEFAULT -> LocalContentColor.current
-                PlayerButtonsStyle.PRIMARY -> MaterialTheme.colorScheme.primary
-                PlayerButtonsStyle.TERTIARY -> MaterialTheme.colorScheme.tertiary
+                // Light mode's pale primary/tertiary wash out on the dark
+                // player surface - white keeps them defined there.
+                PlayerButtonsStyle.PRIMARY -> if (isSystemInDarkTheme()) MaterialTheme.colorScheme.primary else Color.White
+                PlayerButtonsStyle.TERTIARY -> if (isSystemInDarkTheme()) MaterialTheme.colorScheme.tertiary else Color.White
             }
             CompositionLocalProvider(LocalContentColor provides buttonsTint) {
                 content()
@@ -2053,9 +1944,10 @@ private fun PlayerDockButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val dockOnDark = isSystemInDarkTheme()
     val containerColor by animateColorAsState(
         targetValue = if (active) {
-            if (onVideo) Color.White.copy(alpha = 0.22f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+            if (onVideo || !dockOnDark) Color.White.copy(alpha = 0.22f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
         } else {
             Color.Transparent
         },
@@ -2063,10 +1955,11 @@ private fun PlayerDockButton(
         label = "dockContainer",
     )
     val contentColor by animateColorAsState(
-        targetValue = if (active) {
-            if (onVideo) Color.White else MaterialTheme.colorScheme.primary
-        } else {
-            if (onVideo) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant
+        targetValue = when {
+            active && (onVideo || !dockOnDark) -> Color.White
+            active -> MaterialTheme.colorScheme.primary
+            onVideo || !dockOnDark -> Color.White.copy(alpha = 0.65f)
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = tween(200),
         label = "dockContent",
@@ -2103,21 +1996,24 @@ private fun PlayerDockButton(
  * Returns an empty string when nothing is known - the UI then hides the pill rather
  * than showing a made-up value.
  */
-private fun formatAudioInfo(format: Format?): String {
-    if (format == null) return ""
-    val codecName = when (format.sampleMimeType) {
+private fun formatAudioInfo(format: Format?, dbFormat: FormatEntity? = null): String {
+    val codecName = when (format?.sampleMimeType) {
         "audio/mp4a-latm", "audio/mp4a" -> "AAC"
-        "audio/opus" -> "Opus"
+        "audio/opus" -> "OPUS"
         "audio/mpeg" -> "MP3"
         "audio/flac" -> "FLAC"
         "audio/alac" -> "ALAC"
-        "audio/vorbis" -> "Vorbis"
+        "audio/vorbis" -> "VORBIS"
         "audio/raw", "audio/l16", "audio/pcm" -> "PCM"
-        else -> format.sampleMimeType?.substringAfter("audio/")?.uppercase()
+        else -> format?.sampleMimeType?.substringAfter("audio/")?.uppercase()
+            // fall back to the stored codecs string ("mp4a.40.2", "opus"...)
+            ?: dbFormat?.codecs?.substringBefore(".")?.uppercase()
     } ?: return ""
+    val bitrate = format?.takeIf { it.bitrate > 0 }?.bitrate
+        ?: dbFormat?.takeIf { it.bitrate > 0 }?.bitrate
     val parts = mutableListOf(codecName)
-    if (format.bitrate > 0) {
-        parts += "${format.bitrate / 1000} kbps"
+    if (bitrate != null && bitrate > 0) {
+        parts += "${bitrate / 1000} kbps"
     }
     return parts.joinToString(" \u2022 ")
 }
@@ -2258,234 +2154,6 @@ private fun PlayerInlineLyricLine(
     }
 }
 
-/**
- * SimpMusic FullscreenPlayer: the landscape fullscreen video route. Locks
- * landscape while composed and restores the original orientation on exit; a
- * single tap toggles the control overlay, a double tap on a half seeks
- * -5s/+5s, and the overlay carries the marquee title, transport, seek slider
- * and times.
- */
-@Composable
-private fun FullscreenVideoPlayer(
-    player: androidx.media3.common.Player,
-    mediaMetadata: MediaMetadata?,
-    positionProvider: () -> Long,
-    durationProvider: () -> Long,
-    isPlaying: Boolean,
-    playbackState: Int,
-    canSkipPrevious: Boolean,
-    canSkipNext: Boolean,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onPlayPause: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onShowInfo: () -> Unit,
-    onExit: () -> Unit,
-) {
-    val context = LocalContext.current
-    DisposableEffect(Unit) {
-        val activity = context as? Activity
-        val originalOrientation = activity?.requestedOrientation
-            ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        onDispose {
-            activity?.requestedOrientation = originalOrientation
-        }
-    }
-    var overlayVisible by remember { mutableStateOf(true) }
-    var scrubPosition by remember { mutableStateOf<Long?>(null) }
-    LaunchedEffect(overlayVisible) {
-        if (overlayVisible) {
-            delay(3000)
-            overlayVisible = false
-        }
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { overlayVisible = !overlayVisible },
-                    onDoubleTap = { offset ->
-                        if (offset.x < size.width / 2f) player.seekBack() else player.seekForward()
-                    },
-                )
-            },
-    ) {
-        MainPlayerVideo(
-            player = player,
-            modifier = Modifier.matchParentSize(),
-            crop = false,
-        )
-        if (overlayVisible) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
-                    .windowInsetsPadding(
-                        WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Bottom)
-                    ),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
-                ) {
-                    IconButton(onClick = onExit, modifier = Modifier.size(44.dp)) {
-                        Icon(
-                            painter = painterResource(R.drawable.expand_more),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
-                    Text(
-                        text = mediaMetadata?.title ?: "",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .weight(1f)
-                            .basicMarquee(),
-                    )
-                    IconButton(onClick = onShowInfo, modifier = Modifier.size(44.dp)) {
-                        Icon(
-                            painter = painterResource(R.drawable.more_vert),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                }
-                Spacer(Modifier.weight(1f))
-                Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth(0.5f)
-                        .align(Alignment.CenterHorizontally),
-                ) {
-                    IconButton(
-                        onClick = onPrevious,
-                        enabled = canSkipPrevious,
-                        modifier = Modifier.size(52.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.skip_previous),
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = if (canSkipPrevious) 1f else 0.4f),
-                            modifier = Modifier.size(34.dp),
-                        )
-                    }
-                    IconButton(
-                        onClick = { player.seekBack() },
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.replay),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(30.dp),
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { onPlayPause() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (playbackState == STATE_BUFFERING) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                strokeWidth = 3.dp,
-                                modifier = Modifier.size(28.dp),
-                            )
-                        } else {
-                            Icon(
-                                painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(48.dp),
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = { player.seekForward() },
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.fast_forward),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(30.dp),
-                        )
-                    }
-                    IconButton(
-                        onClick = onNext,
-                        enabled = canSkipNext,
-                        modifier = Modifier.size(52.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.skip_next),
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = if (canSkipNext) 1f else 0.4f),
-                            modifier = Modifier.size(34.dp),
-                        )
-                    }
-                }
-                Spacer(Modifier.weight(1f))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
-                ) {
-                    val duration = durationProvider()
-                    Slider(
-                        value = if (duration == C.TIME_UNSET || duration <= 0) 0f
-                        else ((scrubPosition ?: positionProvider()).toFloat() / duration).coerceIn(0f, 1f),
-                        onValueChange = { fraction ->
-                            if (duration != C.TIME_UNSET && duration > 0) {
-                                scrubPosition = (fraction * duration).toLong()
-                            }
-                        },
-                        onValueChangeFinished = {
-                            scrubPosition?.let { onSeek(it) }
-                            scrubPosition = null
-                        },
-                        colors = SliderDefaults.colors(
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.3f),
-                            thumbColor = Color.White,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text = makeTimeString(scrubPosition ?: positionProvider()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.72f),
-                        )
-                        Text(
-                            text = if (duration == C.TIME_UNSET) "" else makeTimeString(duration),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.72f),
-                        )
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-            }
-        }
-    }
-}
 
 
 /** In-memory cache of below-fold description-card data, so re-entering the
@@ -2506,7 +2174,9 @@ enum class AppleMusicView {
 private fun AppleMusicLyricsBody(
     mediaMetadata: MediaMetadata?,
     sliderPositionProvider: () -> Long?,
-    onBack: () -> Unit,
+    isLiked: Boolean,
+    onToggleLike: () -> Unit,
+    onShowMenu: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -2547,9 +2217,20 @@ private fun AppleMusicLyricsBody(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+            // SimpMusic compact-header actions: favourite + more sheet.
+            IconButton(onClick = onToggleLike, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.close),
+                    painter = painterResource(
+                        if (isLiked) R.drawable.favorite else R.drawable.favorite_border
+                    ),
+                    contentDescription = null,
+                    tint = if (isLiked) MaterialTheme.colorScheme.error else Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            IconButton(onClick = onShowMenu, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    painter = painterResource(R.drawable.more_vert),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp),
@@ -2598,9 +2279,20 @@ private fun AppleMusicQueueBody(
                 color = Color.White,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+            // SimpMusic compact-header actions: favourite + more sheet.
+            IconButton(onClick = onToggleLike, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.close),
+                    painter = painterResource(
+                        if (isLiked) R.drawable.favorite else R.drawable.favorite_border
+                    ),
+                    contentDescription = null,
+                    tint = if (isLiked) MaterialTheme.colorScheme.error else Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            IconButton(onClick = onShowMenu, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    painter = painterResource(R.drawable.more_vert),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp),
@@ -2751,6 +2443,7 @@ private fun ClassicBelowFoldCards(
     val mediaMetadata = mediaMetadata ?: return
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
+    val menuState = LocalMenuState.current
 
     val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
     val lyrics = lyricsEntity?.lyrics
@@ -2801,8 +2494,36 @@ private fun ClassicBelowFoldCards(
                         color = Color.White,
                     )
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onShowLyrics) {
-                        Text(text = stringResource(R.string.show))
+                    // Fullscreen + more (SimpMusic): instead of a "Show" text
+                    // button, the box opens with a fullscreen icon (the same
+                    // fullscreen the Show button used) and a 3-dot popup with
+                    // share / edit / search / refresh.
+                    IconButton(onClick = onShowLyrics, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            painter = painterResource(R.drawable.fullscreen),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            menuState.show {
+                                LyricsMenu(
+                                    lyricsProvider = { lyricsEntity },
+                                    mediaMetadataProvider = { mediaMetadata },
+                                    onDismiss = menuState::dismiss,
+                                )
+                            }
+                        },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.more_vert),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
                 }
                 Box(

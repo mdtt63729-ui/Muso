@@ -122,7 +122,6 @@ fun ColumnScope.SimpExpressiveContent(
     lyricsActive: Boolean,
     onShowInfo: () -> Unit,
     onAddToPlaylist: () -> Unit,
-    onShowQueue: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
@@ -237,8 +236,8 @@ fun ColumnScope.SimpExpressiveContent(
     )
 
     // === ExpressiveConnectedGroup - SimpMusic's Info | Cast | Shuffle | Repeat |
-    // Add-to-playlist | Queue. Muso has no Cast support, so Lyrics takes that
-    // slot: Details | Lyrics | Shuffle | Repeat | Add | Queue. 48dp row, 3dp
+    // Add-to-playlist. Muso has no Cast support, so Lyrics takes that
+    // slot: Details | Lyrics | Shuffle | Repeat | Add. 48dp row, 3dp
     // gaps, 24/6dp end caps, active slots on primaryContainer.
     val startCap = RoundedCornerShape(topStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp, bottomStart = 24.dp)
     val endCap = RoundedCornerShape(topStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 6.dp)
@@ -287,17 +286,9 @@ fun ColumnScope.SimpExpressiveContent(
                 )
             }
         }
-        ExpressiveConnectedSlot(shape = middle, active = false, onClick = onAddToPlaylist) {
+        ExpressiveConnectedSlot(shape = endCap, active = false, onClick = onAddToPlaylist) {
             Icon(
                 painter = painterResource(R.drawable.playlist_add),
-                contentDescription = null,
-                tint = colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        ExpressiveConnectedSlot(shape = endCap, active = false, onClick = onShowQueue) {
-            Icon(
-                painter = painterResource(R.drawable.queue_music),
                 contentDescription = null,
                 tint = colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp),

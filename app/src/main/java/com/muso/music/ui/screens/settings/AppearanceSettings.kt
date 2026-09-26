@@ -325,34 +325,6 @@ fun AppearanceSettings(
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
 
-        // ============================ Interface ============================
-        PreferenceGroupTitle(
-            title = stringResource(R.string.user_interface),
-        )
-
-        EnumListPreference(
-            title = { Text(stringResource(R.string.theme)) },
-            icon = { Icon(painterResource(R.drawable.dark_mode), null) },
-            selectedValue = darkMode,
-            onValueSelected = onDarkModeChange,
-            valueText = {
-                when (it) {
-                    DarkMode.ON -> stringResource(R.string.dark_theme_on)
-                    DarkMode.OFF -> stringResource(R.string.dark_theme_off)
-                    DarkMode.AUTO -> stringResource(R.string.dark_theme_follow_system)
-                }
-            },
-        )
-
-        AnimatedVisibility(useDarkTheme) {
-            SwitchPreference(
-                title = { Text(stringResource(R.string.pure_black)) },
-                icon = { Icon(painterResource(R.drawable.contrast), null) },
-                checked = pureBlack,
-                onCheckedChange = onPureBlackChange,
-            )
-        }
-
         EnumListPreference(
             title = { Text(stringResource(R.string.now_playing_style)) },
             icon = { Icon(painterResource(R.drawable.play), null) },
@@ -396,6 +368,29 @@ fun AppearanceSettings(
                 }
             },
         )
+
+        EnumListPreference(
+            title = { Text(stringResource(R.string.theme)) },
+            icon = { Icon(painterResource(R.drawable.dark_mode), null) },
+            selectedValue = darkMode,
+            onValueSelected = onDarkModeChange,
+            valueText = {
+                when (it) {
+                    DarkMode.ON -> stringResource(R.string.dark_theme_on)
+                    DarkMode.OFF -> stringResource(R.string.dark_theme_off)
+                    DarkMode.AUTO -> stringResource(R.string.dark_theme_follow_system)
+                }
+            },
+        )
+
+        AnimatedVisibility(useDarkTheme) {
+            SwitchPreference(
+                title = { Text(stringResource(R.string.pure_black)) },
+                icon = { Icon(painterResource(R.drawable.contrast), null) },
+                checked = pureBlack,
+                onCheckedChange = onPureBlackChange,
+            )
+        }
 
         SwitchPreference(
             title = { Text(stringResource(R.string.liquid_glass_effect)) },
@@ -444,9 +439,9 @@ fun AppearanceSettings(
             },
         )
 
-        // ============================ Player ============================
+        // ============================ Interface ============================
         PreferenceGroupTitle(
-            title = stringResource(R.string.player),
+            title = stringResource(R.string.user_interface),
         )
 
         EnumListPreference(
@@ -462,6 +457,13 @@ fun AppearanceSettings(
             },
         )
 
+        SwitchPreference(
+            title = { Text(stringResource(R.string.show_codec_on_player)) },
+            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            checked = showCodecOnPlayer,
+            onCheckedChange = onShowCodecOnPlayerChange,
+        )
+
         PreferenceEntry(
             title = { Text(stringResource(R.string.player_slider_style)) },
             description = when (sliderStyle) {
@@ -470,6 +472,13 @@ fun AppearanceSettings(
             },
             icon = { Icon(painterResource(R.drawable.sliders), null) },
             onClick = { showSliderOptionDialog = true },
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.hide_player_slider)) },
+            icon = { Icon(painterResource(R.drawable.sliders), null) },
+            checked = hidePlayerSlider,
+            onCheckedChange = onHidePlayerSliderChange,
         )
 
         EnumListPreference(
@@ -484,13 +493,6 @@ fun AppearanceSettings(
                     PlayerButtonsStyle.TERTIARY -> stringResource(R.string.player_buttons_style_tertiary)
                 }
             },
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.hide_player_slider)) },
-            icon = { Icon(painterResource(R.drawable.sliders), null) },
-            checked = hidePlayerSlider,
-            onCheckedChange = onHidePlayerSliderChange,
         )
 
         SwitchPreference(
@@ -515,16 +517,9 @@ fun AppearanceSettings(
             onCheckedChange = onRotatingArtworkChange,
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.show_codec_on_player)) },
-            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
-            checked = showCodecOnPlayer,
-            onCheckedChange = onShowCodecOnPlayerChange,
-        )
-
-        // ============================ Lyrics ============================
+        // ============================ Player ============================
         PreferenceGroupTitle(
-            title = stringResource(R.string.lyrics),
+            title = stringResource(R.string.player),
         )
 
         EnumListPreference(
@@ -594,11 +589,11 @@ fun AppearanceSettings(
         )
 
         SwitchPreference(
-            title = { Text(stringResource(R.string.romanize_lyrics)) },
-            description = stringResource(R.string.romanize_lyrics_desc),
-            icon = { Icon(painterResource(R.drawable.translate), null) },
-            checked = romanizeLyrics,
-            onCheckedChange = onRomanizeLyricsChange,
+            title = { Text(stringResource(R.string.lyrics_auto_scroll)) },
+            description = stringResource(R.string.lyrics_auto_scroll_desc),
+            icon = { Icon(painterResource(R.drawable.sync), null) },
+            checked = lyricsAutoScroll,
+            onCheckedChange = onLyricsAutoScrollChange,
         )
 
         SwitchPreference(
@@ -610,11 +605,16 @@ fun AppearanceSettings(
         )
 
         SwitchPreference(
-            title = { Text(stringResource(R.string.lyrics_auto_scroll)) },
-            description = stringResource(R.string.lyrics_auto_scroll_desc),
-            icon = { Icon(painterResource(R.drawable.sync), null) },
-            checked = lyricsAutoScroll,
-            onCheckedChange = onLyricsAutoScrollChange,
+            title = { Text(stringResource(R.string.romanize_lyrics)) },
+            description = stringResource(R.string.romanize_lyrics_desc),
+            icon = { Icon(painterResource(R.drawable.translate), null) },
+            checked = romanizeLyrics,
+            onCheckedChange = onRomanizeLyricsChange,
+        )
+
+        // ============================ Lyrics ============================
+        PreferenceGroupTitle(
+            title = stringResource(R.string.lyrics),
         )
 
         // ============================ Auto playlists ============================

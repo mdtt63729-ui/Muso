@@ -139,15 +139,20 @@ object YouTube {
 
     suspend fun search(query: String, filter: SearchFilter): Result<SearchResult> = runCatching {
         val response = innerTube.search(WEB_REMIX, query, filter.value).body<SearchResponse>()
+        // A filtered search can arrive as several sections (top-result card,
+        // chip clouds, empty shelves). The item list is the first NON-EMPTY
+        // musicShelfRenderer - the old lastOrNull() could land on an empty or
+        // unrelated section, which made the Songs filter show nothing.
+        val shelf = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer?.contents
+            ?.firstNotNullOfOrNull { section ->
+                section.musicShelfRenderer?.takeIf { !it.contents.isNullOrEmpty() }
+            }
         SearchResult(
-            items = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
-                ?.tabRenderer?.content?.sectionListRenderer?.contents?.lastOrNull()
-                ?.musicShelfRenderer?.contents?.mapNotNull {
-                    SearchPage.toYTItem(it.musicResponsiveListItemRenderer)
-                }.orEmpty(),
-            continuation = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
-                ?.tabRenderer?.content?.sectionListRenderer?.contents?.lastOrNull()
-                ?.musicShelfRenderer?.continuations?.getContinuation()
+            items = shelf?.contents?.mapNotNull {
+                SearchPage.toYTItem(it.musicResponsiveListItemRenderer)
+            }.orEmpty(),
+            continuation = shelf?.continuations?.getContinuation()
         )
     }
 

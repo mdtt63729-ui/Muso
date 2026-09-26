@@ -108,7 +108,7 @@ fun ContentSettings(
     val (proxyType, onProxyTypeChange) = rememberEnumPreference(key = ProxyTypeKey, defaultValue = Proxy.Type.HTTP)
     val (proxyUrl, onProxyUrlChange) = rememberPreference(key = ProxyUrlKey, defaultValue = "host:port")
     val (autoDownloadLikedSongs, onAutoDownloadLikedSongsChange) = rememberPreference(key = AutoDownloadLikedSongsKey, defaultValue = false)
-    val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.AUTO)
+    val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.HIGH)
     val (showVideoInPlayer, onShowVideoInPlayerChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
     val (videoQuality, onVideoQualityChange) = rememberEnumPreference(VideoQualityKey, defaultValue = VideoQuality.Q720)
     val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(key = DownloadQualityKey, defaultValue = AudioQuality.AUTO)
@@ -123,64 +123,6 @@ fun ContentSettings(
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.youtube_account)) },
-            description = if (isLoggedIn) {
-                accountEmail.takeIf { it.isNotEmpty() }
-                    ?: accountChannelHandle.takeIf { it.isNotEmpty() }
-            } else {
-                stringResource(R.string.manage_your_youtube_accounts)
-            },
-            icon = { Icon(painterResource(R.drawable.person), null) },
-            onClick = { navController.navigate("login") }
-        )
-        val activity = LocalContext.current as? Activity
-        ListPreference(
-            title = { Text(stringResource(R.string.app_language)) },
-            icon = { Icon(painterResource(R.drawable.language), null) },
-            selectedValue = appLanguage,
-            values = listOf(SYSTEM_DEFAULT) + AppLanguageToName.keys.toList(),
-            valueText = {
-                AppLanguageToName.getOrElse(it) {
-                    stringResource(R.string.system_default)
-                }
-            },
-            onValueSelected = { language ->
-                onAppLanguageChange(language)
-                // Keep the synchronous startup mirror in sync (see
-                // MainActivity.attachBaseContext) so the next cold start skips
-                // blocking DataStore I/O before the first frame.
-                activity?.getSharedPreferences("muso_startup", Context.MODE_PRIVATE)
-                    ?.edit()?.putString("appLanguage", language)?.apply()
-                // Recreate so every stringResource re-resolves with the new locale.
-                activity?.recreate()
-            },
-        )
-        ListPreference(
-            title = { Text(stringResource(R.string.preferred_audio_language)) },
-            icon = { Icon(painterResource(R.drawable.language), null) },
-            selectedValue = contentLanguage,
-            values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
-            valueText = {
-                LanguageCodeToName.getOrElse(it) {
-                    stringResource(R.string.system_default)
-                }
-            },
-            onValueSelected = onContentLanguageChange
-        )
-        ListPreference(
-            title = { Text(stringResource(R.string.content_country)) },
-            icon = { Icon(painterResource(R.drawable.location_on), null) },
-            selectedValue = contentCountry,
-            values = listOf(SYSTEM_DEFAULT) + CountryCodeToName.keys.toList(),
-            valueText = {
-                CountryCodeToName.getOrElse(it) {
-                    stringResource(R.string.system_default)
-                }
-            },
-            onValueSelected = onContentCountryChange
-        )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.audio_quality)) },
@@ -230,6 +172,64 @@ fun ContentSettings(
             icon = { Icon(painterResource(R.drawable.music_note), null) },
             checked = showVideoInPlayer,
             onCheckedChange = onShowVideoInPlayerChange
+        )
+        val activity = LocalContext.current as? Activity
+        ListPreference(
+            title = { Text(stringResource(R.string.app_language)) },
+            icon = { Icon(painterResource(R.drawable.language), null) },
+            selectedValue = appLanguage,
+            values = listOf(SYSTEM_DEFAULT) + AppLanguageToName.keys.toList(),
+            valueText = {
+                AppLanguageToName.getOrElse(it) {
+                    stringResource(R.string.system_default)
+                }
+            },
+            onValueSelected = { language ->
+                onAppLanguageChange(language)
+                // Keep the synchronous startup mirror in sync (see
+                // MainActivity.attachBaseContext) so the next cold start skips
+                // blocking DataStore I/O before the first frame.
+                activity?.getSharedPreferences("muso_startup", Context.MODE_PRIVATE)
+                    ?.edit()?.putString("appLanguage", language)?.apply()
+                // Recreate so every stringResource re-resolves with the new locale.
+                activity?.recreate()
+            },
+        )
+        ListPreference(
+            title = { Text(stringResource(R.string.preferred_audio_language)) },
+            icon = { Icon(painterResource(R.drawable.language), null) },
+            selectedValue = contentLanguage,
+            values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
+            valueText = {
+                LanguageCodeToName.getOrElse(it) {
+                    stringResource(R.string.system_default)
+                }
+            },
+            onValueSelected = onContentLanguageChange
+        )
+        ListPreference(
+            title = { Text(stringResource(R.string.content_country)) },
+            icon = { Icon(painterResource(R.drawable.location_on), null) },
+            selectedValue = contentCountry,
+            values = listOf(SYSTEM_DEFAULT) + CountryCodeToName.keys.toList(),
+            valueText = {
+                CountryCodeToName.getOrElse(it) {
+                    stringResource(R.string.system_default)
+                }
+            },
+            onValueSelected = onContentCountryChange
+        )
+
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.youtube_account)) },
+            description = if (isLoggedIn) {
+                accountEmail.takeIf { it.isNotEmpty() }
+                    ?: accountChannelHandle.takeIf { it.isNotEmpty() }
+            } else {
+                stringResource(R.string.manage_your_youtube_accounts)
+            },
+            icon = { Icon(painterResource(R.drawable.person), null) },
+            onClick = { navController.navigate("login") }
         )
 
         SwitchPreference(

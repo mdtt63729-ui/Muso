@@ -11,7 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import android.os.Build
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -307,11 +306,10 @@ internal fun MusoSplash(
     val reduced = reducedMotionPref || animatorScale == 0f
     val glowPaints = remember { GlowPaintCache() }
 
-    // On Android 12+ the system splash has ALREADY played the bars rising
-    // (windowSplashScreenAnimatedIcon) while the process started - the custom
-    // animation continues from there instead of replaying the reveal, so the
-    // handoff between the two reads as one continuous animation.
-    val initialT = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.40f else 0f
+    // The system splash window is plain black with no icon, so the custom
+    // animation always plays from the very beginning - and it fades IN over the
+    // black window, so app-open to animation reads as one continuous move.
+    val initialT = 0f
 
     // Master clock: written once per frame, read ONLY inside draw/layer lambdas below.
     // Compose sees those deferred reads and performs draw-only invalidation - the
@@ -364,12 +362,16 @@ internal fun MusoSplash(
                 // Handoff: only AFTER the full animation has completed, fade the whole
                 // overlay into the home screen beneath over 150ms. Before T_EXIT_END the
                 // alpha stays 1 - the app can never be seen early.
-                alpha = if (reduced) {
-                    1f
-                } else {
-                    // Eased (iOS-style) reveal: home arrives quickly and settles gently.
-                    1f - easeBezier(pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF))
-                }
+                alpha = (
+                    if (reduced) {
+                        pr(t, 0f, 0.25f)
+                    } else {
+                        // Eased (iOS-style) reveal: home arrives quickly and settles gently.
+                        1f - easeBezier(pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF))
+                    }
+                    // Smooth fade-IN over the black launch window at the start,
+                    // so the animation arrives instead of popping.
+                ) * pr(t, 0f, 0.25f)
             },
         // Intentionally NO pointerInput: the splash must not be tappable -
         // touches pass through to nothing and the animation always plays in full.
