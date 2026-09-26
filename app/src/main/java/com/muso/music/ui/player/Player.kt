@@ -189,6 +189,7 @@ import echo.music.iad1tya.betterlyrics.TTMLParser
 import com.muso.music.ui.player.SimpExpressiveContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.PaddingValues
@@ -199,6 +200,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.media3.common.Timeline
 import com.zionhuang.innertube.YouTube
 import com.zionhuang.innertube.models.response.PlayerResponse
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import android.content.Context
 import android.media.AudioManager
@@ -1457,6 +1459,9 @@ fun BottomSheetPlayer(
             }
 
             else -> {
+                // The Classic (SPOTIFY) page scrolls; the state is hoisted so the
+                // below-fold cards know when they are actually reached.
+                val classicScrollState = rememberScrollState()
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -1467,7 +1472,7 @@ fun BottomSheetPlayer(
                             if (playerStyle == PlayerStyle.SPOTIFY) {
                                 // SimpMusic Classic: the whole page scrolls - the
                                 // below-the-fold cards live under the controls.
-                                Modifier.verticalScroll(rememberScrollState())
+                                Modifier.verticalScroll(classicScrollState)
                             } else Modifier
                         ),
                 ) {
@@ -1916,6 +1921,7 @@ fun BottomSheetPlayer(
                         // === SimpMusic Classic below-the-fold cards =============
                         ClassicBelowFoldCards(
                             mediaMetadata = mediaMetadata,
+                            scrollState = classicScrollState,
                             sliderPositionProvider = { sliderPosition },
                             seedColor = appleSeedColor,
                             navController = navController,
@@ -2482,6 +2488,10 @@ private fun FullscreenVideoPlayer(
 }
 
 
+/** In-memory cache of below-fold description-card data, so re-entering the
+ * player for a song never re-fetches it from the player endpoint. */
+private val classicDetailsCache = mutableMapOf<String, PlayerResponse.VideoDetails>()
+
 /** Apple Music tabbed bodies (SimpMusic): MAIN, LYRICS, QUEUE. */
 enum class AppleMusicView {
     MAIN, LYRICS, QUEUE
@@ -2732,6 +2742,7 @@ private fun DeviceVolumeRow(tint: Color) {
 @Composable
 private fun ClassicBelowFoldCards(
     mediaMetadata: MediaMetadata?,
+    scrollState: ScrollState,
     sliderPositionProvider: () -> Long?,
     seedColor: Color?,
     navController: NavController,
@@ -2752,14 +2763,21 @@ private fun ClassicBelowFoldCards(
     }.collectAsState(initial = null)
 
     // Description card data (SimpMusic song info): view count + description from
-    // the innertube player response, fetched once per song off the main thread.
+    // the innertube player response. Fetched ONLY for YouTube ids (11 chars -
+    // local songs never hit the network), ONLY once the user actually scrolls
+    // below the fold where the card is visible, and at most once per song: a
+    // player-endpoint call on every player open was heavy enough to get the
+    // YouTube client throttled, which broke search.
     var videoDetails by remember(mediaMetadata.id) {
-        mutableStateOf<PlayerResponse.VideoDetails?>(null)
+        mutableStateOf(classicDetailsCache[mediaMetadata.id])
     }
     LaunchedEffect(mediaMetadata.id) {
-        videoDetails = withContext(Dispatchers.IO) {
+        if (mediaMetadata.id.length != 11) return@LaunchedEffect
+        if (videoDetails != null) return@LaunchedEffect
+        snapshotFlow { scrollState.value > 0 }.first { it }
+        withContext(Dispatchers.IO) {
             YouTube.player(mediaMetadata.id).getOrNull()?.videoDetails
-        }
+        }?.also { classicDetailsCache[mediaMetadata.id] = it }?.let { videoDetails = it }
     }
 
     val cardShape = RoundedCornerShape(8.dp)

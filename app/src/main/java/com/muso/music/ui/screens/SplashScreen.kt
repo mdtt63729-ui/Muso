@@ -74,9 +74,16 @@ import kotlin.math.sin
 // Plays once per process; survives rotation because the process keeps it.
 internal var splashAlreadyShown = false
 
-// Wall-clock worst case for the whole splash (animation is ~2.2 s). If frames
-// ever stop arriving, this guarantees the app still appears.
-private const val SPLASH_SAFETY_TIMEOUT_MS = 4_000L
+// Wall-clock worst case for the whole splash (animation is ~2.2 s, longer under
+// main-thread stalls because the capped clock pauses). If frames ever stop
+// arriving, this guarantees the app still appears.
+private const val SPLASH_SAFETY_TIMEOUT_MS = 5_000L
+
+// The master clock may advance at most this much per frame (~3 frames at 60 Hz).
+// When the main thread stalls, the animation therefore PAUSES instead of
+// skipping ahead - the wordmark never pops in mid-freeze and the handoff never
+// collapses into a hard cut; the timeline just stretches a little.
+private const val CLOCK_CAP_NANOS = 50_000_000L
 
 // ---------- Timeline (seconds); ideal total ~1.95 s ----------
 private const val T_REVEAL_START = 0.15f
@@ -313,7 +320,7 @@ internal fun MusoSplash(
     var t by remember { mutableFloatStateOf(initialT) }
 
     LaunchedEffect(Unit) {
-        val startNanos = withFrameNanos { it }
+        var lastNanos = withFrameNanos { it }
         val total = if (reduced) 1.20f else T_EXIT_END + SPLASH_HANDOFF
         // SAFETY NET: if frames ever stop arriving (window surface lost, screen
         // locked mid-splash, choreographer stall), the timeout still fires and
@@ -328,7 +335,9 @@ internal fun MusoSplash(
         withTimeoutOrNull(SPLASH_SAFETY_TIMEOUT_MS) {
             while (true) {
                 withFrameNanos { now ->
-                    t = initialT + (now - startNanos) / 1_000_000_000f
+                    val dtNanos = (now - lastNanos).coerceIn(0, CLOCK_CAP_NANOS)
+                    lastNanos = now
+                    t += dtNanos / 1_000_000_000f
                 }
                 if (!contentRequested && t >= contentRequestT) {
                     contentRequested = true

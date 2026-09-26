@@ -337,11 +337,17 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            LaunchedEffect(Unit) {
+            // Ultra-premium waveform splash: plays once per process.
+            var showSplash by remember { mutableStateOf(!splashAlreadyShown) }
+
+            LaunchedEffect(showSplash) {
                 // Check for a new release at most every 6 hours while the app is
                 // running; when one is found, the in-app popup shows AND the update
                 // notification is posted (once per version). The background worker
-                // covers the time while the app is closed.
+                // covers the time while the app is closed. Runs AFTER the splash:
+                // the first Ktor/network use class-loads on the main thread, which
+                // used to stall the animation frames.
+                if (showSplash) return@LaunchedEffect
                 if (System.currentTimeMillis() - Updater.lastCheckTime > 6.hours.inWholeMilliseconds) {
                     Updater.getLatestVersionName(force = true).onSuccess { latest ->
                         latestVersionName = latest
@@ -351,9 +357,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-
-            // Ultra-premium waveform splash: plays once per process.
-            var showSplash by remember { mutableStateOf(!splashAlreadyShown) }
             // The main UI is composed only when the splash asks for it (during its
             // quiet settled phase), or immediately when there is no splash. Composing
             // the whole app WHILE the animation plays is what froze the splash on real

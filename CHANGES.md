@@ -1,3 +1,48 @@
+## Round 82 (v0.5.97): ultra-high thumbnails everywhere (2160px, no compromise)
+
+- The global thumbnail interceptor now upgrades EVERY YouTube art URL to
+  ultra-high 2160px first (was capped at 1200px), with a 1200px fallback and
+  the original URL as the last resort - so art is always the sharpest the
+  server has, on every surface: quick picks, playlist cards, playlist song
+  rows, search results, mini player, player card, fullscreen player,
+  lyrics card, artist pages.
+- Channel/playlist avatar URLs ("=s###" googleusercontent/ggpht form) are now
+  upgraded too (to "=s2160") - they were never rewritten before, which is
+  why several playlist screens still showed soft art.
+- The player's own metadata thumbnail and the artist screens now request
+  2160px as well (was 1200px), so fullscreen artwork is crisp on 1440p
+  displays.
+- Coil still downsamples each image to the view, so memory use is
+  unchanged; only the downloaded source resolution went up.
+
+**Version:** 0.5.97 (versionCode 104); release tag v0.5.97, APK Muso_v0.5.97_v104.apk.
+
+## Round 81 (v0.5.96): splash stutter hardening + search throttle fix
+
+Splash (frame-by-frame analysis of the new recording showed the animation
+itself is smooth, but main-thread stalls made the splash clock JUMP - that
+is what popped the wordmark in and turned the home handoff into a hard cut):
+
+- The splash master clock now advances at most ~3 frames per frame; a
+  main-thread stall PAUSES the animation instead of skipping ahead, so no
+  phase ever pops and the handoff always eases. The safety timeout was
+  raised to 5 s to cover the stretched timeline.
+- The startup update check now runs only AFTER the splash (its first Ktor
+  network use class-loads on the main thread).
+- The WorkManager update-check scheduling moved off the main thread in
+  App.onCreate (it opens/writes WorkManager's Room database synchronously).
+
+Search:
+
+- The Classic description card no longer calls the YouTube player endpoint
+  on every player open - it now fetches only for 11-character YouTube ids
+  (local songs never hit the network), only once the user actually scrolls
+  below the fold to where the card is visible, and at most once per song via
+  an in-memory cache. The per-song-open calls were heavy enough to get the
+  YouTube client throttled, which is why search results stopped appearing.
+
+**Version:** 0.5.96 (versionCode 103); release tag v0.5.96, APK Muso_v0.5.96_v103.apk.
+
 ## Round 80 (v0.5.95): fix player-open crash (IndexOutOfBoundsException: Index -1)
 
 The artwork pager crashed on opening the player with a single-song queue:

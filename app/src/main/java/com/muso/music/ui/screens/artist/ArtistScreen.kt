@@ -139,7 +139,7 @@ fun ArtistScreen(
                                 .aspectRatio(4f / 3)
                         ) {
                             AsyncImage(
-                                model = artistPage.artist.thumbnail.resize(1200, 900),
+                                model = artistPage.artist.thumbnail.resize(2160, 1620),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .align(Alignment.Center)

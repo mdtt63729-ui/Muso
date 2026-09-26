@@ -76,13 +76,18 @@ class App : Application(), ImageLoaderFactory {
         // and post a system notification as soon as one is published. The check
         // is a single tiny API call; Doze/App Standby may defer it, which is fine.
         // KEEP means the schedule survives repeated process starts untouched.
-        runCatching {
-            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-                "muso_update_check",
-                ExistingPeriodicWorkPolicy.KEEP,
-                PeriodicWorkRequestBuilder<UpdateCheckWorker>(15, TimeUnit.MINUTES).build(),
-            )
-        }
+        // Scheduling touches WorkManager's own Room database; running that on the
+        // main thread stalls process startup (and with it the splash). WorkManager
+        // is thread-safe, so schedule from a background thread instead.
+        Thread {
+            runCatching {
+                WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+                    "muso_update_check",
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    PeriodicWorkRequestBuilder<UpdateCheckWorker>(15, TimeUnit.MINUTES).build(),
+                )
+            }
+        }.start()
 
         val locale = Locale.getDefault()
         val languageTag = locale.toLanguageTag().replace("-Hant", "") // replace zh-Hant-* to zh-*
@@ -154,40 +159,64 @@ class App : Application(), ImageLoaderFactory {
 }
 
 /**
- * Upgrades every YouTube thumbnail to the highest resolution variant available:
- * maxresdefault (1280px) first, hq720 second, falling back to the original URL when neither
- * loads. Applies globally — home grid, mini player, full player, search results.
+ * Upgrades EVERY YouTube art URL to the highest resolution the server has:
+ * ultra-high (2160px) first, 1200px second, falling back to the original URL when
+ * neither loads. Applies globally - home grid, quick picks, playlist cards and
+ * song rows, mini player, full player, lyrics card, artist pages, search results.
+ *
+ * Two googleusercontent URL shapes are handled:
+ *  - "=w###-h###" (song/album/playlist art)  -> "=w2160-h2160-p-l90-rj"
+ *  - "=s###" (channel avatars, playlist circles - never upgraded before) -> "=s2160"
+ * Video thumbnails (i.ytimg.com) go to maxresdefault, then hq720.
+ * Coil still downsamples each image to the view, so memory use does not change.
  */
 private class HqThumbnailInterceptor : Interceptor {
     private val lowResPattern = Regex("/(hq|mq|sd)?default")
-    // lh3 (googleusercontent) thumbnails carry their size in the =w###-h### suffix;
-    // anything smaller than 1200px is rewritten to the 1200px variant so EVERY
-    // surface (cards, playlists, player, mini player) gets ultra-high art. Coil
-    // still downsamples to the view, so memory use does not change.
-    private val lh3Pattern = Regex("=w(\\d+)-h(\\d+)[^ ]*$")
+    private val whPattern = Regex("=w(\\d+)-h(\\d+)[^ ]*$")
+    private val sPattern = Regex("=s(\\d+)([^ ]*)$")
+
+    private suspend fun tryLoad(chain: Interceptor.Chain, url: String): ImageResult? =
+        runCatching {
+            chain.proceed(chain.request.newBuilder().data(url).build())
+        }.getOrNull()?.takeIf { it is SuccessResult }
 
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val data = chain.request.data
-        if (data is String && data.contains("lh3.googleusercontent.com/")) {
-            val match = lh3Pattern.find(data)
-            val width = match?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            if (0 < width && width < 1200) {
-                val upgraded = lh3Pattern.replace(data, "=w1200-h1200-p-l90-rj")
-                val result = chain.proceed(chain.request.newBuilder().data(upgraded).build())
-                if (result is SuccessResult) return result
+        if (data is String) {
+            val isGoogleArt = data.contains("googleusercontent.com/") || data.contains("ggpht.com")
+            if (isGoogleArt) {
+                val wh = whPattern.find(data)
+                if (wh != null) {
+                    val width = wh.groupValues[1].toIntOrNull() ?: 0
+                    if (0 < width && width < 2160) {
+                        for (suffix in listOf(
+                            "=w2160-h2160-p-l90-rj",
+                            "=w1200-h1200-p-l90-rj",
+                        )) {
+                            tryLoad(chain, whPattern.replace(data, suffix))?.let { return it }
+                        }
+                    }
+                } else {
+                    val sm = sPattern.find(data)
+                    if (sm != null) {
+                        val size = sm.groupValues[1].toIntOrNull() ?: 0
+                        val flags = sm.groupValues[2]
+                        if (0 < size && size < 2160) {
+                            for (s in listOf(2160, 1200)) {
+                                tryLoad(chain, sPattern.replace(data, "=s$s$flags"))?.let { return it }
+                            }
+                        }
+                    }
+                }
             }
-        }
-        if (data is String && data.contains("i.ytimg.com/vi/") &&
-            !data.contains("/maxresdefault") && !data.contains("/hq720")
-        ) {
-            for (url in listOf(
-                lowResPattern.replace(data, "/maxresdefault"),
-                lowResPattern.replace(data, "/hq720")
-            )) {
-                try {
-                    val result = chain.proceed(chain.request.newBuilder().data(url).build())
-                    if (result is SuccessResult) return result
-                } catch (_: Exception) {
+            if (data.contains("i.ytimg.com/vi/") &&
+                !data.contains("/maxresdefault") && !data.contains("/hq720")
+            ) {
+                for (url in listOf(
+                    lowResPattern.replace(data, "/maxresdefault"),
+                    lowResPattern.replace(data, "/hq720")
+                )) {
+                    tryLoad(chain, url)?.let { return it }
                 }
             }
         }
