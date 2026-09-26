@@ -33,16 +33,16 @@ jobs:
       - name: Build unsigned FOSS release APK
         run: ./gradlew assembleFossRelease --stacktrace
 
-      - name: Rename APK to Muso_v0.5.72_v1.apk
+      - name: Rename APK to Muso_v0.5.79_v1.apk
         run: |
-          cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk Muso_v0.5.72_v1.apk
-          ls -lh Muso_v0.5.72_v1.apk
+          cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk Muso_v0.5.79_v1.apk
+          ls -lh Muso_v0.5.79_v1.apk
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: Muso_v0.5.58_v1
-          path: Muso_v0.5.72_v1.apk
+          path: Muso_v0.5.79_v1.apk
 
       - name: Publish APK to GitHub Releases
         env:
@@ -54,9 +54,9 @@ jobs:
             TAG="v0.5.58-v1"
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" Muso_v0.5.72_v1.apk --clobber
+            gh release upload "$TAG" Muso_v0.5.79_v1.apk --clobber
           else
-            gh release create "$TAG" Muso_v0.5.72_v1.apk \
+            gh release create "$TAG" Muso_v0.5.79_v1.apk \
               --title "Muso v0.5.58" \
               --notes "Muso v0.5.67 (unsigned release build). Build fixes: Apple-style lyric line now uses the on-device lyrics parser; in-app crash reporter added. Library crash fix; settings top-visibility fix on all screens; full splash animation restored with smooth handoff; smoother search entry; zero-cost blurred artwork player background; Apple Music style 1:1 title row with current lyric line."
           fi

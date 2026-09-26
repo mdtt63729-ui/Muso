@@ -261,6 +261,8 @@
     <string name="spotify_sync_hint">Playlist import into your library is coming in the next update</string>
     <string name="user_interface">Interface</string>
     <string name="now_playing_style">Now playing style</string>
+    <string name="now_playing_upper">Now Playing</string>
+    <string name="playing_from">Playing from</string>
     <string name="custom_color">Custom color</string>
     <string name="theme_color_wallpaper">From wallpaper</string>
     <string name="theme_color_custom">Custom</string>

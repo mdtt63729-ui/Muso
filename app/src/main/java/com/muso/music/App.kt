@@ -142,9 +142,23 @@ class App : Application(), ImageLoaderFactory {
  */
 private class HqThumbnailInterceptor : Interceptor {
     private val lowResPattern = Regex("/(hq|mq|sd)?default")
+    // lh3 (googleusercontent) thumbnails carry their size in the =w###-h### suffix;
+    // anything smaller than 1200px is rewritten to the 1200px variant so EVERY
+    // surface (cards, playlists, player, mini player) gets ultra-high art. Coil
+    // still downsamples to the view, so memory use does not change.
+    private val lh3Pattern = Regex("=w(\\d+)-h(\\d+)[^ ]*$")
 
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val data = chain.request.data
+        if (data is String && data.contains("lh3.googleusercontent.com/")) {
+            val match = lh3Pattern.find(data)
+            val width = match?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            if (0 < width && width < 1200) {
+                val upgraded = lh3Pattern.replace(data, "=w1200-h1200-p-l90-rj")
+                val result = chain.proceed(chain.request.newBuilder().data(upgraded).build())
+                if (result is SuccessResult) return result
+            }
+        }
         if (data is String && data.contains("i.ytimg.com/vi/") &&
             !data.contains("/maxresdefault") && !data.contains("/hq720")
         ) {

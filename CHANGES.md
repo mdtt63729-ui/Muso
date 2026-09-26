@@ -1,3 +1,141 @@
+## Round 64 (v0.5.79): Echo Music's Apple player + Playing-from + ultra thumbnails
+
+- APPLE STYLE = Echo Music's player, 1:1 from its layouts: the artwork fills the
+  screen with a slow Ken-Burns pan/zoom under a radial white wash (light, frosted,
+  black text) - Echo's exact look; square cover with 24dp margins; the Echo
+  controls card (20sp bold title, 16sp artist, 64dp heart with a 40dp icon, 2dp
+  tertiary slider with a 20dp round thumb, plain times at the row ends, the
+  72dp play cell with a 64dp buffering spinner, 40dp skip icons, 64dp
+  shuffle/repeat, and the centered 2-line lyric subtitle).
+- The Apple toolbar shows PLAYING FROM + the local playlist name (see below),
+  with lyrics and queue buttons on the right.
+- "Playing from" now resolves for real: the current queue's song ids are matched
+  against every local playlist (off the main thread) and the name shows in both
+  the Apple toolbar and the M3 Expressive header under NOW PLAYING.
+- Ultra-high thumbnails EVERYWHERE: the global image interceptor now also
+  rewrites small lh3 (googleusercontent) thumbnails to the 1200px variant, on
+  top of the existing maxresdefault upgrade for i.ytimg URLs; player and
+  notification art requests 1200px directly. Coil still downsamples to each
+  view, so memory and speed are unchanged.
+- Cast is NOT in this build: it needs the Google Cast SDK and media-service
+  surgery and would risk playback stability if rushed - it is a separate
+  project, not a one-round add.
+
+**Version:** 0.5.79 (versionCode 86); release tag v0.5.79, APK Muso_v0.5.79_v1.apk.
+
+## Round 63 (v0.5.78): the FULL SimpMusic M3 Expressive player page
+
+- The Expressive style now renders SimpMusic's complete page layout, not just
+  the controls block:
+  - HEADER ROW: 44dp tonal circles (surfaceContainerHigh) - a down-chevron
+    that collapses the player, the centered "NOW PLAYING" label, and a more
+    button that opens the real song Details dialog. Status-bar inset aware.
+  - ARTWORK CARD: 20dp margins, 28dp rounded corners (as before), swipe to
+    skip preserved.
+  - INLINE LYRIC LINE: the current synced lyric line sits centered in the gap
+    between the artwork card and the info block, crossfading every line change
+    (300ms) and marquee-scrolling long lines - exactly SimpMusic's M3E element.
+    Works for TTML karaoke, LRC and plain synced lyrics.
+  - Then the info row, wavy seek bar, time row, 68dp transport and the full
+    connected group (Details | Lyrics | Shuffle | Repeat | Add | Queue).
+- Muso does not track which playlist/queue a song was started from, so the
+  header shows just the NOW PLAYING label (SimpMusic also shows the playlist
+  name there).
+
+**Version:** 0.5.78 (versionCode 85); release tag v0.5.78, APK Muso_v0.5.78_v1.apk.
+
+## Round 62 (v0.5.77): SimpMusic M3 Expressive - full connected group + video stays on pause
+
+- The Expressive style's connected group is now SimpMusic's complete
+  Info | Cast | Shuffle | Repeat | Add-to-playlist | Queue row. Muso has no
+  Cast support, so Lyrics takes that slot (Details | Lyrics | Shuffle | Repeat
+  | Add | Queue): 48dp row, 3dp gaps, 24/6dp end caps, active slots tinted
+  primaryContainer.
+- The Details slot opens a REAL song-info dialog: title/artist/album/duration
+  plus the LIVE stream format from the database (codec, MIME, bitrate, sample
+  rate).
+- The Add-to-playlist slot opens the shared AddToPlaylistDialog, exactly like
+  SimpMusic's.
+- Video on pause: verified 1:1 with SimpMusic - the video's visibility depends
+  ONLY on the "show video in player" setting, never on the playing state, so
+  pausing keeps the picture on screen (frozen frame) instead of dropping back
+  to the thumbnail. This holds from v0.5.76's single-stream architecture.
+
+**Version:** 0.5.77 (versionCode 84); release tag v0.5.77, APK Muso_v0.5.77_v1.apk.
+
+## Round 61 (v0.5.76): SimpMusic-style thumbnail-to-video fade, no video button
+
+- The thumbnail now FADES OUT smoothly (300ms) when the video stream becomes
+  ready and starts playing - the SimpMusic transition, no hard swap. The
+  artwork area stays composed underneath so the crossfade is seamless, and
+  its swipe-to-skip gesture keeps working when the video is off.
+- The video button is REMOVED from every Now Playing style - exactly like
+  SimpMusic, whose player has no video toggle. Video stays a Settings
+  option ("show video in player").
+- The fullscreen video keeps the bottom-overlay controls, tap-to-toggle and
+  3s auto-hide from the previous rounds.
+
+**Version:** 0.5.76 (versionCode 83); release tag v0.5.76, APK Muso_v0.5.76_v1.apk.
+
+## Round 60 (v0.5.75): single-stream video - the SimpMusic architecture
+
+The video now plays through the MAIN player, exactly like SimpMusic - no more
+second muted player kept in sync by polling:
+
+- MusicService resolves a muxed (video+audio) format while "show video in
+  player" is on; the stream runs through the normal playback pipeline, so
+  the picture, the position, the seek bar and every control are ALWAYS in
+  sync by construction.
+- The player screen renders the main player's own video output fullscreen
+  (crop-fill, never letterboxed) with the SimpMusic-style bottom-overlay
+  controls and 3s auto-hide from v0.5.74.
+- The audio format/quality record stays untouched while video plays, and a
+  stale stored itag now falls back to a fresh audio pick instead of failing.
+- Progressive MP4 extractor added for the muxed stream.
+
+Trade-off, honestly: while video is on, the audio comes from the muxed
+YouTube stream (like SimpMusic), which is lower bitrate than the audio-only
+opus stream - turn "show video in player" off to get the full audio
+quality back.
+
+Echo's Apple Music player layout is next round, as agreed.
+
+**Version:** 0.5.75 (versionCode 82); release tag v0.5.75, APK Muso_v0.5.75_v1.apk.
+
+## Round 59 (v0.5.74): SimpMusic-style fullscreen video
+
+The portrait video player no longer splits the screen in halves:
+- The video now runs edge to edge (the mini-player bottom padding is dropped
+  while it plays - that was the extra black bar under the controls).
+- The controls overlay the BOTTOM of the full screen over the scrim, exactly
+  like SimpMusic's video mode - no more centered-in-lower-half block.
+- Controls auto-hide 3 seconds after they appear (SimpMusic behaviour); a tap
+  on the picture brings them back, another tap hides them.
+- The video player now crops to fill (SCALE_TO_FIT_WITH_CROPPING) so a 16:9
+  stream letterboxes no more - it fills the screen like SimpMusic.
+
+**Version:** 0.5.74 (versionCode 81); release tag v0.5.74, APK Muso_v0.5.74_v1.apk.
+
+## Round 58 (v0.5.73): the full player now changes with the style + your icon in the splash
+
+The big one - selecting a Now Playing style now changes the WHOLE player:
+
+- **M3 Expressive** is a 1:1 port of SimpMusic's NowPlayingContentM3Expressive
+  (ui/player/SimpExpressivePlayer.kt): the artwork renders as a 28dp rounded
+  card with 20dp margins; below it the expressive info row (title + artist,
+  48dp tonal heart), the wavy seek bar (custom Canvas sine - amplitude up
+  while playing, flat while paused/scrubbing, 14dp circle thumb morphing into
+  a 6x22dp bar while dragging, seek commits on release), the time row, the
+  68dp pill transport (prev/play/next with x1.15 press growth on weight
+  animation and the play corner morphing 22<->34dp), and the 48dp connected
+  group (Lyrics | Shuffle | Repeat | Queue with 24/6dp rounded caps). Every
+  control is real: shuffle, repeat cycling, queue sheet, the lyrics toggle.
+- The other styles keep their own layouts (Classic / Immersive / Apple).
+- The system splash icon is now YOUR artwork - the adaptive icon built from
+  your image (same as the launcher), not my vector recreation.
+
+**Version:** 0.5.73 (versionCode 80); release tag v0.5.73, APK Muso_v0.5.73_v1.apk.
+
 ## Round 57 (v0.5.72): system splash uses the app icon colors
 
 The rising waveform in the Android 12+ system splash is no longer plain

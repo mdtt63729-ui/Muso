@@ -49,6 +49,7 @@ import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
+import androidx.media3.extractor.mp4.Mp4Extractor
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
@@ -192,6 +193,13 @@ class MusicService : MediaLibraryService(),
 
     // Echo Player and Audio settings
     private val dataSaver by preference(this, DataSaverKey, false)
+    private val showVideoInPlayer by preference(this, ShowVideoInPlayerKey, true)
+    private val highQualityVideo by preference(this, HighQualityVideoKey, true)
+
+    /** True while the current stream is a muxed (video+audio) format - the single-stream
+     * video mode: the picture comes from the MAIN player, so position and controls are
+     * always in sync with what you hear. */
+    val isVideoPlayback = kotlinx.coroutines.flow.MutableStateFlow(false)
     private var volumeObserver: ContentObserver? = null
 
     private var currentQueue: Queue = EmptyQueue
@@ -904,25 +912,40 @@ class MusicService : MediaLibraryService(),
                 throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
             }
 
-            val format =
-                if (playedFormat != null) {
+            // SimpMusic-style single-stream video: while "show video in player" is
+            // on, a muxed (video+audio) format plays through the MAIN player - one
+            // stream, so the picture, the position and every control stay in sync.
+            val videoFormat = if (showVideoInPlayer) {
+                playerResponse.streamingData?.formats.orEmpty()
+                    .filter { !it.url.isNullOrEmpty() && (it.height ?: 0) > 0 }
+                    .minByOrNull { kotlin.math.abs((it.height ?: 0) - if (highQualityVideo) 720 else 360) }
+            } else {
+                null
+            }
+
+            val format = videoFormat
+                ?: playedFormat?.let { pf ->
                     playerResponse.streamingData?.adaptiveFormats?.find {
                         // Use itag to identify previously played format
-                        it.itag == playedFormat.itag
+                        it.itag == pf.itag
                     }
-                } else {
-                    playerResponse.streamingData?.adaptiveFormats
-                        ?.filter { it.isAudio }
-                        ?.maxByOrNull {
-                            it.bitrate * when (if (dataSaver) AudioQuality.LOW else audioQuality) {
-                                AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
-                                AudioQuality.HIGH -> 1
-                                AudioQuality.LOW -> -1
-                            } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
-                        }
-                } ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
+                }
+                ?: playerResponse.streamingData?.adaptiveFormats
+                    ?.filter { it.isAudio }
+                    ?.maxByOrNull {
+                        it.bitrate * when (if (dataSaver) AudioQuality.LOW else audioQuality) {
+                            AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
+                            AudioQuality.HIGH -> 1
+                            AudioQuality.LOW -> -1
+                        } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
+                    }
+                ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
 
-            database.query {
+            // The muxed stream is a display choice - the stored audio format (and the
+            // audio-quality selection) stays untouched while it plays.
+            isVideoPlayback.value = videoFormat != null
+
+            if (videoFormat == null) database.query {
                 upsert(
                     FormatEntity(
                         id = mediaId,
@@ -947,7 +970,7 @@ class MusicService : MediaLibraryService(),
         DefaultMediaSourceFactory(
             createDataSourceFactory(),
             ExtractorsFactory {
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor())
+                arrayOf(MatroskaExtractor(), Mp4Extractor(), FragmentedMp4Extractor())
             }
         )
 

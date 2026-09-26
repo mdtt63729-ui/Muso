@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -53,6 +54,8 @@ fun PlayerVideo(
     val videoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             volume = 0f
+            // Crop-fill instead of letterboxing - the video must fill the screen.
+            videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
         }
     }
 
@@ -136,4 +139,32 @@ fun PlayerVideo(
             modifier = modifier
         )
     }
+}
+
+/**
+ * The MAIN player's own video output as a fullscreen surface - the SimpMusic
+ * single-stream approach: whatever the main ExoPlayer plays (muxed video while
+ * "show video in player" is on) renders here, so the picture can never drift
+ * from the audio, the position or any control.
+ */
+@Composable
+fun MainPlayerVideo(
+    player: Player,
+    modifier: Modifier = Modifier,
+) {
+    AndroidView(
+        factory = { context ->
+            PlayerView(context).apply {
+                useController = false
+                // Crop-fill: the video must fill the screen, never letterbox.
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
+        },
+        update = { it.player = player },
+        modifier = modifier,
+    )
 }
