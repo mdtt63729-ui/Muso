@@ -528,3 +528,7 @@ val LastArtworkBackgroundColorKey = intPreferencesKey("lastArtworkBackgroundColo
 enum class LyricsPosition { LEFT, CENTER, RIGHT }
 
 // Echo-style appearance toggles: see AppearanceSettings.
+
+// In-app updater: the version whose update popup the user dismissed with "Later".
+// The popup never shows again for this version; a NEW release re-arms it.
+val UpdateDismissedVersionKey = stringPreferencesKey("updateDismissedVersion")

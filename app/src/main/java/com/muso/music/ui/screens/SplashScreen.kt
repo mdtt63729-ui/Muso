@@ -8,7 +8,6 @@ import android.graphics.Shader
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -41,10 +40,10 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import com.muso.music.constants.ReducedMotionKey
 import com.muso.music.utils.rememberPreference
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
@@ -57,13 +56,27 @@ import kotlin.math.sin
  * a 35 ms-per-bar delay), the bars briefly read as one fluid waveform, then everything
  * reconstructs into the exact original logo, settles, and cross-fades into the app.
  *
- * Everything is drawn in a single Compose Canvas (GPU-accelerated, no bitmaps, no
- * network, no video), and every bar parameter is a pure function of the master clock,
- * driven by one centralized state machine.
+ * Smoothness architecture (v0.5.85):
+ * - The master clock `t` is written once per Choreographer frame and is read ONLY
+ *   inside draw/layer lambdas (the Canvas draw block and the graphicsLayer blocks).
+ *   Compose then performs DRAW-ONLY invalidation every frame: the whole animation
+ *   runs without a single recomposition, which is the cheapest possible frame work.
+ *   The animation therefore glides at the display's native refresh rate (90/120 Hz
+ *   where available) and stays smooth even on low-end 60 Hz devices.
+ * - Zero allocations in the hot path: glow Paints and the wordmark FontFamily are
+ *   created once and reused (no GC churn mid-animation).
+ * - UNSTUCKABLE: the frame loop runs under a hard safety timeout, so even if frame
+ *   callbacks ever stall (window surface lost, screen locked mid-splash), the splash
+ *   always hands off to the app - it can never freeze on screen.
+ * - No tap-to-skip BY DESIGN: the animation always plays in full; touches do nothing.
  */
 
 // Plays once per process; survives rotation because the process keeps it.
 internal var splashAlreadyShown = false
+
+// Wall-clock worst case for the whole splash (animation is ~2.2 s). If frames
+// ever stop arriving, this guarantees the app still appears.
+private const val SPLASH_SAFETY_TIMEOUT_MS = 4_000L
 
 // ---------- Timeline (seconds); ideal total ~1.95 s ----------
 private const val T_REVEAL_START = 0.15f
@@ -96,6 +109,9 @@ private const val GLOW_NORMAL = 0.15f
 private const val GLOW_PULSE = 0.30f
 private const val GLOW_PEAK = 0.38f
 private const val GLOW_SETTLE = 0.12f
+
+// The wordmark font, created ONCE (rebuilding a FontFamily every frame was pure waste).
+private val WordmarkFontFamily = FontFamily(Font(R.font.gochi_hand))
 
 // ---------- Centralized state machine ----------
 internal enum class SplashPhase {
@@ -242,6 +258,29 @@ private fun reducedFrameAt(t: Float): SplashFrame {
     )
 }
 
+/**
+ * Per-bar glow paints, created ONCE and mutated in place every frame. Only the shader
+ * and alpha change per frame; the expensive BlurMaskFilter is rebuilt only when the
+ * canvas size (and therefore the blur radius) actually changes.
+ */
+private class GlowPaintCache {
+    private val paints = Array(BAR_COUNT) {
+        Paint().apply {
+            isAntiAlias = true
+            maskFilter = BlurMaskFilter(1f, BlurMaskFilter.Blur.NORMAL)
+        }
+    }
+    private var blurRadius = -1f
+
+    fun paint(index: Int, radius: Float): Paint {
+        if (radius != blurRadius) {
+            for (p in paints) p.maskFilter = BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL)
+            blurRadius = radius
+        }
+        return paints[index]
+    }
+}
+
 @Composable
 internal fun MusoSplash(onFinish: () -> Unit) {
     val context = LocalContext.current
@@ -256,32 +295,36 @@ internal fun MusoSplash(onFinish: () -> Unit) {
         }.getOrDefault(1f)
     }
     val reduced = reducedMotionPref || animatorScale == 0f
+    val glowPaints = remember { GlowPaintCache() }
 
     // On Android 12+ the system splash has ALREADY played the bars rising
     // (windowSplashScreenAnimatedIcon) while the process started - the custom
     // animation continues from there instead of replaying the reveal, so the
     // handoff between the two reads as one continuous animation.
     val initialT = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.40f else 0f
+
+    // Master clock: written once per frame, read ONLY inside draw/layer lambdas below.
+    // Compose sees those deferred reads and performs draw-only invalidation - the
+    // entire animation runs without a single recomposition, which is what makes it
+    // glide at the display's full refresh rate.
     var t by remember { mutableFloatStateOf(initialT) }
 
     LaunchedEffect(Unit) {
         val startNanos = withFrameNanos { it }
         val total = if (reduced) 1.20f else T_EXIT_END + SPLASH_HANDOFF
-        while (true) {
-            withFrameNanos { now ->
-                t = initialT + ((now - startNanos) / 1_000_000_000f).coerceAtLeast(0f)
+        // SAFETY NET: if frames ever stop arriving (window surface lost, screen
+        // locked mid-splash, choreographer stall), the timeout still fires and
+        // hands off to the app. The splash can never get stuck on screen.
+        withTimeoutOrNull(SPLASH_SAFETY_TIMEOUT_MS) {
+            while (true) {
+                withFrameNanos { now ->
+                    t = initialT + (now - startNanos) / 1_000_000_000f
+                }
+                if (t >= total) break
             }
-            if (t >= total) break
         }
         onFinish()
     }
-
-    val frame = if (reduced) reducedFrameAt(t) else frameAt(t)
-
-    // Brand wordmark: appears under the waveform during the settle phase with a
-    // subtle Material-style fade + scale, then fades out with the splash.
-    val wordmarkReveal = if (reduced) pr(t, 0.05f, 0.35f) else easeBezier(pr(t, 1.35f, 1.70f))
-    val wordmarkAlpha = wordmarkReveal * (1f - pr(t, T_SETTLE_END, T_EXIT_END))
 
     Box(
         modifier = Modifier
@@ -297,23 +340,28 @@ internal fun MusoSplash(onFinish: () -> Unit) {
                     // Eased (iOS-style) reveal: home arrives quickly and settles gently.
                     1f - easeBezier(pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF))
                 }
-            }
-            .pointerInput(Unit) { detectTapGestures { } },
+            },
+        // Intentionally NO pointerInput: the splash must not be tappable -
+        // touches pass through to nothing and the animation always plays in full.
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawWaveform(frame)
+            drawWaveform(if (reduced) reducedFrameAt(t) else frameAt(t), glowPaints)
         }
         Text(
             text = "Muso",
             color = Color.White,
-            fontFamily = FontFamily(Font(R.font.gochi_hand)),
+            fontFamily = WordmarkFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 44.sp,
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 120.dp)
                 .graphicsLayer {
-                    alpha = wordmarkAlpha
+                    // Brand wordmark: fades + scales in during the settle phase,
+                    // evaluated in the layer (deferred read of t - no recomposition).
+                    val wordmarkReveal =
+                        if (reduced) pr(t, 0.05f, 0.35f) else easeBezier(pr(t, 1.35f, 1.70f))
+                    alpha = wordmarkReveal * (1f - pr(t, T_SETTLE_END, T_EXIT_END))
                     val sc = 0.92f + 0.08f * wordmarkReveal
                     scaleX = sc
                     scaleY = sc
@@ -322,7 +370,7 @@ internal fun MusoSplash(onFinish: () -> Unit) {
     }
 }
 
-private fun DrawScope.drawWaveform(frame: SplashFrame) {
+private fun DrawScope.drawWaveform(frame: SplashFrame, glowPaints: GlowPaintCache) {
     val logoW = size.minDimension * 0.62f
     val barW = logoW * 0.145f
     val gap = logoW * 0.072f
@@ -349,19 +397,18 @@ private fun DrawScope.drawWaveform(frame: SplashFrame) {
                 val topArgb = top.toArgb()
                 val bottomArgb = bottom.toArgb()
 
-                // Controlled glow: the same pill, blurred, at a low alpha.
+                // Controlled glow: the same pill, blurred, at a low alpha. The Paint
+                // (and its BlurMaskFilter) comes from the cache - nothing is allocated
+                // here but the small gradient shader.
                 if (a.glow > 0.03f && frame.logoAlpha > 0.05f) {
                     drawIntoCanvas { c ->
-                        val glowPaint = Paint().apply {
-                            isAntiAlias = true
-                            shader = LinearGradient(
-                                x, y, x, y + h,
-                                topArgb, bottomArgb,
-                                Shader.TileMode.CLAMP,
-                            )
-                            maskFilter = BlurMaskFilter(barW * 0.9f, BlurMaskFilter.Blur.NORMAL)
-                            alpha = (a.glow * frame.logoAlpha * 255f).toInt().coerceIn(0, 255)
-                        }
+                        val glowPaint = glowPaints.paint(i, barW * 0.9f)
+                        glowPaint.shader = LinearGradient(
+                            x, y, x, y + h,
+                            topArgb, bottomArgb,
+                            Shader.TileMode.CLAMP,
+                        )
+                        glowPaint.alpha = (a.glow * frame.logoAlpha * 255f).toInt().coerceIn(0, 255)
                         c.nativeCanvas.drawRoundRect(
                             x, y, x + w, y + h,
                             w / 2f, w / 2f,

@@ -1,3 +1,69 @@
+## Round 71 (v0.5.86): release APK signing in CI
+
+- The build workflow now signs the release APK: the keystore is decoded from
+  the KEYSTORE_BASE64 repository secret, the APK is zipaligned and signed with
+  apksigner (alias and passwords from KEY_ALIAS / KEYSTORE_PASSWORD /
+  KEY_PASSWORD secrets), and the signature is verified before publishing.
+- If the signing secrets are not configured yet, the workflow still runs and
+  publishes an unsigned APK with a visible warning, so nothing breaks.
+- .gitignore now blocks keystores (*.keystore, *.jks, *.p12) from ever being
+  committed by accident.
+
+**Version:** 0.5.86 (versionCode 93); release tag v0.5.86, APK Muso_v0.5.86_v93.apk.
+
+## Round 70 (v0.5.85): buttery-smooth splash, no tap-to-skip
+
+- Splash animation rearchitected for maximum smoothness: the master clock is
+  now read ONLY inside draw/layer lambdas (Canvas draw block + graphicsLayer
+  blocks), so every frame is a draw-only invalidation - the whole animation
+  runs without a single recomposition and glides at the display's native
+  refresh rate (90/120 Hz where available), staying smooth even on low-end
+  60 Hz devices. Zero allocations in the hot path, as before.
+- Tap-to-skip removed by design: touches on the splash do nothing and the
+  animation always plays in full before handing off to the home screen.
+- The 4-second hard safety timeout stays, so the splash still can never get
+  stuck on screen even if frame callbacks stall.
+
+**Version:** 0.5.85 (versionCode 92); release tag v0.5.85, APK Muso_v0.5.85_v92.apk.
+
+## Round 69 (v0.5.84): new app icon
+
+- New launcher icon: the glossy neon waveform artwork is now the app icon at
+  every density. Adaptive icon (Android 8+): black background layer with the
+  artwork centered inside the safe zone, plus a white monochrome layer so
+  Android 13+ themed icons keep the waveform shape. Legacy icons (Android 6/7):
+  full-bleed square and circular versions. All PNGs regenerated from the
+  1254x1254 source with Lanczos resampling - no other changes in this release.
+
+**Version:** 0.5.84 (versionCode 91); release tag v0.5.84, APK Muso_v0.5.84_v91.apk.
+
+## Round 68 (v0.5.83): splash hardening, premium update popup, self-replacing releases
+
+- Splash screen robustness fix, with zero change to how it looks:
+  - The hot path now allocates nothing: the five glow Paints (with their
+    BlurMaskFilters) and the wordmark FontFamily are created once and reused
+    every frame. Previously 300+ objects per second were churned out during
+    the animation, which caused visible jank on low-end devices.
+  - A 4-second hard safety timeout now wraps the frame loop, so the splash can
+    never get stuck on screen even if frame callbacks stall (window surface
+    lost, screen locked mid-splash, OEM choreographer bugs).
+  - Tapping the splash skips to the exit phase and fades out over the normal
+    250 ms - a smooth skip, never a hard cut, never a dead tap.
+- New premium Material 3 in-app update popup (replaces the old center dialog):
+  slides up from the bottom with the M3 emphasized easing when a newer GitHub
+  release exists. "Update now" downloads the release APK in-app (progress bar)
+    and hands it to the package installer; "Get it on GitHub" opens the repo's
+  releases page in the browser; "Later" slides it back down and remembers the
+  dismissed version in DataStore, so it never shows again for that version -
+  only for the next release. It also never appears on top of the splash.
+- CI: the build workflow no longer hardcodes versions (they are read from
+  app/build.gradle.kts). Every push builds the current version's APK and
+  publishes it as the only release: older releases are removed, and any APKs
+  already attached to the current version's release are replaced, so the
+  Releases section always ends up with exactly one fresh APK.
+
+**Version:** 0.5.83 (versionCode 90); release tag v0.5.83, APK Muso_v0.5.83_v90.apk.
+
 ## Round 67 (v0.5.82): SimpMusic's player styles + queue peek removed
 
 - The queue peek bar that sat OVER the bottom of every player style is GONE.

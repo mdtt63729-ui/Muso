@@ -6,15 +6,17 @@ on:
     branches:
       - main
       - master
-    tags:
-      - 'v*'
 
 jobs:
   build:
-    name: Build unsigned release APK
+    name: Build signed release APK
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # Signing material lives in repository secrets. Until all four are set,
+      # the workflow still builds and publishes - but the APK stays unsigned.
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
     steps:
       - name: Checkout
@@ -30,33 +32,124 @@ jobs:
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x gradlew
 
-      - name: Build unsigned FOSS release APK
+      # The version is read from app/build.gradle.kts - never hardcode it here,
+      # so every version bump flows through automatically.
+      - name: Read version from app/build.gradle.kts
+        id: version
+        run: |
+          VERSION_NAME=$(grep -m1 'versionName' app/build.gradle.kts | sed -E 's/.*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+          VERSION_CODE=$(grep -m1 'versionCode' app/build.gradle.kts | sed -E 's/.*versionCode[[:space:]]*=[[:space:]]*([0-9]+).*/\1/')
+          if [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
+            echo "ERROR: could not read versionName/versionCode from app/build.gradle.kts"
+            exit 1
+          fi
+          echo "Building Muso v$VERSION_NAME (versionCode $VERSION_CODE)"
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Build FOSS release APK
         run: ./gradlew assembleFossRelease --stacktrace
 
-      - name: Rename APK to Muso_v0.5.82_v1.apk
+      - name: Decode signing keystore
+        if: env.KEYSTORE_BASE64 != ''
         run: |
-          cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk Muso_v0.5.82_v1.apk
-          ls -lh Muso_v0.5.82_v1.apk
+          echo "$KEYSTORE_BASE64" | base64 -d > muso-release.keystore
+          echo "Keystore decoded."
+
+      - name: Sign the APK (zipalign + apksigner)
+        if: env.KEYSTORE_BASE64 != ''
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.name }}
+          CODE: ${{ steps.version.outputs.code }}
+        run: |
+          set -e
+          ANDROID_SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          BUILD_TOOLS="$(ls -d "$ANDROID_SDK/build-tools"/* 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$BUILD_TOOLS" ]; then
+            echo "Installing build-tools..."
+            yes | sdkmanager "build-tools;34.0.0" > /dev/null
+            BUILD_TOOLS="$(ls -d "$ANDROID_SDK/build-tools"/* | sort -V | tail -1)"
+          fi
+
+          UNSIGNED="Muso_v${VERSION}_v${CODE}-unsigned.apk"
+          FINAL="Muso_v${VERSION}_v${CODE}.apk"
+
+          cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk "$UNSIGNED"
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$UNSIGNED" "$FINAL"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks muso-release.keystore \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEY_PASSWORD" \
+            "$FINAL"
+          echo "Verifying signature..."
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$FINAL" | head -5
+
+          rm -f "$UNSIGNED" muso-release.keystore
+          echo "Signed APK ready: $FINAL"
+
+      - name: 'Fallback: publish unsigned APK with a warning'
+        if: env.KEYSTORE_BASE64 == ''
+        env:
+          VERSION: ${{ steps.version.outputs.name }}
+          CODE: ${{ steps.version.outputs.code }}
+        run: |
+          cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk \
+            "Muso_v${VERSION}_v${CODE}.apk"
+          echo "::warning::Signing secrets are NOT configured, so the published APK is UNSIGNED and cannot be installed on devices. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD under Settings > Secrets and variables > Actions, then re-run this workflow."
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Muso_v0.5.58_v1
-          path: Muso_v0.5.82_v1.apk
+          name: Muso_v${{ steps.version.outputs.name }}
+          path: Muso_v${{ steps.version.outputs.name }}_v${{ steps.version.outputs.code }}.apk
 
-      - name: Publish APK to GitHub Releases
+      # Publishing rule:
+      # 1. Every push produces exactly ONE release - the tag matching the
+      #    version in app/build.gradle.kts (e.g. v0.5.86).
+      # 2. Any APKs already attached to that release are deleted first, so the
+      #    release always ends up containing only the fresh APK.
+      # 3. Older releases are removed, so the Releases section shows just the
+      #    newest version - old APKs are effectively replaced by the new one.
+      - name: Publish APK to GitHub Releases (replace previous APKs)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.name }}
+          CODE: ${{ steps.version.outputs.code }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          else
-            TAG="v0.5.58-v1"
+          set -e
+          TAG="v$VERSION"
+          APK="Muso_v${VERSION}_v${CODE}.apk"
+
+          echo "Publishing $APK as release $TAG"
+
+          # 1) Remove every other (older) release.
+          gh release list --limit 100 --json tagName --jq '.[].tagName' | while read -r other; do
+            if [ "$other" != "$TAG" ]; then
+              echo "Deleting old release: $other"
+              gh release delete "$other" --yes || true
+            fi
+          done
+
+          # 2) Create this version's release if it does not exist yet.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "Muso v$VERSION" \
+              --notes "Muso v$VERSION (versionCode $CODE), built automatically from the latest source. The in-app updater will offer this version to older installs."
           fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" Muso_v0.5.82_v1.apk --clobber
-          else
-            gh release create "$TAG" Muso_v0.5.82_v1.apk \
-              --title "Muso v0.5.58" \
-              --notes "Muso v0.5.67 (unsigned release build). Build fixes: Apple-style lyric line now uses the on-device lyrics parser; in-app crash reporter added. Library crash fix; settings top-visibility fix on all screens; full splash animation restored with smooth handoff; smoother search entry; zero-cost blurred artwork player background; Apple Music style 1:1 title row with current lyric line."
-          fi
+
+          # 3) Clear any assets already in this release (re-pushes of the same
+          #    version replace the APK instead of piling up).
+          gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r asset; do
+            echo "Removing old asset: $asset"
+            gh release delete-asset "$TAG" "$asset" --yes || true
+          done
+
+          # 4) Upload the fresh APK.
+          gh release upload "$TAG" "$APK" --clobber
+
+          echo "Done. Latest release:"
+          gh release view "$TAG" --json name,tagName,assets --jq '{name, tagName, assets: [.assets[].name]}'

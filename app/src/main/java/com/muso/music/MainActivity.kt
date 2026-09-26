@@ -144,7 +144,7 @@ import com.muso.music.playback.MusicService.MusicBinder
 import com.muso.music.playback.PlayerConnection
 import com.muso.music.ui.component.BottomSheetMenu
 import com.muso.music.ui.component.BounceIconButton
-import com.muso.music.ui.component.UpdateDialog
+import com.muso.music.ui.component.UpdatePopup
 import com.muso.music.ui.component.IconButton
 import com.muso.music.ui.component.LocalMenuState
 import com.muso.music.ui.component.SearchBar
@@ -181,6 +181,7 @@ import com.muso.music.utils.get
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import com.muso.music.constants.TranslucentNavigationBarKey
+import com.muso.music.constants.UpdateDismissedVersionKey
 import com.muso.music.utils.reportException
 import com.muso.music.utils.urlEncode
 import dagger.hilt.android.AndroidEntryPoint
@@ -975,19 +976,20 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
-                        var updateDismissedForVersion by rememberSaveable { mutableStateOf("") }
-                        LaunchedEffect(latestVersionName) {
-                            showUpdateDialog = latestVersionName != BuildConfig.VERSION_NAME &&
-                                    updateDismissedForVersion != latestVersionName
-                        }
-                        if (showUpdateDialog) {
-                            UpdateDialog(
+                        // Premium Material 3 update popup: slides up from the bottom
+                        // of the screen when a newer GitHub release exists. "Later"
+                        // persists the dismissed version in DataStore, so the popup
+                        // never comes back for that version (only for the next one),
+                        // and it is never shown over the splash animation.
+                        val (updateDismissedVersion, onUpdateDismissedVersionChange) =
+                            rememberPreference(UpdateDismissedVersionKey, defaultValue = "")
+                        if (latestVersionName != BuildConfig.VERSION_NAME &&
+                            updateDismissedVersion != latestVersionName &&
+                            !showSplash
+                        ) {
+                            UpdatePopup(
                                 version = latestVersionName,
-                                onDismiss = {
-                                    showUpdateDialog = false
-                                    updateDismissedForVersion = latestVersionName
-                                }
+                                onDismiss = { onUpdateDismissedVersionChange(latestVersionName) },
                             )
                         }
 
