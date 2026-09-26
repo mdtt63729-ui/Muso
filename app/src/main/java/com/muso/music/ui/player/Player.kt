@@ -148,7 +148,11 @@ import kotlinx.coroutines.isActive
 import me.saket.squiggles.SquigglySlider
 import androidx.compose.ui.platform.LocalContext
 import coil.request.ImageRequest
-import coil.size.CachePolicy
+import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
+import com.muso.music.lyrics.LyricsEntry
+import com.muso.music.lyrics.LyricsEntry.Companion.HEAD_LYRICS_ENTRY
+import com.muso.music.lyrics.LyricsUtils.parseLyrics
+import echo.music.iad1tya.betterlyrics.TTMLParser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1166,17 +1170,32 @@ fun BottomSheetPlayer(
 
         val appleControls: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             // === Apple Music style - SimpMusic 1:1 title row + current lyric line ===
+            val onVideo = videoEnabled && videoActive
+            val primaryText = if (onVideo) Color.White else MaterialTheme.colorScheme.onSurface
+            val secondaryText = if (onVideo) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
+            val accent = if (onVideo) Color.White else MaterialTheme.colorScheme.primary
+
             // Current synced lyric line (Apple Music idle-overlay element, shown above
             // the title row). findCurrentLineIndex is the same helper the lyrics view uses.
             val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
-            val appleLines = remember(lyricsEntity) { lyricsEntity?.lyrics?.lines() }
-            val appleCurrentLine = remember(appleLines, position) {
-                appleLines?.let { lines ->
-                    val idx = findCurrentLineIndex(lines, position)
-                    lines.getOrNull(idx)?.takeIf { it.text.isNotEmpty() }?.text
+            val appleLyricsText = remember(lyricsEntity) { lyricsEntity?.lyrics }
+            val appleLines = remember(appleLyricsText) {
+                when {
+                    appleLyricsText == null || appleLyricsText == LYRICS_NOT_FOUND -> emptyList()
+                    appleLyricsText.trimStart().startsWith("<?xml") || appleLyricsText.trimStart().startsWith("<tt") ->
+                        listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(appleLyricsText).map {
+                            LyricsEntry((it.startTime * 1000).toLong(), it.text)
+                        }
+                    appleLyricsText.startsWith("[") -> listOf(HEAD_LYRICS_ENTRY) + parseLyrics(appleLyricsText)
+                    else -> appleLyricsText.lines().mapIndexed { index, line -> LyricsEntry(index * 100L, line) }
                 }
             }
-            if (appleLines != null) {
+            val appleCurrentLine = remember(appleLines, position) {
+                if (appleLines.isEmpty()) null
+                else appleLines.getOrNull(findCurrentLineIndex(appleLines, position))
+                    ?.takeIf { it.text.isNotEmpty() }?.text
+            }
+            if (appleLines.isNotEmpty()) {
                 Text(
                     text = appleCurrentLine ?: " ",
                     style = MaterialTheme.typography.labelLarge,
@@ -1511,8 +1530,6 @@ fun BottomSheetPlayer(
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(thumbnailUrl)
-                            .diskCachePolicy(CachePolicy.ENABLED)
-                            .memoryCachePolicy(CachePolicy.ENABLED)
                             // Decode the artwork tiny and let matchParentSize upscale it:
                             // a heavy blur that costs nothing per frame, instead of
                             // Modifier.blur(64.dp) re-rendering on every animation frame.

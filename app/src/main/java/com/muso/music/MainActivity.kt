@@ -195,6 +195,7 @@ import java.net.URLDecoder
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.delay
+import androidx.compose.material3.TextButton
 
 // Echo's emphasized easing for page transitions.
 val EmphasizedEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
@@ -1028,6 +1029,55 @@ class MainActivity : ComponentActivity() {
                             runCatching { searchBarFocusRequester.requestFocus() }
                             openSearchImmediately = false
                         }
+                    }
+
+                    // Previous-crash report: if the app died last session, the saved
+                    // stack trace is offered here so it can be screenshotted or shared
+                    // without adb. Delete-on-show keeps it a one-time dialog.
+                    val context = LocalContext.current
+                    val lastCrashLog = remember {
+                        runCatching {
+                            val f = java.io.File(context.filesDir, "crash.log")
+                            if (f.exists()) f.readText() else null
+                        }.getOrNull()
+                    }
+                    if (lastCrashLog != null) {
+                        AlertDialog(
+                            onDismissRequest = {},
+                            title = { Text(stringResource(R.string.crash_report_title)) },
+                            text = {
+                                Text(
+                                    text = lastCrashLog.takeLast(1200),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        runCatching { java.io.File(context.filesDir, "crash.log").delete() }
+                                        runCatching {
+                                            context.startActivity(
+                                                android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                    type = "text/plain"
+                                                    putExtra(
+                                                        android.content.Intent.EXTRA_TEXT,
+                                                        lastCrashLog,
+                                                    )
+                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                            )
+                                        }
+                                    },
+                                ) { Text(stringResource(R.string.share)) }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = {
+                                        runCatching { java.io.File(context.filesDir, "crash.log").delete() }
+                                    },
+                                ) { Text(stringResource(R.string.close)) }
+                            },
+                        )
                     }
 
                     // Waveform splash overlay: cross-fades away into the app underneath.

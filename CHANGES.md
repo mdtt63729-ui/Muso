@@ -1,3 +1,27 @@
+## Round 52 (v0.5.67): v0.5.66 build fixes + in-app crash reporter
+
+The v0.5.66 build failed on two mistakes of mine, both fixed:
+
+- **Apple-style current-lyric line:** it was written against a newer lyrics
+  API than this codebase has. The raw lyrics string is now parsed exactly
+  like the lyrics screen does (TTML karaoke, LRC, or plain text), and the
+  local colour/context values the rewrite had swallowed are restored.
+- **Player background:** the tiny-decode blurred background no longer
+  references CachePolicy (defaults are already enabled).
+
+Plus:
+
+- **In-app crash reporter.** Every uncaught crash now saves its full stack
+  trace to a file; the next time you open Muso a dialog shows it, with a
+  Share button. This is how we finally pin down the Library-tab crash -
+  it triggers, you reopen the app, screenshot or share the dialog.
+- **Settings** no longer shows the page title twice (big title removed; the
+  top bar title stays).
+- The library mixed-grid sort key stays as it was (it was consistent all
+  along; my earlier theory about it was wrong and I have reverted that).
+
+**Version:** 0.5.67 (versionCode 74); release tag v0.5.67, APK Muso_v0.5.67_v1.apk.
+
 ## Round 51 (v0.5.66): the fixes you reported, actually built this time
 
 **IMPORTANT: your GitHub repo was still at v0.5.58.** The last several source

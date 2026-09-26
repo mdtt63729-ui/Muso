@@ -196,12 +196,6 @@ fun SettingsScreen(
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
 
-        Text(
-            text = stringResource(R.string.settings),
-            style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 16.dp)
-        )
 
         TextField(
             value = searchQuery,

@@ -46,6 +46,24 @@ class App : Application(), ImageLoaderFactory {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+
+        // Crash log capture: writes the stack trace of any uncaught crash to
+        // files/crash.log so the next start can show it in-app without adb -
+        // the fastest way to pin down the Library-tab crash.
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            runCatching {
+                java.io.File(filesDir, "crash.log").writeText(
+                    buildString {
+                        appendLine("Muso crash at " + java.time.LocalDateTime.now())
+                        appendLine("Thread: " + thread.name)
+                        appendLine()
+                        append(android.util.Log.getStackTraceString(throwable))
+                    }
+                )
+            }
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
         Timber.plant(Timber.DebugTree())
 
         val locale = Locale.getDefault()
