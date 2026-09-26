@@ -1,3 +1,20 @@
+## Round 66 (v0.5.81): build fix - all Kotlin errors from the 0.5.80 log
+
+- MusicService: added the missing imports for ShowVideoInPlayerKey /
+  HighQualityVideoKey (the constants existed; the service never imported them).
+- Player.kt: Apple slider - imported the offset modifier and IntOffset (the
+  thumb placement failed to resolve); fixed the unquoted "artworkFade" label;
+  the playing-from playlist name now reads playlist.playlist.name (the DB
+  Playlist wrapper embeds the entity); the M3 Expressive header's tonal
+  circles are now Surfaces - material3 1.3.0-rc01's IconButton has no shape
+  parameter.
+- SimpExpressivePlayer.kt: REPEAT_MODE_* constants imported from media3's
+  Player (not com.muso.music.constants, where they do not exist); added the
+  missing foundation background import (WavySeekBar thumb); the Details
+  dialog's row helper is now a proper @Composable.
+
+**Version:** 0.5.81 (versionCode 88); release tag v0.5.81, APK Muso_v0.5.81_v1.apk.
+
 ## Round 65 (v0.5.80): build fix - splash_icon
 
 - v0.5.79 failed to build at processResources: res/drawable/splash_icon.xml was

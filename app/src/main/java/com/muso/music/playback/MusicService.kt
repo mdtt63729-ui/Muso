@@ -64,6 +64,8 @@ import com.zionhuang.innertube.models.response.PlayerResponse
 import com.muso.music.MainActivity
 import com.muso.music.R
 import com.muso.music.constants.AudioNormalizationKey
+import com.muso.music.constants.ShowVideoInPlayerKey
+import com.muso.music.constants.HighQualityVideoKey
 import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AudioQualityKey
 import com.muso.music.constants.LoudnessPreset

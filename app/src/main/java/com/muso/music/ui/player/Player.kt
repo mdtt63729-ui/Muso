@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -60,6 +61,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
@@ -605,7 +607,7 @@ fun BottomSheetPlayer(
                             .firstNotNullOfOrNull { playlist ->
                                 val pids = database.playlistSongs(playlist.id).first()
                                     .map { it.map.songId }
-                                if (pids.isNotEmpty() && pids == ids) playlist.name else null
+                                if (pids.isNotEmpty() && pids == ids) playlist.playlist.name else null
                             }
                     }.getOrNull()
                 }
@@ -1501,7 +1503,7 @@ fun BottomSheetPlayer(
                     val artworkAlpha by animateFloatAsState(
                         targetValue = if (videoVisible) 0f else 1f,
                         animationSpec = tween(300),
-                        label = artworkFade,
+                        label = "artworkFade",
                     )
                     // === SimpMusic M3 Expressive header row: 44dp tonal circles, a
                     // down-chevron that collapses the sheet, and the centered NOW PLAYING
@@ -1580,19 +1582,19 @@ fun BottomSheetPlayer(
                                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
                                 .padding(top = 8.dp, start = 20.dp, end = 20.dp),
                         ) {
-                            IconButton(
+                            Surface(
                                 onClick = { state.collapseSoft() },
                                 shape = CircleShape,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(44.dp),
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.expand_more),
-                                    contentDescription = null,
-                                )
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.expand_more),
+                                        contentDescription = null,
+                                    )
+                                }
                             }
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1617,19 +1619,19 @@ fun BottomSheetPlayer(
                                     )
                                 }
                             }
-                            IconButton(
+                            Surface(
                                 onClick = { showSongInfoDialog = true },
                                 shape = RoundedCornerShape(14.dp),
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(44.dp),
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert),
-                                    contentDescription = null,
-                                )
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.more_vert),
+                                        contentDescription = null,
+                                    )
+                                }
                             }
                         }
                     }

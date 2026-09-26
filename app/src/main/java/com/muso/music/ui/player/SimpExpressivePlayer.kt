@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -64,9 +65,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.muso.music.R
-import com.muso.music.constants.REPEAT_MODE_ALL
-import com.muso.music.constants.REPEAT_MODE_OFF
-import com.muso.music.constants.REPEAT_MODE_ONE
+import androidx.media3.common.Player.REPEAT_MODE_ALL
+import androidx.media3.common.Player.REPEAT_MODE_OFF
+import androidx.media3.common.Player.REPEAT_MODE_ONE
 import com.muso.music.models.MediaMetadata
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -592,41 +593,19 @@ fun SongInfoDialog(
         database.format(mediaMetadata.id).collect { format = it }
     }
 
-    fun row(label: String, value: String?) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(96.dp),
-            )
-            Text(
-                text = value ?: "-",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.details)) },
         text = {
             Column {
-                row("Title", mediaMetadata.title)
-                row("Artist", mediaMetadata.artists.joinToString { it.name })
-                row("Album", mediaMetadata.album?.title)
-                row("Duration", makeTimeString(mediaMetadata.duration.toLong()))
-                row("Codec", format?.codecs)
-                row("MIME", format?.mimeType)
-                row("Bitrate", format?.bitrate?.let { "${it / 1000} kbps" })
-                row("Sample rate", format?.sampleRate?.let { "$it Hz" })
+                SongInfoRow("Title", mediaMetadata.title)
+                SongInfoRow("Artist", mediaMetadata.artists.joinToString { it.name })
+                SongInfoRow("Album", mediaMetadata.album?.title)
+                SongInfoRow("Duration", makeTimeString(mediaMetadata.duration.toLong()))
+                SongInfoRow("Codec", format?.codecs)
+                SongInfoRow("MIME", format?.mimeType)
+                SongInfoRow("Bitrate", format?.bitrate?.let { "${it / 1000} kbps" })
+                SongInfoRow("Sample rate", format?.sampleRate?.let { "$it Hz" })
             }
         },
         confirmButton = {
@@ -635,4 +614,28 @@ fun SongInfoDialog(
             }
         },
     )
+}
+
+/** One label/value line of the Details dialog. */
+@Composable
+private fun SongInfoRow(label: String, value: String?) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(96.dp),
+        )
+        Text(
+            text = value ?: "-",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
