@@ -1,3 +1,12 @@
+## Round 91 (v0.5.106): CI fix - Lyrics.kt leftover fragment
+
+The morph-loading replacement left the OLD equalizer body behind the new
+function (a stray ") {" line at Lyrics.kt:645 broke the build). The leftover
+fragment is removed; the Material-3 morph indicator and everything else from
+Round 90 stand unchanged.
+
+**Version:** 0.5.106 (versionCode 113); release tag v0.5.106, APK Muso_v0.5.106_v113.apk.
+
 ## Round 90 (v0.5.105): light mode fixed for all player styles, lyrics-card popup, morph loading
 
 - **LIGHT MODE FIXED ON ALL THREE PLAYER STYLES.** The players are SimpMusic
