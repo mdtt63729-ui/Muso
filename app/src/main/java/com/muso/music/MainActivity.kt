@@ -196,6 +196,7 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.delay
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 
 // Echo's emphasized easing for page transitions.
 val EmphasizedEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)

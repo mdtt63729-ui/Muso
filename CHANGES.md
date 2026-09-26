@@ -1,3 +1,12 @@
+## Round 53 (v0.5.68): v0.5.67 build fix
+
+Two small omissions that broke the v0.5.67 build: the AlertDialog import
+was never added (it silently matched an existing AlertDialogDefaults
+import), and the crash-reporter title string was never inserted. Both
+fixed; no other changes.
+
+**Version:** 0.5.68 (versionCode 75); release tag v0.5.68, APK Muso_v0.5.68_v1.apk.
+
 ## Round 52 (v0.5.67): v0.5.66 build fixes + in-app crash reporter
 
 The v0.5.66 build failed on two mistakes of mine, both fixed:
