@@ -71,7 +71,11 @@ private const val T_COMPRESS_END = 0.62f
 private const val T_PULSE_END = 1.20f
 private const val T_REBUILD_END = 1.50f
 private const val T_SETTLE_END = 1.70f
-private const val T_EXIT_END = 1.45f
+private const val T_EXIT_END = 1.95f
+
+/** After the animation completes, the whole overlay fades out over this duration
+ * so the home screen appears through a smooth transition, never a hard cut. */
+private const val SPLASH_HANDOFF = 0.15f
 private const val WAVE_DELAY = 0.035f
 
 // ---------- Original logo geometry (heights relative to the center bar) ----------
@@ -256,7 +260,7 @@ internal fun MusoSplash(onFinish: () -> Unit) {
 
     LaunchedEffect(Unit) {
         val startNanos = withFrameNanos { it }
-        val total = if (reduced) 1.20f else T_EXIT_END
+        val total = if (reduced) 1.20f else T_EXIT_END + SPLASH_HANDOFF
         while (true) {
             withFrameNanos { now ->
                 t = ((now - startNanos) / 1_000_000_000f).coerceAtLeast(0f)
@@ -277,6 +281,16 @@ internal fun MusoSplash(onFinish: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF000000))
+            .graphicsLayer {
+                // Handoff: only AFTER the full animation has completed, fade the whole
+                // overlay into the home screen beneath over 150ms. Before T_EXIT_END the
+                // alpha stays 1 - the app can never be seen early.
+                alpha = if (reduced) {
+                    1f
+                } else {
+                    1f - pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF)
+                }
+            }
             .pointerInput(Unit) { detectTapGestures { } },
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {

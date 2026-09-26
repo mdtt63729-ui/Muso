@@ -134,6 +134,7 @@ import com.muso.music.constants.HidePlayerSliderKey
 import com.muso.music.extensions.togglePlayPause
 import com.muso.music.extensions.toggleRepeatMode
 import com.muso.music.models.MediaMetadata
+import com.muso.music.lyrics.LyricsUtils.findCurrentLineIndex
 import com.muso.music.ui.component.BottomSheet
 import com.muso.music.ui.component.BottomSheetState
 import com.muso.music.ui.component.rememberBottomSheetState
@@ -145,6 +146,9 @@ import com.muso.music.utils.rememberPreference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import me.saket.squiggles.SquigglySlider
+import androidx.compose.ui.platform.LocalContext
+import coil.request.ImageRequest
+import coil.size.CachePolicy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1161,65 +1165,107 @@ fun BottomSheetPlayer(
         }
 
         val appleControls: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            // === Apple-inspired: centered metadata with no heart in the title row -
-            // heart, shuffle and repeat sit together in one quiet row under the times,
-            // like Apple Music's compact cluster. Everything else matches Muso Classic.
-            val onVideo = videoEnabled && videoActive
-            val primaryText = if (onVideo) Color.White else MaterialTheme.colorScheme.onSurface
-            val secondaryText = if (onVideo) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
-            val accent = if (onVideo) Color.White else MaterialTheme.colorScheme.primary
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding),
-            ) {
+            // === Apple Music style - SimpMusic 1:1 title row + current lyric line ===
+            // Current synced lyric line (Apple Music idle-overlay element, shown above
+            // the title row). findCurrentLineIndex is the same helper the lyrics view uses.
+            val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+            val appleLines = remember(lyricsEntity) { lyricsEntity?.lyrics?.lines() }
+            val appleCurrentLine = remember(appleLines, position) {
+                appleLines?.let { lines ->
+                    val idx = findCurrentLineIndex(lines, position)
+                    lines.getOrNull(idx)?.takeIf { it.text.isNotEmpty() }?.text
+                }
+            }
+            if (appleLines != null) {
                 Text(
-                    text = mediaMetadata.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = primaryText,
+                    text = appleCurrentLine ?: " ",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = secondaryText.copy(alpha = 0.85f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .basicMarquee()
-                        .clickable(enabled = mediaMetadata.album != null) {
-                            navController.navigate("album/${mediaMetadata.album!!.id}")
-                            state.collapseSoft()
-                        },
+                        .padding(horizontal = PlayerHorizontalPadding)
+                        .basicMarquee(),
                 )
+                Spacer(Modifier.height(8.dp))
+            }
 
-                Spacer(Modifier.height(4.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    mediaMetadata.artists.fastForEachIndexed { index, artist ->
-                        Text(
-                            text = artist.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = secondaryText,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .basicMarquee()
-                                .clickable(enabled = artist.id != null) {
-                                    navController.navigate("artist/${artist.id}")
-                                    state.collapseSoft()
-                                },
-                        )
-
-                        if (index != mediaMetadata.artists.lastIndex) {
+            // AppleMusicMainTitleRow, 1:1: left-aligned title + artist in a weight(1f)
+            // column, 12dp spacer, actions (heart) on the right.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PlayerHorizontalPadding),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = mediaMetadata.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .basicMarquee()
+                            .clickable(enabled = mediaMetadata.album != null) {
+                                navController.navigate("album/${mediaMetadata.album!!.id}")
+                                state.collapseSoft()
+                            },
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        mediaMetadata.artists.fastForEachIndexed { index, artist ->
                             Text(
-                                text = ", ",
+                                text = artist.name,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = secondaryText,
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .basicMarquee()
+                                    .clickable(enabled = artist.id != null) {
+                                        navController.navigate("artist/${artist.id}")
+                                        state.collapseSoft()
+                                    },
                             )
+                            if (index != mediaMetadata.artists.lastIndex) {
+                                Text(
+                                    text = ", ",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = secondaryText,
+                                )
+                            }
                         }
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                FilledIconToggleButton(
+                    checked = currentSong?.song?.liked == true,
+                    onCheckedChange = { playerConnection.toggleLike() },
+                    shape = CircleShape,
+                    colors = IconButtonDefaults.filledIconToggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = secondaryText,
+                        checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Crossfade(
+                        targetState = currentSong?.song?.liked == true,
+                        label = "appleLike",
+                    ) { liked ->
+                        Icon(
+                            painter = painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border),
+                            contentDescription = null,
+                        )
                     }
                 }
             }
@@ -1463,12 +1509,18 @@ fun BottomSheetPlayer(
             mediaMetadata?.thumbnailUrl?.let { thumbnailUrl ->
                 Box(Modifier.matchParentSize()) {
                     AsyncImage(
-                        model = thumbnailUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(thumbnailUrl)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            // Decode the artwork tiny and let matchParentSize upscale it:
+                            // a heavy blur that costs nothing per frame, instead of
+                            // Modifier.blur(64.dp) re-rendering on every animation frame.
+                            .size(64)
+                            .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .matchParentSize()
-                            .blur(64.dp),
+                        modifier = Modifier.matchParentSize(),
                     )
                     // Scrim on top keeps the controls readable; it leans on the player's own
                     // background color so it matches both the light and dark/pure-black themes.

@@ -47,6 +47,7 @@ import com.muso.music.ui.component.PreferenceGroupTitle
 import com.muso.music.ui.component.SwitchPreference
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberPreference
+import androidx.compose.foundation.layout.height
 
 private data class EqualizerInfo(
     val bands: Int,
@@ -125,6 +126,9 @@ fun AudioEffectsSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState)
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         SwitchPreference(
             title = { Text(stringResource(R.string.audio_effects)) },
             description = stringResource(R.string.audio_effects_desc),

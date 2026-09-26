@@ -44,6 +44,7 @@ import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.BackupRestoreViewModel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.layout.height
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +72,9 @@ fun BackupAndRestore(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState)
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         PreferenceEntry(
             title = { Text(stringResource(R.string.action_backup)) },
             icon = { Icon(painterResource(R.drawable.backup), null) },

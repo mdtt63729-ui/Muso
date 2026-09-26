@@ -163,6 +163,9 @@ fun SpotifySettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState),
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         PreferenceGroupTitle(
             title = stringResource(R.string.spotify),
         )

@@ -62,6 +62,9 @@ fun AboutScreen(
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         Spacer(Modifier.height(4.dp))
 
         Image(

@@ -38,6 +38,7 @@ import com.muso.music.R
 import com.muso.music.ui.component.Material3SettingsGroup
 import com.muso.music.ui.component.Material3SettingsItem
 import com.muso.music.ui.utils.backToMain
+import androidx.compose.foundation.layout.height
 
 /**
  * Echo Music settings home (ported): a big title, a search field that filters the
@@ -192,6 +193,9 @@ fun SettingsScreen(
             .verticalScroll(scrollState)
             .padding(horizontal = 16.dp)
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         Text(
             text = stringResource(R.string.settings),
             style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.SemiBold),

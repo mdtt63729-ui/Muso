@@ -95,6 +95,7 @@ import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import me.saket.squiggles.SquigglySlider
+import androidx.compose.foundation.layout.height
 
 // SimpMusic-style theme color presets (Interface settings). 0 = default.
 val THEME_COLORS: List<Pair<Int, String>> = listOf(
@@ -321,6 +322,9 @@ fun AppearanceSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState),
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         // ============================ Interface ============================
         PreferenceGroupTitle(
             title = stringResource(R.string.user_interface),

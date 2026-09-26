@@ -194,6 +194,7 @@ import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
+import kotlinx.coroutines.delay
 
 // Echo's emphasized easing for page transitions.
 val EmphasizedEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
@@ -948,6 +949,9 @@ class MainActivity : ComponentActivity() {
                                             onActiveChange(true)
                                             coroutineScope.launch {
                                                 withFrameNanos { }
+                                                // Let the search bar expansion settle before
+                                                // pulling the keyboard up - both at once janks.
+                                                delay(250)
                                                 runCatching { searchBarFocusRequester.requestFocus() }
                                             }
                                         } else if (navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true) {
@@ -1020,6 +1024,7 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(shouldShowSearchBar, openSearchImmediately) {
                         if (shouldShowSearchBar && openSearchImmediately) {
                             onActiveChange(true)
+                            delay(250)
                             runCatching { searchBarFocusRequester.requestFocus() }
                             openSearchImmediately = false
                         }

@@ -40,6 +40,7 @@ import com.muso.music.ui.component.PreferenceGroupTitle
 import com.muso.music.ui.component.SwitchPreference
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberPreference
+import androidx.compose.foundation.layout.height
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +92,9 @@ fun PrivacySettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState)
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         PreferenceGroupTitle(
             title = stringResource(R.string.search_history)
         )

@@ -1,3 +1,42 @@
+## Round 51 (v0.5.66): the fixes you reported, actually built this time
+
+**IMPORTANT: your GitHub repo was still at v0.5.58.** The last several source
+zips (v0.5.59 through v0.5.65) were never pushed, so every fix in them never
+reached your APK - the settings, splash and crash complaints were all against
+the old v0.5.58 build. This zip is based on your repo plus every fix below;
+push ALL of its files to GitHub (replace everything) before building.
+
+**Library crash: fixed.** The mixed library sorted albums by lastUpdateTime
+(Long) but everything else by LocalDateTime.MIN - comparing the two types
+throws ClassCastException, so the Library tab crashed whenever an album was
+saved alongside anything else. All sort keys are now Long.
+
+**Everywhere lag: biggest cost removed.** The player background re-ran a
+64dp full-screen Modifier.blur on every animation frame. It now decodes the
+artwork tiny (64px) and lets the GPU upscale it - the same heavy-blur look,
+at zero per-frame cost. Plus the search keyboard no longer fights the search
+bar expansion (250ms settle delay).
+
+**Settings: the top of every page was hidden.** The status-bar spacer had
+been lost in an earlier restyle, so the search bar and the first rows sat
+under the app bar. All 13 settings screens now reserve the status bar and
+the 64dp app bar before their content.
+
+**Splash: the full animation is back.** The exit cutoff (1.45s) ended the
+animation before the rebuild/settle phases (1.50-1.70s) and the wordmark
+reveal could ever play, and an inverted calculation zeroed the wordmark
+entirely - so you only ever saw a cut-off waveform. The timeline now runs
+the complete sequence (1.95s) and only after it completes does the overlay
+cross-fade into home over 150ms. Cold start also shows a white waveform mark
+in the Android 12+ system splash. Note: no splash on warm resume by design.
+
+**Apple style: 1:1 SimpMusic title row** - left-aligned title + clickable
+artist, 48dp tonal heart on the right, and the current synced lyric line
+above the title. Classic / Expressive / Immersive / Apple all dispatch
+correctly in this build.
+
+**Version:** 0.5.66 (versionCode 73); release tag v0.5.66, APK Muso_v0.5.66_v1.apk.
+
 ## Round 43 (v0.5.58): v0.5.57 build fix - broken slider else-branch
 
 The thin-slider removal regex in v0.5.57 cut through the ThinProgressSlider

@@ -40,6 +40,7 @@ import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberPreference
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.height
 
 
 /**
@@ -92,6 +93,9 @@ fun ListeningHistorySettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .verticalScroll(scrollState),
     ) {
+        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+        Spacer(Modifier.height(64.dp))
+
         PreferenceGroupTitle(
             title = stringResource(R.string.listening_history),
         )

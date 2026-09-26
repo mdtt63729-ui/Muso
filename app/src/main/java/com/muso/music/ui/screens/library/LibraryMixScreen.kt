@@ -84,7 +84,6 @@ import com.muso.music.ui.menu.SongMenu
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.viewmodels.LibraryMixViewModel
 import com.muso.music.utils.rememberPreference
-import java.time.LocalDateTime
 
 /**
  * ReTune-style mixed library: everything the user has saved (playlists, albums, artists,
@@ -145,7 +144,7 @@ fun LibraryMixScreen(
         MixSortType.CREATE_DATE -> (playlists + albums + artists).sortedBy { item ->
             when (item) {
                 is Album -> item.album.lastUpdateTime
-                else -> LocalDateTime.MIN
+                else -> 0L
             }
         }
 
