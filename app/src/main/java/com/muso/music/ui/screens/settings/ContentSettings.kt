@@ -35,6 +35,7 @@ import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AccountNameKey
 import com.muso.music.constants.ContentCountryKey
 import android.app.Activity
+import android.content.Context
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 
@@ -146,6 +147,11 @@ fun ContentSettings(
             },
             onValueSelected = { language ->
                 onAppLanguageChange(language)
+                // Keep the synchronous startup mirror in sync (see
+                // MainActivity.attachBaseContext) so the next cold start skips
+                // blocking DataStore I/O before the first frame.
+                activity?.getSharedPreferences("muso_startup", Context.MODE_PRIVATE)
+                    ?.edit()?.putString("appLanguage", language)?.apply()
                 // Recreate so every stringResource re-resolves with the new locale.
                 activity?.recreate()
             },

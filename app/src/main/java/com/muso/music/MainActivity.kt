@@ -202,6 +202,10 @@ import androidx.compose.material3.AlertDialog
 // Echo's emphasized easing for page transitions.
 val EmphasizedEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
 
+// Synchronous startup mirror for the in-app language (see attachBaseContext).
+private const val STARTUP_PREFS = "muso_startup"
+private const val APP_LANGUAGE_MIRROR = "appLanguage"
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject
@@ -253,7 +257,17 @@ class MainActivity : ComponentActivity() {
      * so the read is a tiny blocking DataStore read.
      */
     override fun attachBaseContext(newBase: Context) {
-        val language = runBlocking { newBase.dataStore.get(AppLanguageKey, SYSTEM_DEFAULT) }
+        // Startup fast path: the language is read from a tiny synchronous SharedPreferences
+        // mirror instead of blocking DataStore I/O before the first frame. The mirror is
+        // seeded once (first launch) and kept in sync by the language setting itself.
+        val startupPrefs = newBase.getSharedPreferences(STARTUP_PREFS, Context.MODE_PRIVATE)
+        val language = if (startupPrefs.contains(APP_LANGUAGE_MIRROR)) {
+            startupPrefs.getString(APP_LANGUAGE_MIRROR, SYSTEM_DEFAULT) ?: SYSTEM_DEFAULT
+        } else {
+            runBlocking { newBase.dataStore.get(AppLanguageKey, SYSTEM_DEFAULT) }.also {
+                startupPrefs.edit().putString(APP_LANGUAGE_MIRROR, it).apply()
+            }
+        }
         super.attachBaseContext(
             if (language != SYSTEM_DEFAULT) {
                 val locale = Locale.forLanguageTag(language)

@@ -60,6 +60,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -140,6 +141,7 @@ import com.muso.music.constants.KeepScreenOnKey
 import com.muso.music.constants.SliderStyle
 import com.muso.music.constants.SliderStyleKey
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.derivedStateOf
 import com.muso.music.constants.PlayerButtonsStyle
 import com.muso.music.constants.PlayerButtonsStyleKey
 import com.muso.music.constants.ShowCodecOnPlayerKey
@@ -392,22 +394,19 @@ fun BottomSheetPlayer(
             when {
                 hidePlayerSlider -> {}
                 sliderStyle == SliderStyle.SQUIGGLY -> {
-                    SquigglySlider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                    SquigglyPositionSlider(
+                        positionProvider = { position },
+                        sliderPosition = sliderPosition,
+                        duration = duration,
+                        isPlaying = isPlaying,
                         onValueChange = { sliderPosition = it.toLong() },
-                        onValueChangeFinished = {
+                        onScrubEnd = {
                             sliderPosition?.let {
                                 playerConnection.player.seekTo(it)
                                 position = it
                             }
                             sliderPosition = null
                         },
-                        squigglesSpec = SquigglySlider.SquigglesSpec(
-                            amplitude = if (isPlaying) 2.dp else 0.dp,
-                            strokeWidth = 4.dp,
-                        ),
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                     )
                 }
 
@@ -423,12 +422,12 @@ fun BottomSheetPlayer(
                     .fillMaxWidth()
                     .padding(horizontal = PlayerHorizontalPadding + 4.dp)
             ) {
-                Text(
-                    text = makeTimeString(sliderPosition ?: position),
+                PositionTimeText(
+                    positionProvider = { position },
+                    sliderPosition = sliderPosition,
+                    makeText = { makeTimeString(it) },
                     style = MaterialTheme.typography.labelMedium,
                     color = secondaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
 
                 if (showCodecOnPlayer && codecLabel.isNotEmpty()) {
@@ -443,12 +442,14 @@ fun BottomSheetPlayer(
                     )
                 }
 
-                Text(
-                    text = if (duration != C.TIME_UNSET) "-" + makeTimeString(duration - (sliderPosition ?: position).coerceAtMost(duration)) else "",
+                PositionTimeText(
+                    positionProvider = { position },
+                    sliderPosition = sliderPosition,
+                    makeText = {
+                        if (duration != C.TIME_UNSET) "-" + makeTimeString((duration - it).coerceAtMost(duration)) else ""
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = secondaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -649,10 +650,11 @@ fun BottomSheetPlayer(
                 buffering = playbackState == STATE_BUFFERING,
                 canSkipPrevious = playerConnection.player.hasPreviousMediaItem(),
                 canSkipNext = playerConnection.player.hasNextMediaItem(),
-                position = position,
                 duration = duration,
-                progressFraction = if (duration == C.TIME_UNSET) 0f
-                    else ((sliderPosition ?: position).toFloat() / duration.toFloat()).coerceIn(0f, 1f),
+                progressFractionProvider = {
+                    if (duration == C.TIME_UNSET) 0f
+                    else ((sliderPosition ?: position).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                },
                 onScrub = { fraction ->
                     if (duration != C.TIME_UNSET) sliderPosition = (fraction * duration).toLong()
                 },
@@ -808,11 +810,6 @@ fun BottomSheetPlayer(
                 animationSpec = spring(dampingRatio = 0.5f, stiffness = 300f),
                 label = "appleSliderInflate",
             )
-            val appleFraction = (
-                if (appleDragging) appleDragFraction
-                else if (duration == C.TIME_UNSET) 0f
-                else ((sliderPosition ?: position).toFloat() / duration.toFloat())
-                ).coerceIn(0f, 1f)
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -865,15 +862,22 @@ fun BottomSheetPlayer(
                         .fillMaxWidth()
                         .height(appleTrackHeight)
                         .clip(RoundedCornerShape(percent = 50))
-                        .background(trackInactive),
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(appleFraction)
-                            .background(trackActive),
-                    )
-                }
+                        .background(trackInactive)
+                        // The active fill reads the position/slider state INSIDE the draw
+                        // lambda: draw-phase-only invalidation, so the 100 ms ticks
+                        // animate the bar with ZERO recomposition.
+                        .drawBehind {
+                            val fraction = (
+                                if (appleDragging) appleDragFraction
+                                else if (duration == C.TIME_UNSET) 0f
+                                else ((sliderPosition ?: position).toFloat() / duration.toFloat())
+                                ).coerceIn(0f, 1f)
+                            drawRect(
+                                color = trackActive,
+                                size = size.copy(width = size.width * fraction),
+                            )
+                        },
+                )
             }
 
             // --- Times row: elapsed left, -remaining right ---
@@ -883,18 +887,22 @@ fun BottomSheetPlayer(
                     .fillMaxWidth()
                     .padding(top = 8.dp),
             ) {
-                Text(
-                    text = makeTimeString(sliderPosition ?: position),
+                PositionTimeText(
+                    positionProvider = { position },
+                    sliderPosition = sliderPosition,
+                    makeText = { makeTimeString(it) },
                     style = MaterialTheme.typography.bodyMedium,
                     color = fgSoft,
-                    maxLines = 1,
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    text = if (duration == C.TIME_UNSET) "" else "-" + makeTimeString((duration - (sliderPosition ?: position)).coerceAtLeast(0L)),
+                PositionTimeText(
+                    positionProvider = { position },
+                    sliderPosition = sliderPosition,
+                    makeText = {
+                        if (duration != C.TIME_UNSET) "-" + makeTimeString((duration - it).coerceAtLeast(0L)) else ""
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = fgSoft,
-                    maxLines = 1,
                     textAlign = TextAlign.Right,
                     modifier = Modifier.weight(1f),
                 )
@@ -1458,10 +1466,14 @@ fun BottomSheetPlayer(
                                 else -> m3eLyricsText.lines().mapIndexed { index, line -> LyricsEntry(index * 100L, line) }
                             }
                         }
-                        val m3eCurrentLine = remember(m3eLines, position) {
-                            if (m3eLines.isEmpty()) ""
-                            else m3eLines.getOrNull(findCurrentLineIndex(m3eLines, position))
-                                ?.takeIf { it.text.isNotEmpty() }?.text ?: ""
+                        // derivedStateOf: re-evaluated per position tick internally, but
+                        // readers only recompose when the resulting LINE actually changes.
+                        val m3eCurrentLine by remember(m3eLines) {
+                            derivedStateOf {
+                                if (m3eLines.isEmpty()) ""
+                                else m3eLines.getOrNull(findCurrentLineIndex(m3eLines, position))
+                                    ?.takeIf { it.text.isNotEmpty() }?.text ?: ""
+                            }
                         }
                         Crossfade(
                             targetState = m3eCurrentLine,
@@ -1779,4 +1791,61 @@ private fun formatAudioInfo(format: Format?): String {
         parts += "${format.bitrate / 1000} kbps"
     }
     return parts.joinToString(" \u2022 ")
+}
+
+/**
+ * Time text that reads the playback position through [positionProvider] inside a
+ * derivedStateOf: it only recomposes when the displayed STRING changes (~1 Hz),
+ * not on every 100 ms position tick. Scrubbing still updates immediately because
+ * [sliderPosition] is a remember key of the derived block.
+ */
+@Composable
+private fun PositionTimeText(
+    positionProvider: () -> Long,
+    sliderPosition: Long?,
+    makeText: (Long) -> String,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign? = null,
+) {
+    val text by remember(sliderPosition) {
+        derivedStateOf { makeText(sliderPosition ?: positionProvider()) }
+    }
+    Text(
+        text = text,
+        style = style,
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = textAlign,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Squiggly slider leaf: the only component in the default player that needs the raw
+ * 100 ms position value, so reading it here contains the per-tick recomposition to
+ * this one small composable instead of the whole player screen.
+ */
+@Composable
+private fun SquigglyPositionSlider(
+    positionProvider: () -> Long,
+    sliderPosition: Long?,
+    duration: Long,
+    isPlaying: Boolean,
+    onValueChange: (Long) -> Unit,
+    onScrubEnd: () -> Unit,
+) {
+    SquigglySlider(
+        value = (sliderPosition ?: positionProvider()).toFloat(),
+        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+        onValueChange = { onValueChange(it.toLong()) },
+        onValueChangeFinished = onScrubEnd,
+        squigglesSpec = SquigglySlider.SquigglesSpec(
+            amplitude = if (isPlaying) 2.dp else 0.dp,
+            strokeWidth = 4.dp,
+        ),
+        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
+    )
 }

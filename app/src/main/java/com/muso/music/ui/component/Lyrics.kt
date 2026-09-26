@@ -88,6 +88,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sin
 import com.muso.music.utils.rememberPreference
 import kotlinx.coroutines.delay
@@ -300,7 +301,13 @@ fun Lyrics(
                                     }
                                 }
                             },
-                            position = playbackPosition,
+                            // Only the active line and its neighbours need the live
+                            // 50 ms karaoke position; distant lines are frozen at their
+                            // boundary values (identical visual output), so a position
+                            // tick no longer recomposes every visible lyric line.
+                            position = if (abs(index - displayedCurrentLineIndex) <= 1) playbackPosition
+                            else if (hasActiveLine && index < displayedCurrentLineIndex) Long.MAX_VALUE
+                            else 0L,
                             fontSize = lyricsTextSize,
                             accent = Color.White,
                             inactiveColor = Color.White,

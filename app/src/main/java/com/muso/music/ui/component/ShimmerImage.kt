@@ -15,6 +15,7 @@ import com.muso.music.constants.AnimationsEnabledKey
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
@@ -76,17 +77,25 @@ fun ShimmerBox(modifier: Modifier = Modifier) {
         ),
         label = "shimmerShift",
     )
-    Box(
-        modifier = modifier.background(
-            Brush.linearGradient(
-                colors = listOf(
-                    base.copy(alpha = 0.35f),
-                    base.copy(alpha = 0.75f),
-                    base.copy(alpha = 0.35f),
-                ),
-                start = Offset(x = shift * 1200f - 600f, y = 0f),
-                end = Offset(x = shift * 1200f, y = 240f),
-            )
+    // The moving gradient reads `shift` INSIDE the draw lambda: the shimmer runs
+    // entirely in the draw phase (no per-frame recomposition of the skeleton or
+    // anything around it), and the color list is cached.
+    val gradientColors = remember(base) {
+        listOf(
+            base.copy(alpha = 0.35f),
+            base.copy(alpha = 0.75f),
+            base.copy(alpha = 0.35f),
         )
+    }
+    Box(
+        modifier = modifier.drawBehind {
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = gradientColors,
+                    start = Offset(x = shift * 1200f - 600f, y = 0f),
+                    end = Offset(x = shift * 1200f, y = 240f),
+                ),
+            )
+        }
     )
 }

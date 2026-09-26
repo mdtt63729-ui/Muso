@@ -1,3 +1,42 @@
+## Round 73 (v0.5.88): app-wide frame-drop fix (performance PRD)
+
+Root-cause audit + smallest-safe-architectural-changes fixes. No visual change;
+no animation slowed, shortened, or removed.
+
+- Player screen recomposition containment (the biggest win): the 100 ms
+  position tick used to recompose the ENTIRE player screen - all three styles
+  (Spotify skeleton, Material 3 Expressive, Apple Music). Every position read
+  now lives in a deferred scope or a tiny leaf composable:
+  - Time texts (all styles) read the position inside derivedStateOf, so they
+    recompose only when the displayed string changes (~1 Hz) instead of 10 Hz.
+  - The Apple thin progress pill draws its fill inside drawBehind - pure
+    draw-phase invalidation, zero recomposition per tick.
+  - The M3 Expressive wavy seek bar derives its fraction inside its Canvas
+    draw block (and the thumb inside its offset lambda); the unused `position`
+    parameter was removed and progressFraction became a provider.
+  - The squiggly slider moved into a small leaf composable so its 10 Hz
+    refresh recomposes only that slider.
+  - The M3E inline current-lyric line switched from remember(position) to
+    derivedStateOf: it re-evaluates per tick but its readers (the Crossfade)
+    only recompose when the displayed line actually changes.
+- Lyrics: only the active karaoke line and its neighbours now receive the live
+  50 ms position; distant lines are frozen at their boundary values (pixel-
+  identical output), so a tick no longer recomposes every visible lyric line.
+- Shimmer skeletons: the moving gradient now reads its animated value inside
+  drawBehind (draw-phase only) with cached colors - loading placeholders no
+  longer recompose at 60 Hz while scrolling.
+- Startup: attachBaseContext no longer blocks on DataStore I/O before the
+  first frame - the in-app language is read from a tiny synchronous
+  SharedPreferences mirror (seeded once, kept in sync by the language
+  setting).
+- Already-optimal parts left untouched (verified during the audit): the splash
+  animation (draw-phase-only since v0.5.85), Thumbnail Ken Burns/vinyl spins
+  (read inside graphicsLayer), PlayingIndicator (Canvas reads), MiniPlayer
+  (isolated collapsed-content scope), dynamic theme color extraction
+  (Dispatchers.IO).
+
+**Version:** 0.5.88 (versionCode 95); release tag v0.5.88, APK Muso_v0.5.88_v95.apk.
+
 ## Round 72 (v0.5.87): CI build fix - duplicate UpdateState enum
 
 - The release build failed because the obsolete UpdateDialog.kt was still in

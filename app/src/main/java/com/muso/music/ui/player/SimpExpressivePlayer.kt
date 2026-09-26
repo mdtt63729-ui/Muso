@@ -43,6 +43,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -105,9 +106,10 @@ fun ColumnScope.SimpExpressiveContent(
     buffering: Boolean,
     canSkipPrevious: Boolean,
     canSkipNext: Boolean,
-    position: Long,
     duration: Long,
-    progressFraction: Float,
+    /** Deferred position read: invoked only inside draw/derived scopes, so the
+     * 100 ms position ticks never recompose this whole screen. */
+    progressFractionProvider: () -> Float,
     onScrub: (Float) -> Unit,
     onScrubEnd: (Float) -> Unit,
     onToggleLike: () -> Unit,
@@ -195,7 +197,7 @@ fun ColumnScope.SimpExpressiveContent(
             .padding(horizontal = 20.dp),
     ) {
         WavySeekBar(
-            progressFraction = progressFraction,
+            progressFractionProvider = progressFractionProvider,
             isPlaying = isPlaying,
             activeColor = colorScheme.primary,
             trackColor = colorScheme.secondaryContainer,
@@ -210,9 +212,9 @@ fun ColumnScope.SimpExpressiveContent(
             .offset(y = (-8).dp)
             .padding(horizontal = 20.dp),
     ) {
-        Text(
-            text = makeTimeString((duration * progressFraction).toLong()),
-            style = MaterialTheme.typography.bodyMedium,
+        ElapsedTimeText(
+            duration = duration,
+            progressFractionProvider = progressFractionProvider,
             modifier = Modifier.weight(1f),
         )
         Text(
@@ -456,7 +458,7 @@ private fun ExpressiveTransportRow(
  */
 @Composable
 fun WavySeekBar(
-    progressFraction: Float,
+    progressFractionProvider: () -> Float,
     isPlaying: Boolean,
     activeColor: Color,
     trackColor: Color,
@@ -469,7 +471,11 @@ fun WavySeekBar(
     var dragFraction by remember { mutableFloatStateOf(0f) }
     var widthPx by remember { mutableIntStateOf(0) }
 
-    val displayed = (if (isInteracting) dragFraction else progressFraction).coerceIn(0f, 1f)
+    // The displayed fraction is derived INSIDE the Canvas draw block below, so
+    // 100 ms position ticks invalidate the draw pass only - this whole composable
+    // never recomposes while the song simply plays on.
+    fun displayedFraction(): Float =
+        (if (isInteracting) dragFraction else progressFractionProvider()).coerceIn(0f, 1f)
     val amplitude by animateFloatAsState(
         targetValue = if (isPlaying && !isInteracting) 1f else 0f,
         animationSpec = tween(600),
@@ -523,6 +529,7 @@ fun WavySeekBar(
             },
     ) {
         Canvas(modifier = Modifier.fillMaxWidth().height(40.dp)) {
+            val displayed = displayedFraction()
             val thickness = 5.dp.toPx()
             val centerY = size.height / 2f
             // Flat track across the full width (the wave lives on the active segment only).
@@ -564,7 +571,7 @@ fun WavySeekBar(
                 .offset {
                     val thumbWidthPx = thumbWidthDp.toPx()
                     IntOffset(
-                        x = ((widthPx - thumbWidthPx) * displayed).roundToInt(),
+                        x = ((widthPx - thumbWidthPx) * displayedFraction()).roundToInt(),
                         y = 0,
                     )
                 }
@@ -638,4 +645,25 @@ private fun SongInfoRow(label: String, value: String?) {
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+/**
+ * Elapsed-time text that reads the position through [progressFractionProvider] inside a
+ * derivedStateOf, so it only recomposes when the displayed string changes (~1 Hz),
+ * not on every 100 ms position tick.
+ */
+@Composable
+private fun ElapsedTimeText(
+    duration: Long,
+    progressFractionProvider: () -> Float,
+    modifier: Modifier = Modifier,
+) {
+    val text by remember(duration) {
+        derivedStateOf { makeTimeString((duration * progressFractionProvider()).toLong()) }
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = modifier,
+    )
 }
