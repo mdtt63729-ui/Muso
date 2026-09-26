@@ -1829,6 +1829,7 @@ private fun PositionTimeText(
  * this one small composable instead of the whole player screen.
  */
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SquigglyPositionSlider(
     positionProvider: () -> Long,
     sliderPosition: Long?,

@@ -1,3 +1,13 @@
+## Round 74 (v0.5.89): CI build fix - two compile errors from Round 73
+
+- ShimmerImage.kt: the cached shimmer colors use remember() but the file never
+  imported it - import added.
+- Player.kt: the new SquigglyPositionSlider leaf calls the experimental
+  SquigglySlider API outside the Player composable's @OptIn scope, so it now
+  carries its own @OptIn(ExperimentalMaterial3Api::class).
+
+**Version:** 0.5.89 (versionCode 96); release tag v0.5.89, APK Muso_v0.5.89_v96.apk.
+
 ## Round 73 (v0.5.88): app-wide frame-drop fix (performance PRD)
 
 Root-cause audit + smallest-safe-architectural-changes fixes. No visual change;
