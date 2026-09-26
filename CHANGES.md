@@ -1,3 +1,24 @@
+## Round 79 (v0.5.94): CI fixes for the Round 77+78 player port
+
+Mechanical compile fixes from the first CI run of the two-round SimpMusic
+player port (0.5.92's code itself compiled clean):
+
+- Removed a duplicated `android.app.Activity` import in Player.kt.
+- Fixed the `PlayerResponse` import path to
+  `com.zionhuang.innertube.models.response.PlayerResponse` (this also
+  un-broke the description card's video-details state).
+- Added the missing `com.muso.music.extensions.metadata` import so the
+  artwork pager's queue-cover pages and the Apple QUEUE body can read
+  `window.mediaItem.metadata`.
+- The device volume row no longer references the Classic controls'
+  `fgDim` local (which was out of scope in the Apple controls); the color
+  is inlined.
+- The below-fold cards' lyrics check no longer smart-casts the delegated
+  `lyricsEntity` state; the description card was restructured so no
+  composable calls happen inside `let` lambdas.
+
+**Version:** 0.5.94 (versionCode 101); release tag v0.5.94, APK Muso_v0.5.94_v101.apk.
+
 ## Round 78 (v0.5.93): SimpMusic player port, part 2 - below-fold cards, Apple tabs, device volume
 
 - **Classic below-the-fold cards (SimpMusic)**: the Spotify/Classic player page

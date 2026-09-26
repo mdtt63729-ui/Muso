@@ -76,7 +76,6 @@ import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_READY
 import androidx.navigation.NavController
 import android.graphics.drawable.BitmapDrawable
-import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.scaleIn
@@ -164,6 +163,7 @@ import com.muso.music.lyrics.LyricsUtils.findCurrentLineIndex
 import com.muso.music.ui.menu.AddToPlaylistDialog
 import com.muso.music.ui.component.BottomSheet
 import com.muso.music.ui.component.BottomSheetState
+import com.muso.music.extensions.metadata
 import com.muso.music.ui.component.Lyrics
 import com.muso.music.ui.component.rememberBottomSheetState
 import com.muso.music.ui.screens.settings.DarkMode
@@ -198,7 +198,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.media3.common.Timeline
 import com.zionhuang.innertube.YouTube
-import com.zionhuang.innertube.models.PlayerResponse
+import com.zionhuang.innertube.models.response.PlayerResponse
 import kotlinx.coroutines.flow.flowOf
 import android.content.Context
 import android.media.AudioManager
@@ -1117,7 +1117,7 @@ fun BottomSheetPlayer(
 
             // Device volume row (SimpMusic Apple Music): the system media volume,
             // live-synced with the hardware keys too.
-            DeviceVolumeRow(tint = fgDim)
+            DeviceVolumeRow(tint = Color.White.copy(alpha = 0.72f))
 
             Spacer(Modifier.height(6.dp))
 
@@ -2720,7 +2720,8 @@ private fun ClassicBelowFoldCards(
     val playerConnection = LocalPlayerConnection.current ?: return
 
     val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
-    val hasLyrics = lyricsEntity != null && lyricsEntity.lyrics != LYRICS_NOT_FOUND
+    val lyrics = lyricsEntity?.lyrics
+    val hasLyrics = lyrics != null && lyrics != LYRICS_NOT_FOUND
 
     // Artist card data: the first artist's saved channel art + song count.
     val mainArtistId = mediaMetadata.artists.firstOrNull()?.id
@@ -2843,9 +2844,13 @@ private fun ClassicBelowFoldCards(
     }
 
     // --- Description card --------------------------------------------------
-    videoDetails?.let { vd ->
-        val views = vd.viewCount.toLongOrNull()
-        if ((views != null && views > 0) || !vd.shortDescription.isNullOrBlank()) {
+    val vd = videoDetails
+    if (vd != null) {
+        val viewsText = vd.viewCount.toLongOrNull()
+            ?.takeIf { it > 0 }
+            ?.let { String.format("%,d", it) }
+        val description = vd.shortDescription?.takeIf { it.isNotBlank() }
+        if (viewsText != null || description != null) {
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2856,17 +2861,17 @@ private fun ClassicBelowFoldCards(
                 ),
             ) {
                 Column(Modifier.padding(15.dp)) {
-                    views?.let {
+                    if (viewsText != null) {
                         Text(
-                            text = stringResource(R.string.song_views, String.format("%,d", it)),
+                            text = stringResource(R.string.song_views, viewsText),
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White,
                         )
                     }
-                    vd.shortDescription?.takeIf { it.isNotBlank() }?.let { desc ->
-                        if (views != null && views > 0) Spacer(Modifier.height(6.dp))
+                    if (description != null) {
+                        if (viewsText != null) Spacer(Modifier.height(6.dp))
                         Text(
-                            text = desc,
+                            text = description,
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.72f),
                         )
