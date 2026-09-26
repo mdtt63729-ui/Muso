@@ -1,3 +1,17 @@
+## Round 80 (v0.5.95): fix player-open crash (IndexOutOfBoundsException: Index -1)
+
+The artwork pager crashed on opening the player with a single-song queue:
+PlayerConnection's currentWindowIndex starts at -1 (before the first
+timeline update), so the pager was created with a negative initialPage and
+its first draw threw IndexOutOfBoundsException: Index -1, size 1.
+
+- The pager's initialPage is now coerced to >= 0.
+- The HorizontalPager is never composed with an empty queue anymore - an
+  empty queue parks the pager's page at -1 and the refill draw crashes the
+  same way. An empty box holds the artwork slot until the queue lands.
+
+**Version:** 0.5.95 (versionCode 102); release tag v0.5.95, APK Muso_v0.5.95_v102.apk.
+
 ## Round 79 (v0.5.94): CI fixes for the Round 77+78 player port
 
 Mechanical compile fixes from the first CI run of the two-round SimpMusic

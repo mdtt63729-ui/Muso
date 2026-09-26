@@ -328,7 +328,9 @@ fun BottomSheetPlayer(
         val pagerQueueWindows by playerConnection.queueWindows.collectAsState()
         val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
         val pagerState = rememberPagerState(
-            initialPage = currentWindowIndex,
+            // PlayerConnection's currentWindowIndex starts at -1; a negative
+            // initialPage crashes the pager's first draw (Index -1, size N).
+            initialPage = currentWindowIndex.coerceAtLeast(0),
             pageCount = { pagerQueueWindows.size },
         )
         var pagerUserSwipe by remember { mutableStateOf(false) }
@@ -1650,6 +1652,24 @@ fun BottomSheetPlayer(
                             )
                         }
                     } else {
+                    if (pagerQueueWindows.isEmpty()) {
+                        // Never compose the pager with an empty queue: pageCount
+                        // 0 parks the page at -1 and the refill draw crashes
+                        // (IndexOutOfBoundsException: Index -1, size 1). Hold the
+                        // artwork slot with an empty box until the queue lands.
+                        Box(
+                            modifier = Modifier
+                                .then(
+                                    if (playerStyle == PlayerStyle.SPOTIFY) {
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height((LocalConfiguration.current.screenWidthDp.dp - 40.dp))
+                                    } else Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                ),
+                        )
+                    } else {
                     // === SimpMusic artwork pager =====================================
                     // The queue's covers swipe horizontally; a settled user swipe
                     // changes the song. The current page holds the artwork (which
@@ -1870,6 +1890,8 @@ fun BottomSheetPlayer(
 
 
                     }
+                    }
+
                     if (!videoVisible && (playerStyle == PlayerStyle.EXPRESSIVE || playerStyle == PlayerStyle.SPOTIFY)) {
                         // SimpMusic: the current lyric line sits centered in the gap
                         // between the artwork and the info block (Expressive + Classic).
