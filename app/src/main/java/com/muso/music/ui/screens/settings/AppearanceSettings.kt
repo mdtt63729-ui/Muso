@@ -360,9 +360,8 @@ fun AppearanceSettings(
             onValueSelected = onPlayerStyleChange,
             valueText = {
                 when (it) {
-                    PlayerStyle.CLASSIC -> stringResource(R.string.player_style_classic)
+                    PlayerStyle.SPOTIFY -> stringResource(R.string.player_style_spotify)
                     PlayerStyle.EXPRESSIVE -> stringResource(R.string.player_style_expressive)
-                    PlayerStyle.IMMERSIVE -> stringResource(R.string.player_style_immersive)
                     PlayerStyle.APPLE -> stringResource(R.string.player_style_apple)
                 }
             },

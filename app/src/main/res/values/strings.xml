@@ -215,7 +215,8 @@
     <string name="player_style_classic">Muso Classic</string>
     <string name="player_style_expressive">Material 3 Expressive</string>
     <string name="player_style_immersive">Immersive</string>
-    <string name="player_style_apple">Apple-inspired</string>
+    <string name="player_style_apple">Apple Music</string>
+    <string name="player_style_spotify">Spotify</string>
     <string name="animation">Animation</string>
     <string name="animations">Animations</string>
     <string name="animations_desc">Smooth fades and motion effects</string>

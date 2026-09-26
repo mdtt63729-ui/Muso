@@ -74,6 +74,7 @@ import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_READY
 import androidx.navigation.NavController
+import android.graphics.drawable.BitmapDrawable
 import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
@@ -86,6 +87,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.muso.music.constants.ShowLyricsKey
+import androidx.palette.graphics.Palette
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.graphics.graphicsLayer
@@ -163,6 +165,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.isActive
 import me.saket.squiggles.SquigglySlider
 import androidx.compose.ui.platform.LocalContext
+import coil.imageLoader
 import coil.request.ImageRequest
 import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.muso.music.lyrics.LyricsEntry
@@ -592,6 +595,26 @@ fun BottomSheetPlayer(
         // started from, by matching the queue's song ids against each playlist
         // (Echo and SimpMusic both surface this in the player header). Runs once
         // per queue, off the main thread.
+        // Apple Music backdrop seed: the artwork's dominant colour (64px Palette
+        // decode, off the main thread). Drives the frosted backdrop's three-stop
+        // gradient and the dock's active pill colours, like SimpMusic's palette.
+        var appleSeedColor by remember { mutableStateOf<Color?>(null) }
+        val appleSeedContext = LocalContext.current
+        LaunchedEffect(mediaMetadata?.thumbnailUrl) {
+            appleSeedColor = mediaMetadata?.thumbnailUrl?.let { url ->
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        val result = appleSeedContext.imageLoader.execute(
+                            ImageRequest.Builder(appleSeedContext).data(url).size(64).build(),
+                        )
+                        (result.drawable as? BitmapDrawable)?.bitmap?.let { bmp ->
+                            Palette.from(bmp).generate().dominantSwatch?.rgb?.let { Color(it) }
+                        }
+                    }.getOrNull()
+                }
+            }
+        }
+
         var playingFrom by rememberSaveable { mutableStateOf<String?>(null) }
         val playingQueueWindows by playerConnection.queueWindows.collectAsState()
         LaunchedEffect(playingQueueWindows) {
@@ -684,272 +707,33 @@ fun BottomSheetPlayer(
             )
         }
 
-        val immersiveControls: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            // === Immersive: large metadata, nothing else - no shuffle/repeat row, a minimal
-            // Lyrics | Queue dock, and the biggest transport of any style. The artwork zone
-            // above takes all the remaining vertical space, so the screen reads as art first.
-            val onVideo = videoEnabled && videoActive
-            val primaryText = if (onVideo) Color.White else MaterialTheme.colorScheme.onSurface
-            val secondaryText = if (onVideo) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
-            val accent = if (onVideo) Color.White else MaterialTheme.colorScheme.primary
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding),
-            ) {
-                Text(
-                    text = mediaMetadata.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = primaryText,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .basicMarquee()
-                        .clickable(enabled = mediaMetadata.album != null) {
-                            navController.navigate("album/${mediaMetadata.album!!.id}")
-                            state.collapseSoft()
-                        },
-                )
-
-                Spacer(Modifier.height(6.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    mediaMetadata.artists.fastForEachIndexed { index, artist ->
-                        Text(
-                            text = artist.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = secondaryText,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .basicMarquee()
-                                .clickable(enabled = artist.id != null) {
-                                    navController.navigate("artist/${artist.id}")
-                                    state.collapseSoft()
-                                },
-                        )
-
-                        if (index != mediaMetadata.artists.lastIndex) {
-                            Text(
-                                text = ", ",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = secondaryText,
-                            )
-                        }
-                    }
-                }
-
-                if (showCodecOnPlayer && codecLabel.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = codecLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = secondaryText.copy(alpha = 0.8f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            if (!hidePlayerSlider) {
-                ThinProgressSlider(
-                    position = position,
-                    duration = if (duration == C.TIME_UNSET) 0L else duration,
-                    accent = accent,
-                    inactive = if (onVideo) Color.White.copy(alpha = 0.3f) else secondaryText.copy(alpha = 0.3f),
-                    onValueChange = { sliderPosition = it },
-                    onValueChangeFinished = {
-                        sliderPosition?.let {
-                            playerConnection.player.seekTo(it)
-                            position = it
-                        }
-                        sliderPosition = null
-                    },
-                    modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding + 4.dp)
-            ) {
-                Text(
-                    text = makeTimeString(sliderPosition ?: position),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = secondaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Text(
-                    text = if (duration != C.TIME_UNSET) "-" + makeTimeString(duration - (sliderPosition ?: position).coerceAtMost(duration)) else "",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = secondaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(56.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                IconButton(
-                    onClick = { if (canSkipPrevious) playerConnection.service.fadeSkip(false) },
-                    modifier = Modifier.size(60.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.skip_previous),
-                        contentDescription = null,
-                        tint = primaryText.copy(alpha = if (canSkipPrevious) 1f else 0.35f),
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(84.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            if (playbackState == STATE_ENDED) {
-                                playerConnection.player.seekTo(0, 0)
-                                playerConnection.player.playWhenReady = true
-                            } else if (playbackState != STATE_BUFFERING) {
-                                playerConnection.player.togglePlayPause()
-                            }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (playbackState == STATE_BUFFERING) {
-                        CircularProgressIndicator(
-                            color = accent,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(30.dp),
-                        )
-                    } else {
-                        Crossfade(
-                            targetState = if (playbackState == STATE_ENDED) R.drawable.replay else if (isPlaying) R.drawable.pause else R.drawable.play,
-                            animationSpec = tween(150),
-                            label = "playPauseIcon",
-                        ) { iconRes ->
-                            Icon(
-                                painter = painterResource(iconRes),
-                                contentDescription = null,
-                                tint = accent,
-                                modifier = Modifier.size(64.dp),
-                            )
-                        }
-                    }
-                }
-
-                IconButton(
-                    onClick = { if (canSkipNext) playerConnection.service.fadeSkip(true) },
-                    modifier = Modifier.size(60.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.skip_next),
-                        contentDescription = null,
-                        tint = primaryText.copy(alpha = if (canSkipNext) 1f else 0.35f),
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding + 16.dp),
-            ) {
-                PlayerDockButton(
-                    iconRes = R.drawable.lyrics,
-                    label = stringResource(R.string.lyrics),
-                    active = showLyrics,
-                    onVideo = onVideo,
-                    onClick = { onShowLyricsChange(!showLyrics) },
-                )
-
-                PlayerDockButton(
-                    iconRes = R.drawable.queue_music,
-                    label = stringResource(R.string.queue),
-                    active = false,
-                    onVideo = onVideo,
-                    onClick = { queueSheetState.expandSoft() },
-                )
-            }
-        }
-
         val appleControls: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            // === Echo Music's Apple-style controls - a 1:1 port of
-            // item_player_controls.xml: 20sp bold title, 16sp artist, 64dp heart,
-            // a 2dp tertiary slider with a 20dp round thumb and plain times at
-            // the ends of the row, the 72dp play cell with its 64dp spinner,
-            // and the centered lyric subtitle. Echo's player sits on a light
-            // frosted artwork, so the foreground runs black; fullscreen video
-            // keeps the white-on-scrim look.
+            // === SimpMusic's Apple Music style, 1:1 from NowPlayingContentAppleMusic.kt
+            // + applemusic/AppleMusicShared.kt: white-on-dark text over the frosted
+            // artwork backdrop, the thin 7dp thumbless progress bar that swells to
+            // 14dp while touched, plain white transport (46dp skips, 66dp play,
+            // 58dp gaps), and the Lyrics | Queue dock with its light active pill.
             val onVideo = videoEnabled && videoActive
-            val fg = if (onVideo) Color.White else Color(0xDE000000)
-            val fgSoft = if (onVideo) Color.White.copy(alpha = 0.72f) else Color(0x8F000000)
-            val accent = if (onVideo) Color.White else MaterialTheme.colorScheme.tertiary
+            val fg = Color.White
+            val fgSoft = if (onVideo) Color.White.copy(alpha = 0.72f) else Color.White.copy(alpha = 0.72f)
+            val trackActive = Color.White.copy(alpha = 0.92f)
+            val trackInactive = Color.White.copy(alpha = 0.26f)
+            val seed = appleSeedColor ?: MaterialTheme.colorScheme.primary
+            val activePillContainer = lerp(seed, Color.White, 0.75f)
+            val activePillContent = lerp(seed, Color.Black, 0.6f)
             val liked = currentSong?.song?.liked == true
-            val appleShuffle by playerConnection.shuffleModeEnabled.collectAsState()
 
-            // Current synced lyric line (Echo's trackSubtitle).
-            val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
-            val appleLyricsText = remember(lyricsEntity) { lyricsEntity?.lyrics }
-            val appleLines = remember(appleLyricsText) {
-                when {
-                    appleLyricsText == null || appleLyricsText == LYRICS_NOT_FOUND -> emptyList()
-                    appleLyricsText.trimStart().startsWith("<?xml") || appleLyricsText.trimStart().startsWith("<tt") ->
-                        listOf(HEAD_LYRICS_ENTRY) + TTMLParser.parseTTML(appleLyricsText).map {
-                            LyricsEntry((it.startTime * 1000).toLong(), it.text)
-                        }
-                    appleLyricsText.startsWith("[") -> listOf(HEAD_LYRICS_ENTRY) + parseLyrics(appleLyricsText)
-                    else -> appleLyricsText.lines().mapIndexed { index, line -> LyricsEntry(index * 100L, line) }
-                }
-            }
-            val appleCurrentLine = remember(appleLines, position) {
-                if (appleLines.isEmpty()) null
-                else appleLines.getOrNull(findCurrentLineIndex(appleLines, position))
-                    ?.takeIf { it.text.isNotEmpty() }?.text
-            }
-
-            // --- Title row: title 20sp bold, artist 16sp, 64dp heart ---
+            // --- Title row: 20dp gutter, title + artist left, heart + more right ---
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 20.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = mediaMetadata.title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
                         color = fg,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -970,7 +754,7 @@ fun BottomSheetPlayer(
                         mediaMetadata.artists.fastForEachIndexed { index, artist ->
                             Text(
                                 text = artist.name,
-                                fontSize = 16.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = fgSoft,
                                 maxLines = 1,
                                 modifier = Modifier
@@ -983,153 +767,154 @@ fun BottomSheetPlayer(
                             if (index != mediaMetadata.artists.lastIndex) {
                                 Text(
                                     text = ", ",
-                                    fontSize = 16.sp,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = fgSoft,
                                 )
                             }
                         }
                     }
                 }
+                Spacer(Modifier.width(12.dp))
                 IconButton(
                     onClick = { playerConnection.toggleLike() },
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
                         painter = painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border),
                         contentDescription = null,
-                        tint = if (liked) MaterialTheme.colorScheme.error else fg,
-                        modifier = Modifier.size(40.dp),
+                        tint = fg,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                IconButton(
+                    onClick = { showSongInfoDialog = true },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.more_vert),
+                        contentDescription = null,
+                        tint = fg,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
 
-            // --- Echo slider block: 2dp tertiary track, 20dp round thumb, a wide
-            // touch area, and the plain times at the ends of the row below. ---
+            // --- Thin 7dp thumbless progress bar (swells to 14dp while touched),
+            // inside a constant 18dp shell so nothing around it re-measures. ---
             var appleDragging by remember { mutableStateOf(false) }
             var appleDragFraction by remember { mutableStateOf(0f) }
-            var appleWidthPx by remember { mutableStateOf(0) }
+            val appleTrackHeight by animateDpAsState(
+                targetValue = if (appleDragging) 14.dp else 7.dp,
+                animationSpec = spring(dampingRatio = 0.5f, stiffness = 300f),
+                label = "appleSliderInflate",
+            )
             val appleFraction = (
                 if (appleDragging) appleDragFraction
                 else if (duration == C.TIME_UNSET) 0f
                 else ((sliderPosition ?: position).toFloat() / duration.toFloat())
                 ).coerceIn(0f, 1f)
-            Column(
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-            ) {
-                Box(
-                    contentAlignment = Alignment.CenterStart,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .onSizeChanged { appleWidthPx = it.width }
-                        .pointerInput(Unit) {
-                            detectTapGestures { offset ->
-                                val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                    .height(18.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            if (duration != C.TIME_UNSET) {
+                                val target = (fraction * duration).toLong()
+                                playerConnection.player.seekTo(target)
+                                position = target
+                            }
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                appleDragging = true
+                                appleDragFraction = (offset.x / size.width).coerceIn(0f, 1f)
                                 if (duration != C.TIME_UNSET) {
-                                    val target = (fraction * duration).toLong()
+                                    sliderPosition = (appleDragFraction * duration).toLong()
+                                }
+                            },
+                            onDragEnd = {
+                                if (duration != C.TIME_UNSET) {
+                                    val target = (appleDragFraction * duration).toLong()
                                     playerConnection.player.seekTo(target)
                                     position = target
                                 }
-                            }
-                        }
-                        .pointerInput(Unit) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
-                                    appleDragging = true
-                                    appleDragFraction = (offset.x / size.width).coerceIn(0f, 1f)
-                                    if (duration != C.TIME_UNSET) {
-                                        sliderPosition = (appleDragFraction * duration).toLong()
-                                    }
-                                },
-                                onDragEnd = {
-                                    if (duration != C.TIME_UNSET) {
-                                        val target = (appleDragFraction * duration).toLong()
-                                        playerConnection.player.seekTo(target)
-                                        position = target
-                                    }
-                                    sliderPosition = null
-                                    appleDragging = false
-                                },
-                                onDragCancel = {
-                                    sliderPosition = null
-                                    appleDragging = false
-                                },
-                                onHorizontalDrag = { change, _ ->
-                                    change.consume()
-                                    appleDragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                                    if (duration != C.TIME_UNSET) {
-                                        sliderPosition = (appleDragFraction * duration).toLong()
-                                    }
-                                },
-                            )
-                        },
+                                sliderPosition = null
+                                appleDragging = false
+                            },
+                            onDragCancel = {
+                                sliderPosition = null
+                                appleDragging = false
+                            },
+                            onHorizontalDrag = { change, _ ->
+                                change.consume()
+                                appleDragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                if (duration != C.TIME_UNSET) {
+                                    sliderPosition = (appleDragFraction * duration).toLong()
+                                }
+                            },
+                        )
+                    },
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(appleTrackHeight)
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(trackInactive),
                 ) {
                     Box(
                         Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .background(fg.copy(alpha = 0.15f)),
-                    )
-                    Box(
-                        Modifier
+                            .fillMaxHeight()
                             .fillMaxWidth(appleFraction)
-                            .height(2.dp)
-                            .background(accent),
-                    )
-                    Box(
-                        Modifier
-                            .offset {
-                                IntOffset(
-                                    x = ((appleWidthPx - 20.dp.toPx()) * appleFraction).roundToInt(),
-                                    y = 0,
-                                )
-                            }
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(accent),
-                    )
-                }
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = makeTimeString(sliderPosition ?: position),
-                        fontSize = 12.sp,
-                        color = fgSoft,
-                        maxLines = 1,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = if (duration == C.TIME_UNSET) "" else makeTimeString(duration),
-                        fontSize = 12.sp,
-                        color = fg.copy(alpha = 0.66f),
-                        maxLines = 1,
+                            .background(trackActive),
                     )
                 }
             }
 
-            // --- Transport: shuffle 64 | prev 40 | play 72 with spinner | next 40 | repeat 64 ---
-            Spacer(Modifier.height(8.dp))
+            // --- Times row: elapsed left, -remaining right ---
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
+                    .padding(top = 8.dp),
             ) {
-                IconButton(
-                    onClick = {
-                        playerConnection.player.shuffleModeEnabled = !playerConnection.player.shuffleModeEnabled
-                    },
-                    modifier = Modifier.size(64.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.shuffle),
-                        contentDescription = null,
-                        tint = if (appleShuffle) accent else fgSoft,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-                Spacer(Modifier.weight(1f))
+                Text(
+                    text = makeTimeString(sliderPosition ?: position),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = fgSoft,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (duration == C.TIME_UNSET) "" else "-" + makeTimeString((duration - (sliderPosition ?: position)).coerceAtLeast(0L)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = fgSoft,
+                    maxLines = 1,
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // --- Transport: 46dp skips, 66dp plain white play, 58dp gaps, press swell ---
+            val applePlayInteraction = remember { MutableInteractionSource() }
+            val applePlayPressed by applePlayInteraction.collectIsPressedAsState()
+            val applePlayScale by animateFloatAsState(
+                targetValue = if (applePlayPressed) 1.35f else 1f,
+                animationSpec = spring(dampingRatio = 0.45f, stiffness = 380f),
+                label = "applePlayInflate",
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(58.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 IconButton(
                     onClick = { if (canSkipPrevious) playerConnection.service.fadeSkip(false) },
                     modifier = Modifier.size(56.dp),
@@ -1137,49 +922,44 @@ fun BottomSheetPlayer(
                     Icon(
                         painter = painterResource(R.drawable.skip_previous),
                         contentDescription = null,
-                        tint = fg.copy(alpha = if (canSkipPrevious) 1f else 0.35f),
-                        modifier = Modifier.size(40.dp),
+                        tint = fg.copy(alpha = if (canSkipPrevious) 1f else 0.4f),
+                        modifier = Modifier.size(46.dp),
                     )
                 }
-                Spacer(Modifier.width(12.dp))
                 Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(72.dp)
+                        .graphicsLayer {
+                            scaleX = applePlayScale
+                            scaleY = applePlayScale
+                        }
+                        .size(76.dp)
                         .clip(CircleShape)
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = applePlayInteraction,
                             indication = null,
                         ) {
                             if (playbackState == STATE_ENDED) {
                                 playerConnection.player.seekTo(0, 0)
                                 playerConnection.player.playWhenReady = true
-                            } else if (playbackState != STATE_BUFFERING) {
+                            } else {
                                 playerConnection.player.togglePlayPause()
                             }
                         },
-                    contentAlignment = Alignment.Center,
                 ) {
-                    if (playbackState == STATE_BUFFERING) {
-                        CircularProgressIndicator(
-                            color = accent,
-                            modifier = Modifier.size(64.dp),
+                    Crossfade(
+                        targetState = if (playbackState == STATE_ENDED) R.drawable.replay else if (isPlaying) R.drawable.pause else R.drawable.play,
+                        animationSpec = tween(150),
+                        label = "applePlayPauseIcon",
+                    ) { iconRes ->
+                        Icon(
+                            painter = painterResource(iconRes),
+                            contentDescription = null,
+                            tint = fg,
+                            modifier = Modifier.size(66.dp),
                         )
-                    } else {
-                        Crossfade(
-                            targetState = if (playbackState == STATE_ENDED) R.drawable.replay else if (isPlaying) R.drawable.pause else R.drawable.play,
-                            animationSpec = tween(150),
-                            label = "applePlayPause",
-                        ) { iconRes ->
-                            Icon(
-                                painter = painterResource(iconRes),
-                                contentDescription = null,
-                                tint = fg,
-                                modifier = Modifier.size(48.dp),
-                            )
-                        }
                     }
                 }
-                Spacer(Modifier.width(12.dp))
                 IconButton(
                     onClick = { if (canSkipNext) playerConnection.service.fadeSkip(true) },
                     modifier = Modifier.size(56.dp),
@@ -1187,73 +967,68 @@ fun BottomSheetPlayer(
                     Icon(
                         painter = painterResource(R.drawable.skip_next),
                         contentDescription = null,
-                        tint = fg.copy(alpha = if (canSkipNext) 1f else 0.35f),
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(
-                    onClick = playerConnection.player::toggleRepeatMode,
-                    modifier = Modifier.size(64.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(if (repeatMode == REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat),
-                        contentDescription = null,
-                        tint = if (repeatMode != REPEAT_MODE_OFF) accent else fgSoft,
-                        modifier = Modifier.size(32.dp),
+                        tint = fg.copy(alpha = if (canSkipNext) 1f else 0.4f),
+                        modifier = Modifier.size(46.dp),
                     )
                 }
             }
 
-            // --- Echo's trackSubtitle: the centered current lyric line ---
-            if (appleLines.isNotEmpty()) {
-                Text(
-                    text = appleCurrentLine ?: " ",
-                    fontSize = 16.sp,
-                    color = fg.copy(alpha = 0.85f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
+            Spacer(Modifier.height(14.dp))
+
+            // --- Dock: Lyrics | Queue - 40dp circles, light pill while active ---
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 48.dp, vertical = 8.dp),
-                )
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (showLyrics) activePillContainer else Color.Transparent)
+                        .clickable { onShowLyricsChange(!showLyrics) },
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.lyrics),
+                        contentDescription = null,
+                        tint = if (showLyrics) activePillContent else Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable { queueSheetState.expandSoft() },
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.queue_music),
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
         }
 
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = when (playerStyle) {
-            PlayerStyle.CLASSIC -> classicControls
+            PlayerStyle.SPOTIFY -> classicControls
             PlayerStyle.EXPRESSIVE -> expressiveControls
-            PlayerStyle.IMMERSIVE -> immersiveControls
             PlayerStyle.APPLE -> appleControls
         }
 
         // Player background style: the current artwork, heavily blurred, behind the whole
         // player (liquid-glass look). The video background takes priority when it is showing.
-        // Echo Music Apple background: the artwork fills the screen with a slow
-        // Ken-Burns pan/zoom under a radial white wash (Echo's gradient_track),
-        // so the style reads light and frosted with black text, like Echo.
+        // SimpMusic Apple Music backdrop: the frosted cover art (heavy blur)
+        // under a translucent three-stop wash of the artwork's dominant colour,
+        // darkest at the bottom so the white text reads comfortably.
         if (playerStyle == PlayerStyle.APPLE && !(showVideo && !showLyrics && state.progress > 0.5f)) {
+            val seed = appleSeedColor ?: MaterialTheme.colorScheme.primary
             mediaMetadata?.thumbnailUrl?.let { thumbnailUrl ->
-                val kenBurns = rememberInfiniteTransition(label = "kenBurns")
-                val kbScale by kenBurns.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.12f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(24000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                    label = "kbScale",
-                )
-                val kbPan by kenBurns.animateFloat(
-                    initialValue = -0.02f,
-                    targetValue = 0.02f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(31000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                    label = "kbPan",
-                )
                 Box(Modifier.matchParentSize()) {
                     AsyncImage(
                         model = thumbnailUrl,
@@ -1261,27 +1036,19 @@ fun BottomSheetPlayer(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .matchParentSize()
-                            .graphicsLayer {
-                                scaleX = kbScale
-                                scaleY = kbScale
-                                translationX = kbPan * size.width
-                            },
+                            .blur(64.dp),
                     )
                     Box(
                         Modifier
                             .matchParentSize()
-                            .drawBehind {
-                                drawRect(
-                                    brush = Brush.radialGradient(
-                                        colorStops = arrayOf(
-                                            0f to Color(0x25FFFFFF),
-                                            1f to Color(0xD8FFFFFF),
-                                        ),
-                                        center = Offset(size.width / 2f, size.height * 0.33f),
-                                        radius = size.width.coerceAtLeast(size.height) * 0.9f,
-                                    ),
-                                )
-                            },
+                            .alpha(0.85f)
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to lerp(seed, Color.Black, 0.05f),
+                                    0.48f to lerp(seed, Color.Black, 0.32f),
+                                    1f to lerp(seed, Color.Black, 0.78f),
+                                ),
+                            ),
                     )
                 }
             }
@@ -1385,7 +1152,6 @@ fun BottomSheetPlayer(
                 Row(
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = queueSheetState.collapsedBound)
                 ) {
                     if (videoEnabled && videoActive) {
                         // SimpMusic-style fullscreen video, portrait: the video renders
@@ -1454,7 +1220,7 @@ fun BottomSheetPlayer(
                                             .padding(horizontal = 20.dp)
                                             .clip(RoundedCornerShape(28.dp))
                                     else if (playerStyle == PlayerStyle.APPLE)
-                                        Modifier.padding(horizontal = 24.dp)
+                                        Modifier
                                     else Modifier
                                     )
                                     .nestedScroll(state.preUpPostDownNestedScrollConnection)
@@ -1494,7 +1260,6 @@ fun BottomSheetPlayer(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = if (videoEnabled && videoActive) 0.dp else queueSheetState.collapsedBound)
                 ) {
                     // The artwork area stays composed at all times so the thumbnail can
                     // FADE OUT smoothly when the video stream becomes ready - SimpMusic's
@@ -1508,69 +1273,26 @@ fun BottomSheetPlayer(
                     // === SimpMusic M3 Expressive header row: 44dp tonal circles, a
                     // down-chevron that collapses the sheet, and the centered NOW PLAYING
                     // label. The more button opens the real song Details dialog.
-                    // === Echo Music Apple toolbar: plain down-chevron, centered
-                    // PLAYING FROM + the resolved local playlist name, lyrics and
-                    // queue on the right. Hardcoded blacks because the Apple style
-                    // always sits on the light frosted artwork. ===
+                    // SimpMusic Apple Music grabber: the style's only top chrome.
+                    // Tap to collapse the player sheet.
                     if (playerStyle == PlayerStyle.APPLE && !videoVisible) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
-                                .padding(start = 4.dp, end = 12.dp),
+                                .padding(top = 8.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            IconButton(
-                                onClick = { state.collapseSoft() },
-                                modifier = Modifier.size(48.dp),
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.expand_more),
-                                    contentDescription = null,
-                                    tint = Color(0xDE000000),
-                                )
-                            }
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.playing_from).uppercase(),
-                                    fontSize = 12.sp,
-                                    color = Color(0x8F000000),
-                                )
-                                playingFrom?.let {
-                                    Text(
-                                        text = it,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = Color(0xDE000000),
-                                        maxLines = 1,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .basicMarquee(),
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { onShowLyricsChange(!showLyrics) },
-                                modifier = Modifier.size(48.dp),
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.lyrics),
-                                    contentDescription = null,
-                                    tint = if (showLyrics) Color(0xDE000000) else Color(0x8F000000),
-                                )
-                            }
-                            IconButton(
-                                onClick = { queueSheetState.expandSoft() },
-                                modifier = Modifier.size(48.dp),
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.queue_music),
-                                    contentDescription = null,
-                                    tint = Color(0x8F000000),
-                                )
-                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 36.dp, height = 5.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color.White.copy(alpha = 0.35f))
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() },
+                                    ) { state.collapseSoft() },
+                            )
                         }
                     }
 
@@ -1646,7 +1368,7 @@ fun BottomSheetPlayer(
                             .fillMaxWidth()
                     ) {
                         Box(
-                            contentAlignment = Alignment.Center,
+                            contentAlignment = if (playerStyle == PlayerStyle.APPLE) Alignment.TopCenter else Alignment.Center,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer { alpha = artworkAlpha }
@@ -1678,7 +1400,7 @@ fun BottomSheetPlayer(
                                             .padding(horizontal = 20.dp)
                                             .clip(RoundedCornerShape(28.dp))
                                     else if (playerStyle == PlayerStyle.APPLE)
-                                        Modifier.padding(horizontal = 24.dp)
+                                        Modifier
                                     else Modifier
                                     )
                                     .nestedScroll(state.preUpPostDownNestedScrollConnection)
@@ -1777,12 +1499,16 @@ fun BottomSheetPlayer(
             }
         }
 
-        Queue(
-            state = queueSheetState,
-            playerBottomSheetState = state,
-            backgroundColor = backgroundColor,
-            navController = navController
-        )
+        // No collapsed-queue peek bar: the queue sheet only composes once it is
+        // actually being pulled up (a queue button opens it via expandSoft()).
+        if (!queueSheetState.isCollapsed) {
+            Queue(
+                state = queueSheetState,
+                playerBottomSheetState = state,
+                backgroundColor = backgroundColor,
+                navController = navController
+            )
+        }
     }
 }
 

@@ -1,3 +1,27 @@
+## Round 67 (v0.5.82): SimpMusic's player styles + queue peek removed
+
+- The queue peek bar that sat OVER the bottom of every player style is GONE.
+  The queue now only appears when it is actually opened (any Queue button);
+  there is no collapsed strip, no reserved space, and the player content runs
+  to the bottom edge.
+- The style set is now exactly SimpMusic's, from the official repository:
+  - Spotify (default skeleton: header, square artwork, info row, slider,
+    transport, dock) - the previous "classic" layout, which is SimpMusic's
+    Spotify skeleton, now named and listed as Spotify.
+  - Material 3 Expressive (unchanged - the full SimpMusic M3E port).
+  - Apple Music: REPLACED with SimpMusic's actual Apple Music style, 1:1:
+    frosted blurred-artwork backdrop under a three-stop wash of the
+    artwork's dominant colour (Palette-extracted, like SimpMusic's seed),
+    full-bleed top-aligned artwork, white title/artist row with heart +
+    more, the thin 7dp thumbless progress bar that swells to 14dp while
+    touched, plain white transport (46dp skips, 66dp play, 58dp gaps,
+    press-swell on the play cell), and the Lyrics | Queue dock with its
+    light active pill. The only top chrome is the grabber pill.
+  - Removed: Classic (renamed Spotify) and Immersive.
+- A saved "classic" style preference safely falls back to the default.
+
+**Version:** 0.5.82 (versionCode 89); release tag v0.5.82, APK Muso_v0.5.82_v1.apk.
+
 ## Round 66 (v0.5.81): build fix - all Kotlin errors from the 0.5.80 log
 
 - MusicService: added the missing imports for ShowVideoInPlayerKey /

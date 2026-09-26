@@ -77,9 +77,8 @@ enum class AutoBackupFrequency {
 }
 
 enum class PlayerStyle {
-    CLASSIC,
+    SPOTIFY,
     EXPRESSIVE,
-    IMMERSIVE,
     APPLE,
 }
 
