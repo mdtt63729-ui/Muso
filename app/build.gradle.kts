@@ -23,8 +23,8 @@ android {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 141
-        versionName = "0.5.134"
+        versionCode = 142
+        versionName = "0.5.135"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -88,7 +88,7 @@ android {
         includeInBundle = false
     }
     lint {
-        lintConfig = file("app/lint.xml")
+        lintConfig = file("lint.xml")
     }
 }
 

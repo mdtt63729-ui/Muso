@@ -13,5 +13,6 @@ interface SuiteEntryPoint {
 
     fun downloadUtil(): com.muso.music.playback.DownloadUtil
 
+    @dagger.hilt.android.qualifiers.ApplicationContext
     fun appContext(): android.content.Context
 }

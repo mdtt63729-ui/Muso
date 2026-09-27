@@ -1,4 +1,24 @@
-## Round 119 (v0.5.134, code 141)
+## Round 120 (v0.5.135, code 142)
+
+## CI fix #12 — Kotlin compile is GREEN; Hilt's one missing binding
+:app:compileFossReleaseKotlin passed with zero errors for the first time
+since the suite landed. KSP processed cleanly too. The build then stopped at
+:app:hiltJavaCompileFossRelease with a single Dagger error:
+
+- SuiteEntryPoint.appContext() requested a bare android.content.Context,
+  which Hilt only provides qualified — the method is now annotated with
+  @dagger.hilt.android.qualifiers.ApplicationContext
+
+Also repointed the lint config: `file("app/lint.xml")` resolved to
+app/app/lint.xml (which never exists) while the real file sits at app/lint.xml —
+now `file("lint.xml")`.
+
+Remaining path to the APK: hiltJavaCompile -> dexing/R8 -> packaging, plus
+lintVital on the release. If R8 complains about the new suite libraries
+(haze, coil3, media3-ui-compose), its log names the exact classes and the
+next round adds the matching -keep/-dontwarn lines.
+
+# Round 119 (v0.5.134, code 141)
 
 ## CI fix #11 — last 8 lines of the :app compile
 47 -> 8, and all eight were fallout of the previous round's cleanups:
