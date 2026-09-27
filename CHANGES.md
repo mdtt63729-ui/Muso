@@ -1,4 +1,159 @@
-## Round 127 (v0.5.142, code 149)
+## Round 133 (v0.5.148, code 155)
+
+Completes the Motion System PRD rollout: universal touch feedback.
+
+## App-wide press indication (PRD §4.2, §7.1)
+New MotionIndication (ui/animation/MotionIndication.kt), provided ONCE as the
+LocalIndication from MainActivity. Every plain clickable / combinedClickable
+in the app - list rows, cards, nav tiles, buttons, the two Muso IconButtons
+(now reading LocalIndication instead of a fixed ripple) - gets the same light
+iOS press: content scales to 0.97 while pressed, springs back on release.
+No call-site changes were needed across the 30+ screens; the effect flows
+from the single composition-local.
+
+Performance (§14.2) and safety (§7.3): the scale is applied as a canvas
+transform inside the draw pass - no recomposition, no layout pass, no layer
+allocation. Interrupted presses cancel and continue from the current value,
+so rapid taps can never stack animations. Disabled clicks, drags and scrolls
+are untouched. When animations are off (app toggle or the system "remove
+animations" setting) the provider swaps in a disabled instance that draws
+the content unchanged (§15).
+
+## Token addition
+Motion.lightPressSpring(): critically damped, 1500 stiffness - the §7.1
+universal 1.0 -> 0.97 scale reads instant-but-soft with no visible bounce.
+
+The remaining PRD areas were already compliant: sheets and menus run on the
+tuned spring physics of the reference port (§5, §6), navigation follows the
+tokens (§3, v0.5.147), dialogs fade+scale in (§6.1), and list skeletons
+(§8.1/§8.2) are the existing shimmer implementation. Staggered item
+entrances (§8.3) stay off by design: the PRD's own restraint rule prefers
+no entrance over re-animating on scroll.
+
+# Round 132 (v0.5.147, code 154)
+
+Implements the iOS-Inspired Motion System PRD (phases 1-3 + press/dialog/§15).
+
+## Central motion tokens (PRD §2, §13)
+New single source of truth: ui/animation/MotionTokens.kt. Every duration band
+(micro 120-180, small 200-280, normal 280-380, sheets 300-450, hero 350-500,
+exit 150-240 ms), the iOS ease-out/standard/ease-in curves, the sheet and
+press springs (4-8% overshoot), and the press/dialog/screen scales
+(0.92/0.96/0.97) live there. Navigation, buttons and dialogs now READ the
+tokens - no per-page contradictory systems.
+
+## Navigation retimed to the PRD bands (§3)
+Push 420 -> 330 ms (band 300-350), pop 400 -> 280 ms (band 220-320),
+outgoing-page parallax 30% -> 20% (band 15-25%), tab crossfade kept at 150 ms.
+Same engine: graphics-layer-only motion (render thread, zero per-frame
+recomposition), predictive back rides navigation-compose's seekable support
+(§3.3), no new navigation framework (§3.5 constraint respected).
+
+## Press states (§4, §7)
+BounceIconButton now follows the tokens: pressed scale 0.92 + a slight dim,
+released springs back to 1.0 with at most 4-8% overshoot.
+
+## Dialog entrance (§6.1)
+DefaultDialog and ListDialog open with alpha 0->1 + scale 0.96->1.0 over
+~180 ms on the iOS curve (previously the platform default cut).
+
+## System "remove animations" (§15)
+When the OS animator scale is 0 (accessibility), all navigation transitions
+snap instantly - on top of the existing in-app toggle. The app keeps working
+fully; only the movement goes away.
+
+The player's sheets already run on tuned spring physics from the reference
+port (§5); lists/skeletons and staggered-item rules (§8) are untouched this
+round and stay as the reference designed them.
+
+# Round 131 (v0.5.146, code 153)
+
+Implements the video-visual PRD (text-2.txt) behavioural rules.
+
+## Thumbnail stays until the video is REALLY ready (PRD §14/§30)
+MusicService now preloads the first ~4 MB of the canvas video into the canvas
+cache BEFORE publishing its URL. The player UI therefore never swaps the
+thumbnail for a black/loading frame: the suite only receives the canvas URL
+once the initial segment is cached, and its own crossfade then fades the
+video in over the artwork. A failed or slow preload keeps the thumbnail.
+
+## 5-15 s seamless loop segment (PRD §8/§12/§13)
+The canvas MediaPlayerView no longer repeats the WHOLE video. The PRD's custom
+loop controller polls the position and seeks back to the segment start just
+before the boundary; the boundary seek is served from the preloaded cache, so
+no black frame/freeze/jump. Sources shorter than the segment fall back to
+whole-item repeat. Segment: 0-15 s (the PRD's 5-15 s allowed maximum).
+
+## Critical regression fix in v0.5.145's player
+The reference NowPlayingScreen reads everything from
+sharedViewModel.nowPlayingScreenData - which was fed by the (now unused)
+player host, not the always-on bridge. Lyrics, canvas and palette would have
+been gone. The bridge now builds and feeds the full screen data (title,
+artist, artwork bitmap for palette, queue title, lyrics, canvas URL) so the
+reference player has everything it needs. The 3-second auto-hide of the
+over-video controls (tap to show, auto-hide after 3 s with the title card
+and flowing lyrics) is the reference AppleMusic design and comes with it.
+
+# Round 130 (v0.5.145, code 152)
+
+## The reference player itself: NowPlayingScreen, ported byte-for-byte
+The real gap behind "not exact like the files you gave me": the reference's
+NowPlayingScreen.kt (892 lines) - the player's own full-screen wrapper - was
+never ported. The host called the three style CONTENTS directly, losing the
+wrapper's edge-to-edge full-black modal sheet, its self-built state, palette
+extraction, toolbar, lyrics/queue/vote sheets and PiP handling. Now ported
+verbatim (plus the KeyboardArrowDown icon and the Android Platform
+declaration), and Player.kt renders exactly that. It reads everything from the
+shared view models MusoSuiteBridge feeds (nowPlayingState, controllerState,
+timeline, nowPlayingScreenData) and picks the content style from
+DataStoreManager.nowPlayingStyle, which the bridge now mirrors from Muso's
+PlayerStyle preference (Classic -> Spotify, Expressive -> M3 Expressive,
+Immersive -> Apple Music).
+
+This is the true-fullscreen fix as well: the reference player draws its own
+zero-inset full-screen modal over everything (the top gap is gone), and with
+the v0.5.143 slide-away no glass bar or mini player remains over it.
+NowPlayingBottomSheetViewModel moved to a Koin viewModel definition (the
+reference screen resolves it via koinViewModel).
+
+# Round 129 (v0.5.144, code 151)
+
+## The frozen-song bug: the queue was being destroyed
+Two "stop and clear the queue" paths fired far too easily:
+- the suite glass MiniPlayer's swipe-down sits directly above the navbar, so
+  slight vertical swipes while switching tabs hit its stop gesture -> the
+  bridge's stopSink ran player.stop() + clearMediaItems();
+- Muso's own sheet dismiss did the same via onDismiss.
+With an empty queue, play/pause/next/previous are all no-ops - exactly the
+"song stuck, nothing responds" report. Both are now reference-behaviour:
+stopSink pauses at most, dismissing the mini player is purely visual and
+playback keeps running.
+
+## Lyrics never appearing
+The suite's fullscreen lyrics view (and the queue sheet header) read
+sharedViewModel.nowPlayingScreenData - which nothing ever fed; it showed the
+empty initial data. nowPlayingScreenData is now settable and the suite host
+mirrors the built screenData (title, artist, artwork, lyrics) into it.
+
+## The dead black strip under the mini player (settings screenshot)
+Content insets still reserved the navbar + mini player heights, so every list
+ended in an empty black strip under the floating glass mini player. In glass
+mode content now scrolls behind both the capsule and the mini player, exactly
+like the reference.
+
+# Round 128 (v0.5.143, code 150)
+
+## The MiniPlayer floating over the full-screen player (both screenshots)
+MusoNavbarHost slid away only by the capsule height (bottomInset +
+NavigationBarHeight) as the player sheet expanded - so the suite glass
+MiniPlayer (which rides ~64dp above the capsule) stayed on screen, overlapping
+the expanded player's bottom controls and eating their touches: "bottom
+content not visible / cannot scroll". The slide now carries the FULL stack
+(capsule + MiniPlayer + inset), so nothing of the bar remains over the player.
+MediaPlayerView.kt verified byte-identical to the reference file (diff clean):
+the black canvas area is the canvas video path itself, not a wrong player.
+
+# Round 127 (v0.5.142, code 149)
 
 ## The next Koin step: 'mainPlayer'
 v0.5.141's canvas cache fix moved the video path one step further - now the

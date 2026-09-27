@@ -1,5 +1,10 @@
 package com.muso.music.ui.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -36,6 +41,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.muso.music.ui.animation.Motion
 import kotlinx.coroutines.delay
 
 @Composable
@@ -51,17 +57,26 @@ fun DefaultDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
-            modifier = Modifier.padding(24.dp),
-            shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation
+        // Motion System PRD §6.1: dialogs open with alpha 0->1 + scale
+        // 0.96->1.0 (~180 ms, iOS curve). Graphics-layer properties only -
+        // no recomposition per frame, no layout pass.
+        val dialogEnter = remember { MutableTransitionState(false).apply { targetState = true } }
+        AnimatedVisibility(
+            visibleState = dialogEnter,
+            enter = fadeIn(tween(Motion.DIALOG, easing = Motion.EnterEasing)) +
+                scaleIn(tween(Motion.DIALOG, easing = Motion.EnterEasing), initialScale = Motion.DIALOG_SCALE),
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = modifier
-                    .padding(24.dp)
+            Surface(
+                modifier = Modifier.padding(24.dp),
+                shape = AlertDialogDefaults.shape,
+                color = AlertDialogDefaults.containerColor,
+                tonalElevation = AlertDialogDefaults.TonalElevation
             ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = modifier
+                        .padding(24.dp)
+                ) {
                 if (icon != null) {
                     CompositionLocalProvider(LocalContentColor provides AlertDialogDefaults.iconContentColor) {
                         Box(
@@ -105,6 +120,7 @@ fun DefaultDialog(
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -120,17 +136,25 @@ fun ListDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
-            modifier = Modifier.padding(24.dp),
-            shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation
+        // Motion System PRD §6.1: same entrance as DefaultDialog.
+        val dialogEnter = remember { MutableTransitionState(false).apply { targetState = true } }
+        AnimatedVisibility(
+            visibleState = dialogEnter,
+            enter = fadeIn(tween(Motion.DIALOG, easing = Motion.EnterEasing)) +
+                scaleIn(tween(Motion.DIALOG, easing = Motion.EnterEasing), initialScale = Motion.DIALOG_SCALE),
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = modifier.padding(vertical = 24.dp)
+            Surface(
+                modifier = Modifier.padding(24.dp),
+                shape = AlertDialogDefaults.shape,
+                color = AlertDialogDefaults.containerColor,
+                tonalElevation = AlertDialogDefaults.TonalElevation
             ) {
-                LazyColumn(content = content)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = modifier.padding(vertical = 24.dp)
+                ) {
+                    LazyColumn(content = content)
+                }
             }
         }
     }

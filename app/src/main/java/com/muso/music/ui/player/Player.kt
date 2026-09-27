@@ -72,6 +72,7 @@ import kotlinx.coroutines.isActive
  * (mini-player, background, dialogs) and the codec readout the suite
  * displays in its info pill.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheetPlayer(
     state: BottomSheetState,
@@ -134,10 +135,11 @@ fun BottomSheetPlayer(
         // Glass mode: the suite glass bar owns the bottom (capsule + FAB);
         // the sheet keeps only the mini player zone above it interactive.
         else state.collapsedBound - NavigationBarHeight,
-        onDismiss = {
-            playerConnection.player.stop()
-            playerConnection.player.clearMediaItems()
-        },
+        // Reference behaviour: dismissing (swiping away) the mini player is
+        // purely visual - playback keeps running and the sheet returns when
+        // the connection or queue changes. The old stop()+clearMediaItems()
+        // here is what froze songs mid-navigation with dead controls.
+        onDismiss = { },
         collapsedContent = {
             if (showCollapsedMiniPlayer) {
                 MiniPlayer(
@@ -206,35 +208,17 @@ fun BottomSheetPlayer(
             }
         }
 
-        // === THE REAL SIMPMUSIC PLAYER SUITE =====================================
-        // Classic, Expressive and Immersive all render SimpMusic's own,
-        // byte-for-byte player UI (NowPlayingContentSpotify / M3Expressive /
-        // AppleMusic), fed by the MusoSuiteHost adapter.
-        val suiteQueueTitle by playerConnection.queueTitle.collectAsState()
-        Box(Modifier.fillMaxSize()) {
-            MusoSuiteHost(
-                playerConnection = playerConnection,
-                navController = navController as NavHostController,
-                playerStyle = playerStyle,
-                codecLabel = codecLabel,
-                queueTitle = suiteQueueTitle,
-                onDismiss = { state.collapseSoft() },
-                onShowSongInfo = { showSongInfoDialog = true },
-                onShowAddToPlaylist = { showAddToPlaylistDialog = true },
-                onShowMoreSheet = {
-                    currentSong?.let { song ->
-                        menuState.show {
-                            SongMenu(
-                                originalSong = song,
-                                navController = navController,
-                                onDismiss = menuState::dismiss,
-                            )
-                        }
-                    }
-                },
-                onShowMusoLyrics = { },
-            )
-        }
+        // === THE REAL SIMPMUSIC PLAYER (reference NowPlayingScreen) =============
+        // The reference's own player screen, ported byte-for-byte: it builds
+        // its state from the shared view models (fed by MusoSuiteBridge in
+        // the navbar host), does its own palette extraction and renders
+        // edge-to-edge inside its own full-black modal sheet - true
+        // fullscreen, exactly like the reference app. Muso's player sheet
+        // below it stays collapsed around this content.
+        com.maxrave.simpmusic.ui.screen.player.NowPlayingScreen(
+            navController = navController as NavHostController,
+            onDismiss = { state.collapseSoft() },
+        )
 
         // Dialogs (now rendered for the suite path too - previously they only
         // existed inside the removed native layouts).

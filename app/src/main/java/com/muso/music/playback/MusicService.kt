@@ -228,7 +228,15 @@ class MusicService : MediaLibraryService(),
                     videoStreamUrl.value = null
                 } else {
                     videoStreamUrl.value = null
-                    videoStreamUrl.value = resolveCanvasVideoUrl(mediaMetadata)
+                    val url = resolveCanvasVideoUrl(mediaMetadata)
+                    // PRD (text-2.txt) §14/§30: preload the initial segment
+                    // BEFORE publishing the URL, so the player renders its
+                    // first frame from cache - the thumbnail stays until the
+                    // video can really appear, then the crossfade swaps it.
+                    // No black flash, no spinner, no stall.
+                    if (url != null && preloadCanvasSegment(url)) {
+                        videoStreamUrl.value = url
+                    }
                 }
             }
         }
@@ -911,6 +919,41 @@ class MusicService : MediaLibraryService(),
      * canvas simply never comes: no low-quality stream, no muxed fallback - the
      * thumbnail stays. Never throws.
      */
+    /** Warm the first ~4 MB of the canvas video into the Koin canvas cache
+     * (LRU) before the URL is published. Reads go through CacheDataSource, so
+     * whatever is read here is served to the player from cache afterwards -
+     * the visual starts instantly once shown. A failed/slow preload keeps the
+     * thumbnail in place (the URL is simply not published). */
+    private suspend fun preloadCanvasSegment(url: String): Boolean {
+        return kotlinx.coroutines.withContext(Dispatchers.IO) {
+            runCatching {
+                val koin = org.koin.core.context.GlobalContext.INSTANCE.get()
+                val cache = koin.get(
+                    androidx.media3.datasource.cache.SimpleCache::class,
+                    org.koin.core.qualifier.named(com.maxrave.common.Config.CANVAS_CACHE),
+                )
+                val source = androidx.media3.datasource.cache.CacheDataSource.Factory()
+                    .setCache(cache)
+                    .setUpstreamDataSourceFactory(
+                        androidx.media3.datasource.DefaultHttpDataSource.Factory()
+                            .setConnectTimeoutMs(8_000)
+                            .setReadTimeoutMs(8_000),
+                    )
+                    .createDataSource()
+                source.open(androidx.media3.datasource.DataSpec(android.net.Uri.parse(url)))
+                val buffer = ByteArray(64 * 1024)
+                var total = 0L
+                while (total < 4L * 1024 * 1024) {
+                    val read = source.read(buffer, 0, buffer.size)
+                    if (read == androidx.media3.common.C.RESULT_END_OF_INPUT) break
+                    total += read
+                }
+                source.close()
+                total > 0
+            }.getOrDefault(false)
+        }
+    }
+
     private suspend fun resolveCanvasVideoUrl(mediaMetadata: com.muso.music.models.MediaMetadata): String? =
         runCatching {
             val playerResponse = YouTube.player(mediaMetadata.id).getOrThrow()

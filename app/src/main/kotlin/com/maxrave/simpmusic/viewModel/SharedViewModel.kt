@@ -53,7 +53,7 @@ class SharedViewModel(
         )
     )
     val timeline = MutableStateFlow(TimeLine(0, 0, 0, loading = false))
-    val nowPlayingScreenData: StateFlow<NowPlayingScreenData> =
+    val nowPlayingScreenData: MutableStateFlow<NowPlayingScreenData> =
         MutableStateFlow(NowPlayingScreenData.initial())
     val likeStatus: StateFlow<Boolean> = MutableStateFlow(false)
     val downloadFileProgress: StateFlow<DownloadProgress> = MutableStateFlow(DownloadProgress.INIT)

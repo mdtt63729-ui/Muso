@@ -3,7 +3,6 @@ package com.muso.music.ui.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.NavBackStackEntry
+import com.muso.music.ui.animation.Motion
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
@@ -45,11 +45,14 @@ import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDestinatio
  * in the manifest) — the drag tracks the finger with the same motion.
  */
 
-private val IosEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
-private const val PUSH_MS = 420
-private const val POP_MS = 400
-private const val TAB_MS = 150
-private const val PARALLAX_NUM = 3
+// All timing/easing/scale values come from the central motion tokens
+// (ui/animation/MotionTokens.kt) - the Motion System PRD's single source
+// of truth. Bands: push 300-350 ms, pop 220-320 ms, parallax 15-25%.
+private val IosEasing = Motion.EnterEasing
+private const val PUSH_MS = Motion.PUSH
+private const val POP_MS = Motion.POP
+private const val TAB_MS = Motion.TAB
+private const val PARALLAX_NUM = 2
 private const val PARALLAX_DEN = 10
 
 private fun NavDestination.isTopLevelTab(): Boolean =

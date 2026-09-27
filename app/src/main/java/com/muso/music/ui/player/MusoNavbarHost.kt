@@ -20,6 +20,7 @@ import com.maxrave.simpmusic.ui.component.LiquidGlassAppBottomNavigationBar
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import com.muso.music.constants.LiquidGlassNavBarKey
 import com.muso.music.constants.NavigationBarHeight
+import com.muso.music.constants.MiniPlayerHeight
 import com.muso.music.playback.PlayerConnection
 import com.muso.music.ui.component.BottomSheetState
 import com.muso.music.utils.rememberPreference
@@ -71,11 +72,16 @@ fun BoxScope.MusoNavbarHost(
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
             .offset {
+                // The bar's full stack is capsule + glass MiniPlayer above it.
+                // When the player sheet expands, the WHOLE stack must slide off
+                // the bottom - stopping after just the capsule height left the
+                // MiniPlayer floating over the expanded player, covering its
+                // bottom controls and eating their touches.
+                val fullStack = bottomInset + NavigationBarHeight + MiniPlayerHeight
                 if (visibleHeight == 0.dp) {
-                    IntOffset(x = 0, y = (bottomInset + NavigationBarHeight).roundToPx())
+                    IntOffset(x = 0, y = fullStack.roundToPx())
                 } else {
-                    val slideOffset =
-                        (bottomInset + NavigationBarHeight) * playerBottomSheetState.progress.coerceIn(0f, 1f)
+                    val slideOffset = fullStack * playerBottomSheetState.progress.coerceIn(0f, 1f)
                     val hideOffset = (bottomInset + NavigationBarHeight) * (1 - visibleHeight / NavigationBarHeight)
                     IntOffset(x = 0, y = (slideOffset + hideOffset).roundToPx())
                 }

@@ -334,6 +334,16 @@ fun MusoSuiteHost(
         )
     }
 
+    // The suite's fullscreen lyrics view and queue sheet read their header
+    // from sharedViewModel.nowPlayingScreenData (NOT from the state we pass
+    // down), so mirror the built screenData into it - without this the
+    // lyrics view showed the empty initial data and lyrics never appeared.
+    val sharedViewModelForScreenData: com.maxrave.simpmusic.viewModel.SharedViewModel =
+        org.koin.compose.koinInject()
+    LaunchedEffect(screenData) {
+        sharedViewModelForScreenData.nowPlayingScreenData.value = screenData
+    }
+
     val currentLyricLineIndex = remember(timelineState, lyricsData, lyricsOffsetMs) {
         val lines = lyricsData?.lyrics?.lines ?: return@remember -1
         if (lyricsData.lyrics.syncType == "UNSYNCED") return@remember -1
@@ -468,6 +478,81 @@ fun MusoSuiteBridge(
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val liked = currentSong?.song?.liked == true
 
+    // Player style: the suite's own NowPlayingScreen picks its content style
+    // (Spotify / M3 Expressive / Apple Music) from DataStoreManager - mirror
+    // Muso's PlayerStyle preference into it.
+    val dsmBridge: com.maxrave.domain.manager.DataStoreManager = org.koin.compose.koinInject()
+    val musoPlayerStyle by com.muso.music.utils.rememberEnumPreference(
+        com.muso.music.constants.PlayerStyleKey,
+        com.muso.music.constants.PlayerStyle.CLASSIC,
+    )
+    LaunchedEffect(musoPlayerStyle) {
+        dsmBridge.nowPlayingStyle.value = when (musoPlayerStyle) {
+            com.muso.music.constants.PlayerStyle.EXPRESSIVE ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE
+            com.muso.music.constants.PlayerStyle.IMMERSIVE ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC
+            else -> com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_SPOTIFY
+        }
+    }
+
+    // --- screen data: title/artist/artwork + lyrics + canvas for the
+    // reference NowPlayingScreen (and its fullscreen lyrics / queue sheets).
+    // v0.5.145 moved the player to the reference's own NowPlayingScreen,
+    // which reads everything from this flow - without this feed its lyrics,
+    // canvas and palette would be gone. The canvas URL only appears AFTER
+    // MusicService preloaded its initial segment, so the thumbnail never
+    // gives way to a black frame.
+    val contextBridge = LocalContext.current
+    var bitmapBridge by remember { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(mediaMetadata?.id, mediaMetadata?.thumbnailUrl) {
+        bitmapBridge = null
+        val url = mediaMetadata?.thumbnailUrl
+        if (url != null) {
+            runCatching {
+                val loader = SingletonImageLoader.get(contextBridge)
+                val result = loader.execute(
+                    ImageRequest.Builder(contextBridge).data(url).size(256).allowHardware(false).build()
+                )
+                (result as? SuccessResult)?.image?.toImageBitmap()
+            }.getOrNull()?.let { bitmapBridge = it }
+        }
+    }
+    val canvasUrlBridge by playerConnection.service.videoStreamUrl.collectAsState()
+    val queueTitleBridge by playerConnection.queueTitle.collectAsState()
+    val musoLyricsBridge by playerConnection.currentLyrics.collectAsState()
+    LaunchedEffect(mediaMetadata, canvasUrlBridge, queueTitleBridge, musoLyricsBridge, bitmapBridge) {
+        val raw = musoLyricsBridge?.lyrics
+        val lyricsData = if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) {
+            null
+        } else {
+            parseLrcToSuiteLines(raw)?.let { (lines, synced) ->
+                NowPlayingScreenData.LyricsData(
+                    lyrics = Lyrics(
+                        error = false,
+                        lines = lines,
+                        syncType = if (synced) "LINE_SYNCED" else "UNSYNCED",
+                    ),
+                    translatedLyrics = null,
+                    lyricsProvider = LyricsProvider.LRCLIB,
+                )
+            }
+        }
+        val md = mediaMetadata
+        sharedViewModel.nowPlayingScreenData.value = NowPlayingScreenData(
+            playlistName = queueTitleBridge ?: "Now Playing",
+            nowPlayingTitle = md?.title ?: "",
+            artistName = md?.artists?.joinToString(", ") { it.name } ?: "",
+            isVideo = canvasUrlBridge != null,
+            isExplicit = false,
+            thumbnailURL = md?.thumbnailUrl,
+            canvasData = canvasUrlBridge?.let { NowPlayingScreenData.CanvasData(isVideo = true, url = it) },
+            lyricsData = lyricsData,
+            songInfoData = null,
+            bitmap = bitmapBridge,
+        )
+    }
+
     // --- events: suite -> Muso ---
     LaunchedEffect(playerConnection) {
         sharedViewModel.eventSink = { event ->
@@ -492,9 +577,14 @@ fun MusoSuiteBridge(
                 com.maxrave.simpmusic.viewModel.UIEvent.ToggleLike -> playerConnection.toggleLike()
             }
         }
+        // Reference behaviour: "stopping" from the suite never destroys the
+        // queue. The glass MiniPlayer's swipe-down is right above the navbar
+        // and fired far too easily during tab navigation, and the old
+        // stop()+clearMediaItems() left a frozen song with dead transport
+        // buttons (play/pause/next/previous do nothing on an empty queue).
+        // Pausing is the most it should ever do.
         sharedViewModel.stopSink = {
-            player.stop()
-            player.clearMediaItems()
+            player.pause()
         }
     }
     DisposableEffect(playerConnection) {

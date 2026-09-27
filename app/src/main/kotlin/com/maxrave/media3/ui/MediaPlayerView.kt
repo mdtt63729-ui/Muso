@@ -73,6 +73,10 @@ import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
 import kotlin.math.roundToInt
 
+// Muso (PRD §8): the canvas loop segment, 5-15 seconds. 15 s = the allowed maximum.
+private const val CANVAS_LOOP_START_MS = 0L
+private const val CANVAS_LOOP_END_MS = 15_000L
+
 private val RICH_SYNC_TIMESTAMP_REGEX = Regex("""<\d{2}:\d{2}\.\d{2,3}>\s*""")
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -155,11 +159,35 @@ fun MediaPlayerView(
         }
 
     // Set MediaSource to ExoPlayer
+    // Muso (PRD §12/§13, text-2.txt): REPEAT_MODE_ONE alone repeats the WHOLE
+    // video, but the spec only allows a 5-15 s segment to loop. This is the
+    // PRD's custom loop controller: poll the position and seek back to the
+    // segment start just before its end. The initial segment is preloaded
+    // into the canvas cache by MusicService (PRD §14), so the boundary seek
+    // is served from cache and the loop stays visually seamless. Sources
+    // shorter than the segment fall back to whole-item repeat.
     LaunchedEffect(mediaSource) {
         exoPlayer.setMediaItem(mediaSource)
         exoPlayer.prepare()
         exoPlayer.play()
-        exoPlayer.repeatMode = Player.REPEAT_MODE_ONE
+        exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
+        while (true) {
+            kotlinx.coroutines.delay(50)
+            val loop = runCatching {
+                val duration = exoPlayer.duration
+                duration != androidx.media3.common.C.TIME_UNSET &&
+                    duration > CANVAS_LOOP_END_MS &&
+                    exoPlayer.currentPosition >= CANVAS_LOOP_END_MS - 120
+            }.getOrDefault(false)
+            if (loop) {
+                runCatching { exoPlayer.seekTo(CANVAS_LOOP_START_MS) }
+            } else if (runCatching {
+                    val duration = exoPlayer.duration
+                    duration != androidx.media3.common.C.TIME_UNSET && duration <= CANVAS_LOOP_END_MS
+                }.getOrDefault(false)) {
+                exoPlayer.repeatMode = Player.REPEAT_MODE_ONE
+            }
+        }
     }
 
     // Manage lifecycle events

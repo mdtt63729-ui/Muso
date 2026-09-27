@@ -201,6 +201,8 @@ import androidx.datastore.preferences.core.edit
 import com.muso.music.utils.get
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
+import androidx.compose.foundation.LocalIndication
+import com.muso.music.ui.animation.MotionIndication
 import com.muso.music.constants.TranslucentNavigationBarKey
 import com.muso.music.constants.UpdateDismissedVersionKey
 import com.muso.music.utils.reportException
@@ -545,12 +547,16 @@ class MainActivity : ComponentActivity() {
                         expandedBound = maxHeight,
                     )
 
-                    val playerAwareWindowInsets = remember(bottomInset, shouldShowNavigationBar, playerBottomSheetState.isDismissed, translucentNavBar) {
+                    val playerAwareWindowInsets = remember(bottomInset, shouldShowNavigationBar, playerBottomSheetState.isDismissed, translucentNavBar, liquidGlassNavBar) {
                         var bottom = bottomInset
                         // With the translucent navigation bar the content scrolls behind it,
                         // so its height is no longer part of the content's bottom inset.
-                        if (shouldShowNavigationBar && !translucentNavBar) bottom += NavigationBarHeight
-                        if (!playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
+                        // Same for the floating glass bar + glass mini player: content
+                        // scrolls behind both (reference behaviour), otherwise every list
+                        // ended in a dead black strip under the mini player.
+                        val behindFloatingGlass = translucentNavBar || liquidGlassNavBar
+                        if (shouldShowNavigationBar && !behindFloatingGlass) bottom += NavigationBarHeight
+                        if (!playerBottomSheetState.isDismissed && !liquidGlassNavBar) bottom += MiniPlayerHeight
                         windowsInsets
                             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                             .add(WindowInsets(top = AppBarHeight, bottom = bottom))
@@ -672,7 +678,19 @@ class MainActivity : ComponentActivity() {
 
                     // Navigation motion (SimpMusic-style): spring-physics slides with a soft
                     // fade, shared-axis feel between tabs; an instant cut when animations are off.
-                    val animationsEnabled by rememberPreference(AnimationsEnabledKey, defaultValue = true)
+                    val animationsPref by rememberPreference(AnimationsEnabledKey, defaultValue = true)
+                    // Motion System PRD §15: also respect the SYSTEM "remove
+                    // animations" accessibility setting - when the OS animator
+                    // scale is 0, every transition snaps to its final state.
+                    // The app keeps working fully; only the movement goes away.
+                    val systemAnimationsOn = remember {
+                        android.provider.Settings.Global.getFloat(
+                            contentResolver,
+                            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                            1f,
+                        ) != 0f
+                    }
+                    val animationsEnabled = animationsPref && systemAnimationsOn
 
                     // === SimpMusic-style automatic backup: on start, if enabled and due,
                     // write the backup zip into the public Downloads folder. Runs fully off
@@ -709,6 +727,12 @@ class MainActivity : ComponentActivity() {
                         if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.White else Color.Black,
                     )
                     CompositionLocalProvider(
+                        // Motion System PRD §4.2/§7.1: one app-wide press
+                        // indication - every plain clickable scales to 0.97
+                        // while pressed and springs back. Collapses to a
+                        // no-op when animations are off (app toggle OR the
+                        // system "remove animations" setting, PRD §15).
+                        LocalIndication provides MotionIndication(animationsEnabled),
                         LocalDatabase provides database,
                         LocalContentColor provides contentColorFor(MaterialTheme.colorScheme.surface),
                         LocalPlayerConnection provides playerConnection,

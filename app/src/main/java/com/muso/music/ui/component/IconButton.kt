@@ -6,6 +6,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Indication
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -18,7 +19,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.material3.ripple
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -47,7 +47,7 @@ fun ResizableIconButton(
         colorFilter = ColorFilter.tint(color),
         modifier = Modifier
             .clickable(
-                indication = indication ?: ripple(bounded = false),
+                indication = indication ?: LocalIndication.current,
                 interactionSource = remember { MutableInteractionSource() },
                 enabled = enabled,
                 onClick = onClick
@@ -80,10 +80,7 @@ fun IconButton(
                 enabled = enabled,
                 role = Role.Button,
                 interactionSource = interactionSource,
-                indication = ripple(
-                    bounded = false,
-                    radius = 40.dp / 2
-                )
+                indication = LocalIndication.current
             ),
         contentAlignment = Alignment.Center
     ) {

@@ -110,7 +110,7 @@ class App : Application(), ImageLoaderFactory {
                     com.maxrave.domain.repository.NoopLyricsRomanizerRepository()
                 }
                     single { com.maxrave.simpmusic.viewModel.SharedViewModel(get(), get()) }
-                    single { com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel() }
+                    viewModel { com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel() }
                     single { com.maxrave.domain.mediaservice.handler.MediaPlayerHandler() }
                     single { com.maxrave.domain.manager.DataStoreManager() }
                 viewModel { com.maxrave.simpmusic.viewModel.PlaylistViewModel(get(), get(), get()) }
