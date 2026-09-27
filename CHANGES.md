@@ -1,4 +1,35 @@
-## Round 133 (v0.5.148, code 155)
+## Round 134 (v0.5.149, code 156)
+
+Fixes every compile error from the v0.5.148 CI log (paste-1-23) - the first
+CI run of the reference NowPlayingScreen port and the motion system.
+
+1. DataStoreManager: the numeric NOW_PLAYING_STYLE_* constants ("0"/"1"/"2")
+   duplicated the original SPOTIFY/M3_EXPRESSIVE/APPLE_MUSIC set - conflicting
+   declarations that made every use ambiguous (MusoSuiteHost,
+   FullscreenLyricsContent, NowPlayingScreen). Duplicates removed; the
+   original string set stays the single source of truth.
+2. SharedViewModel: the reference NowPlayingScreen reads 11 more members the
+   shim never had. Added: castState (constant NOT_CASTING), getVideo (false -
+   Muso's video layer is the in-content canvas), lyrics/translated vote
+   states (neutral; LRCLIB voting is not wired), fullscreenLyricsRequest
+   one-shot flag + consume, setBitmap/artworkBitmap (palette source),
+   isUserLoggedInFlow (false - no YouTube login in Muso), getNowPlayingStyle
+   (reads DataStoreManager.nowPlayingStyle, which the bridge feeds from Muso's
+   PlayerStyle), addToYouTubeLiked routed through a bridge-installable sink,
+   voteLyrics/voteTranslatedLyrics no-ops.
+3. NowPlayingBottomSheetViewModel now extends androidx.lifecycle.ViewModel -
+   Koin's viewModel {} DSL and the player's koinViewModel<>() both require it
+   (this was the App.kt:113 type-inference error and the intersection-type
+   warning).
+4. MusicService canvas preload: GlobalContext.INSTANCE is a Java-only
+   accessor; Kotlin needs GlobalContext.get().
+5. MotionIndication rewritten on the stable classic Indication API
+   (rememberUpdatedInstance + IndicationInstance): the node API import was
+   wrong-package, and the classic surface needs no experimental imports.
+   Same motion: scale to 0.97 on press, spring back, draw-pass canvas
+   transform only.
+
+# Round 133 (v0.5.148, code 155)
 
 Completes the Motion System PRD rollout: universal touch feedback.
 

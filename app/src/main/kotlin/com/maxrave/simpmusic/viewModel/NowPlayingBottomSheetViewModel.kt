@@ -16,7 +16,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * back through onUIEvent. Phase 2 wires these to the real Muso database and
  * player; the defaults below render the sheets with neutral content.
  */
-class NowPlayingBottomSheetViewModel {
+/**
+ * Extends androidx ViewModel so Koin's `viewModel { }` DSL and the reference
+ * player's `koinViewModel<NowPlayingBottomSheetViewModel>()` both resolve it.
+ */
+class NowPlayingBottomSheetViewModel : androidx.lifecycle.ViewModel() {
     private val _uiState = MutableStateFlow(
         NowPlayingBottomSheetUIState(
             listLocalPlaylist = emptyList(),

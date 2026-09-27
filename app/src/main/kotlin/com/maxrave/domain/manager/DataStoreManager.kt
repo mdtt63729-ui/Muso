@@ -14,10 +14,6 @@ class DataStoreManager {
     }
 
     companion object {
-        const val NOW_PLAYING_STYLE_SPOTIFY = "0"
-        const val NOW_PLAYING_STYLE_M3_EXPRESSIVE = "1"
-        const val NOW_PLAYING_STYLE_APPLE_MUSIC = "2"
-
         const val TRUE = "true"
         const val FALSE = "false"
         // Suite style keys: values match what the hosting layer feeds into the flows below.

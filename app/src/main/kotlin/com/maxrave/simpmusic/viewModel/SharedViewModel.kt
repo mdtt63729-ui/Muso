@@ -71,6 +71,43 @@ class SharedViewModel(
     fun getQueueDataState(): kotlinx.coroutines.flow.StateFlow<com.maxrave.domain.mediaservice.handler.QueueData?> =
         mediaPlayerHandler?.queueData ?: kotlinx.coroutines.flow.MutableStateFlow(null)
 
+    // --- reference NowPlayingScreen (v0.5.145 port) surface ---
+    /** Cast is not a Muso feature: a constant "not casting" state. */
+    val castState: StateFlow<com.maxrave.domain.data.player.GenericCastState> =
+        MutableStateFlow(com.maxrave.domain.data.player.GenericCastState.NOT_CASTING)
+
+    /** The reference shows the video surface only for video SONGS; Muso's
+     * video layer is the canvas inside the content styles, so this stays off. */
+    val getVideo: StateFlow<Boolean> = MutableStateFlow(false)
+
+    /** LRCLIB lyrics voting is not wired in Muso; the vote dialog renders neutral. */
+    val translatedVoteState: StateFlow<VoteData?> = MutableStateFlow(null)
+    val lyricsVoteState: StateFlow<VoteData?> = MutableStateFlow(null)
+    fun voteLyrics(upvote: Boolean) { }
+    fun voteTranslatedLyrics(upvote: Boolean) { }
+
+    /** One-shot "open the fullscreen lyrics view" request flag. */
+    private val _fullscreenLyricsRequest = MutableStateFlow(false)
+    val fullscreenLyricsRequest: StateFlow<Boolean> = _fullscreenLyricsRequest.asStateFlow()
+    fun requestFullscreenLyrics() { _fullscreenLyricsRequest.value = true }
+    fun consumeFullscreenLyricsRequest() { _fullscreenLyricsRequest.value = false }
+
+    /** Artwork bitmap pushed by the player content (palette source of truth). */
+    private val _artworkBitmap = MutableStateFlow<ImageBitmap?>(null)
+    val artworkBitmap: StateFlow<ImageBitmap?> = _artworkBitmap.asStateFlow()
+    fun setBitmap(bitmap: ImageBitmap?) { _artworkBitmap.value = bitmap }
+
+    /** Muso has no YouTube login; the reference's login-gated UI stays hidden. */
+    fun isUserLoggedInFlow(): kotlinx.coroutines.flow.Flow<Boolean> = MutableStateFlow(false)
+
+    /** The player style the reference NowPlayingScreen should render. */
+    fun getNowPlayingStyle(): kotlinx.coroutines.flow.Flow<String> =
+        dataStoreManager?.nowPlayingStyle ?: MutableStateFlow(DataStoreManager.NOW_PLAYING_STYLE_SPOTIFY)
+
+    /** The bridge installs this to route the reference's YouTube-like button to Muso's like. */
+    var addToYouTubeLikedSink: (() -> Unit)? = null
+    fun addToYouTubeLiked() { addToYouTubeLikedSink?.invoke() }
+
     fun addListToQueue(listTrack: ArrayList<Track>) {
         mediaPlayerHandler?.loadMoreCatalog(ArrayList(listTrack), true)
     }
