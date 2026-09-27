@@ -60,6 +60,13 @@ fun BottomSheet(
     modifier: Modifier = Modifier,
     backgroundColor: Color = MaterialTheme.colorScheme.surface,
     onDismiss: (() -> Unit)? = null,
+    // When set, only the top `collapsedHitHeight` of the collapsed sheet is
+    // interactive (tap + drag). With the floating glass navbar the collapsed
+    // sheet is invisible except for the suite's glass MiniPlayer, and its old
+    // full-bleed touch catcher sat over live scrolling content around the
+    // glass capsule, stealing vertical drags from the feed. The mini player
+    // zone is the only part that should grab gestures, like the reference.
+    collapsedHitHeight: Dp? = null,
     collapsedContent: @Composable BoxScope.() -> Unit,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -71,25 +78,6 @@ fun BottomSheet(
                     .roundToPx()
                     .coerceAtLeast(0)
                 IntOffset(x = 0, y = y)
-            }
-            .pointerInput(state) {
-                val velocityTracker = VelocityTracker()
-
-                detectVerticalDragGestures(
-                    onVerticalDrag = { change, dragAmount ->
-                        velocityTracker.addPointerInputChange(change)
-                        state.dispatchRawDelta(dragAmount)
-                    },
-                    onDragCancel = {
-                        velocityTracker.resetTracking()
-                        state.snapTo(state.collapsedBound)
-                    },
-                    onDragEnd = {
-                        val velocity = -velocityTracker.calculateVelocity().y
-                        velocityTracker.resetTracking()
-                        state.performFling(velocity, onDismiss)
-                    }
-                )
             }
             .clip(
                 RoundedCornerShape(
@@ -107,6 +95,25 @@ fun BottomSheet(
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
+                    .pointerInput(state) {
+                        val velocityTracker = VelocityTracker()
+
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { change, dragAmount ->
+                                velocityTracker.addPointerInputChange(change)
+                                state.dispatchRawDelta(dragAmount)
+                            },
+                            onDragCancel = {
+                                velocityTracker.resetTracking()
+                                state.snapTo(state.collapsedBound)
+                            },
+                            onDragEnd = {
+                                val velocity = -velocityTracker.calculateVelocity().y
+                                velocityTracker.resetTracking()
+                                state.performFling(velocity, onDismiss)
+                            }
+                        )
+                    }
                     .graphicsLayer {
                         alpha = ((state.progress - 0.25f) * 4).coerceIn(0f, 1f)
                     },
@@ -117,6 +124,25 @@ fun BottomSheet(
         if (!state.isExpanded && (onDismiss == null || !state.isDismissed)) {
             Box(
                 modifier = Modifier
+                    .pointerInput(state, collapsedHitHeight) {
+                        val velocityTracker = VelocityTracker()
+
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { change, dragAmount ->
+                                velocityTracker.addPointerInputChange(change)
+                                state.dispatchRawDelta(dragAmount)
+                            },
+                            onDragCancel = {
+                                velocityTracker.resetTracking()
+                                state.snapTo(state.collapsedBound)
+                            },
+                            onDragEnd = {
+                                val velocity = -velocityTracker.calculateVelocity().y
+                                velocityTracker.resetTracking()
+                                state.performFling(velocity, onDismiss)
+                            }
+                        )
+                    }
                     .graphicsLayer {
                         alpha = 1f - (state.progress * 4).coerceAtMost(1f)
                     }
@@ -126,7 +152,7 @@ fun BottomSheet(
                         onClick = state::expandSoft
                     )
                     .fillMaxWidth()
-                    .height(state.collapsedBound),
+                    .height(collapsedHitHeight ?: state.collapsedBound),
                 content = collapsedContent
             )
         }

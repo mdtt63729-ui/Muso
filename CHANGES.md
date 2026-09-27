@@ -1,4 +1,71 @@
-## Round 121 (v0.5.136, code 143)
+## Round 124 (v0.5.139, code 146)
+
+## The see-through full-screen player (flicker + "cannot scroll down")
+The v0.5.137 transparency fix for the collapsed sheet was applied to the
+sheet's background unconditionally, so in glass mode the EXPANDED full-screen
+player was transparent too: the home feed showed through it, and dragging down
+crossed the content fade zone (alpha ramps only below 25% progress) over a
+see-through background - which read as flickering, and the sheet visibly not
+moving. The sheet background is now transparent ONLY while collapsed: the
+moment it leaves the collapsed anchor it goes opaque again, so the expanded
+player is solid, dragging it down moves a visible surface, and the glass bar
+area at the bottom stays clean. The v0.5.138 gesture zone fix (only the mini
+player area grabs sheet gestures) is unchanged.
+
+# Round 123 (v0.5.138, code 145)
+
+## Reference-video pass: scroll-time behaviour of the glass bar
+Studied the SimpMusic reference screen recording (8s): content scrolls BEHIND
+the floating glass capsule and its glass mini player, and only the mini player
+pill grabs gestures. Two things to report:
+
+### The invisible drag-catcher over the feed (fixed)
+Muso's collapsed player sheet kept a full-bleed invisible touch zone over the
+whole bottom strip - capsule, mini player AND the content scrolling around
+them - so vertical drags near the bottom of any feed fought the sheet instead
+of scrolling, and taps could land on ghosts. The sheet's tap/drag zone is now
+region-limited: in glass mode only the mini player zone above the capsule is
+interactive (new collapsedHitHeight param on BottomSheet); dragging the
+expanded player itself still moves the sheet exactly as before.
+
+### Already matching the video (verified, no change needed)
+The wiring was compared line-by-line against the reference navbar: content
+scrolls edge-to-edge behind the floating capsule (lists pad via
+contentPadding, viewport is full-screen), the capsule expands at the top and
+collapses to a pill while scrolling (isScrolledToTop fed by the scroll
+behaviour attached to the NavHost), the glass samples the scrolling content
+through the layer backdrop on the NavHost, and the glass mini player renders
+above the capsule once a track plays. The broken look in v0.5.136 was the
+three bugs fixed in v0.5.137 (Koin crash, black canvas, solid sheet plate).
+
+# Round 122 (v0.5.137, code 144)
+
+## First runtime round — the Koin crash, the black player, the boxed navbar
+The APK runs. Three real bugs found from the first screenshots + crash log:
+
+### The crash (Koin "Could not create instance for [Factory]")
+PlaylistViewModel's third constructor parameter is PlaylistRepository, but the
+Koin module only registered MusoPlaylistRepository under its concrete class.
+Opening any playlist asked Koin for PlaylistRepository -> NoDefinitionFound
+wrapped as InstanceCreationException. Now registered against the interface.
+
+### Black player artwork / broken video logic
+Muso resolves a canvas VIDEO url per song (MusicService.videoStreamUrl), and
+the suite host was packaging it as CanvasData(isVideo = false) - so the player
+fed a video stream URL to AsyncImage, which cannot decode video: a large black
+area instead of artwork or video. CanvasData now carries isVideo = true so the
+suite plays it through the real media3 MediaPlayerView (exactly SimpMusic's
+canvas behaviour), screenData.isVideo and shouldShowVideo follow it, and songs
+without a video keep showing their artwork thumbnail.
+
+### The "box" over the glass navbar
+With the liquid-glass navbar on, Muso's own mini player is replaced by a
+Spacer - but the player sheet still painted its solid background plate behind
+it, boxing over the transparent glass bar. The collapsed sheet is now
+transparent in that mode (the expanded suite player paints its own full-screen
+background), so only the floating glass capsule + mini player remain.
+
+# Round 121 (v0.5.136, code 143)
 
 ## CI fix #13 — Hilt green; R8's resource-shrinking flag
 The Hilt binding landed: hiltJavaCompile passed, dexing ran, and the build

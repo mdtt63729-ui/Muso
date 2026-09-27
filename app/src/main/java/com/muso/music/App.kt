@@ -66,7 +66,7 @@ class App : Application(), ImageLoaderFactory {
                 )
                 single { suiteEntryPoint.database() }
                 single { suiteEntryPoint.downloadUtil() }
-                single { com.muso.music.suite.MusoPlaylistRepository() }
+                single<com.maxrave.domain.repository.PlaylistRepository> { com.muso.music.suite.MusoPlaylistRepository() }
                 single<com.maxrave.domain.repository.SongRepository> { com.muso.music.suite.MusoSongRepository(get()) }
                 single<com.maxrave.domain.mediaservice.handler.DownloadHandler> {
                     com.muso.music.suite.MusoDownloadHandler(this@App, get())
