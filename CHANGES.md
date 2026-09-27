@@ -1,4 +1,27 @@
-## Round 124 (v0.5.139, code 146)
+## Round 125 (v0.5.140, code 147)
+
+## The canvas crash (Koin: no definition for 'canvasCache')
+The v0.5.137 video/canvas fix works - a song with a video now reaches the
+suite's MediaPlayerView - but that view resolves its video cache from Koin:
+SimpleCache under the 'canvasCache' qualifier, which we never registered, so
+the app crashed the moment the canvas view composed. Now registered: a media3
+SimpleCache in cacheDir/spotifyCanvas, 256 MB LRU, with a
+StandaloneDatabaseProvider (same pattern as Muso's own download cache).
+
+## Koin audit of every remaining resolution
+Grep-audited ALL Koin lookups the suite can perform at runtime and found two
+more crash-in-waiting gaps, both fixed:
+- androidContext: the expect shims CopyToClipboard, OpenUrl (share) and ImageIo
+  resolve android.content.Context from Koin; none was registered (they would
+  have crashed on first copy/share/save). startKoin now provides it.
+- OpenUrl asked for AppCompatActivity - Muso's MainActivity is a plain
+  ComponentActivity, so that could never resolve. Both openUrl/shareUrl now
+  take the application Context (they already set FLAG_ACTIVITY_NEW_TASK).
+
+Verified registered already: MediaPlayerHandler, DataStoreManager,
+SongRepository, DownloadHandler + everything from earlier rounds.
+
+# Round 124 (v0.5.139, code 146)
 
 ## The see-through full-screen player (flicker + "cannot scroll down")
 The v0.5.137 transparency fix for the collapsed sheet was applied to the

@@ -1,6 +1,7 @@
 package com.muso.music
 
 import android.app.Application
+import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -57,6 +58,9 @@ class App : Application(), ImageLoaderFactory {
         // The SimpMusic player suite resolves its few injected collaborators
         // (tab memory, sheet state, the queue-view handler) through Koin.
         startKoin {
+            // The suite's expect shims (CopyToClipboard, OpenUrl, ImageIo)
+            // resolve android.content.Context from Koin.
+            androidContext(this@App)
             modules(
                 module {
                 // Muso's Hilt-managed singletons, exposed to the suite's Koin modules.
@@ -67,6 +71,21 @@ class App : Application(), ImageLoaderFactory {
                 single { suiteEntryPoint.database() }
                 single { suiteEntryPoint.downloadUtil() }
                 single<com.maxrave.domain.repository.PlaylistRepository> { com.muso.music.suite.MusoPlaylistRepository() }
+                // Canvas video cache: the suite's MediaPlayerView resolves the
+                // media3 SimpleCache for canvas videos through Koin under the
+                // 'canvasCache' qualifier. Without it the player crashed the
+                // moment a song with a video reached the canvas view.
+                single<androidx.media3.datasource.cache.SimpleCache>(
+                    qualifier = org.koin.core.qualifier.named(com.maxrave.common.Config.CANVAS_CACHE),
+                ) {
+                    androidx.media3.datasource.cache.SimpleCache(
+                        java.io.File(this@App.cacheDir, "spotifyCanvas"),
+                        androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(
+                            256L * 1024 * 1024,
+                        ),
+                        androidx.media3.datasource.database.StandaloneDatabaseProvider(this@App),
+                    )
+                }
                 single<com.maxrave.domain.repository.SongRepository> { com.muso.music.suite.MusoSongRepository(get()) }
                 single<com.maxrave.domain.mediaservice.handler.DownloadHandler> {
                     com.muso.music.suite.MusoDownloadHandler(this@App, get())
