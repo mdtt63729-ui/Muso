@@ -1,4 +1,42 @@
-## Round 111 (v0.5.126, code 133)
+## Round 112 (v0.5.127, code 134)
+
+## CI fix #4 — toolchain brought up to the SimpMusic v2.2.0 stack
+Progress: :innertube now compiles (only a redundant-else warning left, kept
+for safety). The build advanced to :app:checkFossReleaseAarMetadata and
+failed with 36 AAR-metadata issues: coil3 3.6.3, materialkolor 5.0.1,
+kyant0 backdrop/shapes, and every androidx.compose 1.12.0 artifact require
+compileSdk 37, and the compose 1.12 artifacts additionally require AGP
+9.1.0 or higher. Compose resolved to 1.12.0 transitively (the suite
+libraries are built against it), while Muso was pinned to compileSdk 36 /
+AGP 8.9.1 / Kotlin 2.2.20 / compose 1.9.4.
+
+Root cause: a toolchain generation gap. The dependency set we ported is
+exactly SimpMusic v2.2.0's, whose own build uses AGP 9.2.1, Kotlin 2.4.20,
+KSP 2.3.9, compileSdk 37 and the 2026.09.00 compose line (compose 1.12.0
+stable + material3 1.5.0-alpha22 - already Muso's material3). Mixing
+compose versions is known-death (SimpMusic's own catalog documents
+NoSuchMethodError when the m3/compose pins drift), so the only sound fix
+is adopting the same toolchain:
+
+- Gradle wrapper 8.11.1 -> 9.2 (AGP 9.x line).
+- AGP 8.9.1 -> 9.2.1 (SimpMusic's exact AGP).
+- Kotlin 2.2.20 -> 2.4.20, KSP 2.2.20-2.0.2 -> 2.3.9 (the exact
+  SimpMusic pair; Room 2.8.5 is the same version on both, proven combo).
+- compose 1.9.4 -> 1.12.0 across the catalog (ui/foundation/animation/
+  runtime all move together; material3 stays 1.5.0-alpha22).
+- app compileSdk 36 -> 37 (targetSdk stays 35 - runtime behavior
+  unchanged, compile-only requirement).
+- Hilt compiler moved from kapt to ksp (kapt is legacy on the Kotlin 2.4
+  line; Hilt KSP has been the recommended path for a while).
+- Root script's KotlinCompile alias -> KotlinJvmCompile (the old alias is
+  on its way out).
+
+Known residual risks for the next CI round: Hilt 2.56.2 vs Kotlin 2.4
+metadata (Hilt has no SimpMusic reference to copy - may need a bump),
+-Xcontext-receivers flag status on Kotlin 2.4, and Gradle 9 / AGP 9.2
+running on the CI's JDK 17. Each will surface as a clear error if hit.
+
+# Round 111 (v0.5.126, code 133)
 
 ## CI fix #3 — first real Kotlin compile errors (:innertube module)
 Progress: after the DSL migration the build now runs real compilation, and

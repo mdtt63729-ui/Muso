@@ -5,7 +5,6 @@ val isFullBuild: Boolean by rootProject.extra
 plugins {
     id("com.android.application")
     kotlin("android")
-    kotlin("kapt")
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.ksp)
@@ -20,14 +19,14 @@ if (isFullBuild && System.getenv("PULL_REQUEST") == null) {
 
 android {
     namespace = "com.muso.music"
-    compileSdk = 36
+    compileSdk = 37
     buildToolsVersion = "35.0.0"
     defaultConfig {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 133
-        versionName = "0.5.126"
+        versionCode = 134
+        versionName = "0.5.127"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -176,7 +175,7 @@ dependencies {
     implementation(libs.apache.lang3)
 
     implementation(libs.hilt)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
 
     implementation(projects.innertube)
     implementation(projects.kugou)

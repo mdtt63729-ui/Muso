@@ -1,9 +1,9 @@
 [versions]
-androidGradlePlugin = "8.9.1"
+androidGradlePlugin = "9.2.1"
 annotation = "1.9.1"
 json = "20240303"
-kotlin = "2.2.20"
-compose = "1.9.4"
+kotlin = "2.4.20"
+compose = "1.12.0"
 lifecycle = "2.9.4"
 material3 = "1.5.0-alpha22"
 media3 = "1.11.1"
@@ -11,7 +11,7 @@ room = "2.8.5"
 work = "2.9.1"
 hilt = "2.56.2"
 ktor = "2.3.12"
-ksp = "2.2.20-2.0.2"
+ksp = "2.3.9"
 
 [libraries]
 androidx-constraintlayout-compose = { group = "androidx.constraintlayout", name = "constraintlayout-compose", version = "1.1.1" }

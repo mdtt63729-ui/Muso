@@ -30,7 +30,7 @@ tasks.register<Delete>("Clean") {
 }
 
 subprojects {
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
         // KGP 2.2: the legacy Kotlin compiler DSL is a hard error now —
         // migrated to the task-level compilerOptions DSL.
         compilerOptions {
