@@ -183,7 +183,6 @@ import com.maxrave.simpmusic.ui.component.getString
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
 import com.muso.music.R
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1355,7 +1354,7 @@ fun NowPlayingBottomSheet(
     onDismiss: () -> Unit,
     navController: NavController,
     song: SongEntity?,
-    viewModel: NowPlayingBottomSheetViewModel = koinViewModel<NowPlayingBottomSheetViewModel>(),
+    viewModel: NowPlayingBottomSheetViewModel = androidx.compose.runtime.remember { NowPlayingBottomSheetViewModel() },
     setSleepTimerEnable: Boolean = false,
     changeMainLyricsProviderEnable: Boolean = false,
     onNavigateToOtherScreen: () -> Unit = {},

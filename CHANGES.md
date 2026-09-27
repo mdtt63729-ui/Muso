@@ -1,4 +1,21 @@
-## Round 118 (v0.5.133, code 140)
+## Round 119 (v0.5.134, code 141)
+
+## CI fix #11 — last 8 lines of the :app compile
+47 -> 8, and all eight were fallout of the previous round's cleanups:
+
+- MusoLocalPlaylistRepository: the override return types still said
+  Resource<String> while the interface now says LocalResource — three
+  signatures realigned
+- MusoSongRepository.insertSong: Muso's dao insert(song) returns a Long, not
+  a list — the row id is used directly now
+- ModalBottomSheet: NowPlayingBottomSheetViewModel is a plain shim class, not
+  a androidx ViewModel, so koinViewModel<T> cannot serve it — the default is
+  now remember { NowPlayingBottomSheetViewModel() } (the sheet VM holds only
+  local UI state, so per-composition instance is fine)
+- PlaylistScreen's two koinViewModel() calls stay: PlaylistViewModel and
+  SongSelectionViewModel are real ViewModels
+
+# Round 118 (v0.5.133, code 140)
 
 ## CI fix #10 — the tail of the :app compile: 250 -> 47 -> 0 targeted
 Last round cleared ~80% of the compile errors; this one takes the remaining

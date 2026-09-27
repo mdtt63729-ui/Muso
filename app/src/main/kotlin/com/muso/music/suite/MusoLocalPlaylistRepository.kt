@@ -80,7 +80,7 @@ class MusoLocalPlaylistRepository(
         successMessage: String,
         updatedYtMessage: String,
         errorMessage: String,
-    ): Flow<Resource<String>> = flow {
+    ): Flow<LocalResource<String>> = flow {
         val playlist = musoPlaylist(id)
         if (playlist == null) {
             emit(LocalResource.Error(errorMessage))
@@ -99,7 +99,7 @@ class MusoLocalPlaylistRepository(
         successMessage: String,
         updatedYtMessage: String,
         errorMessage: String,
-    ): Flow<Resource<String>> = flow {
+    ): Flow<LocalResource<String>> = flow {
         val playlist = musoPlaylist(id)
         if (playlist == null) {
             emit(LocalResource.Error(errorMessage))
@@ -122,7 +122,7 @@ class MusoLocalPlaylistRepository(
         tracks: List<Track>,
         syncedString: String,
         errorString: String,
-    ): Flow<Resource<String>> = flow {
+    ): Flow<LocalResource<String>> = flow {
         val result = runCatching {
             val entity = com.muso.music.db.entities.PlaylistEntity(name = data.title)
             db.insert(entity)
