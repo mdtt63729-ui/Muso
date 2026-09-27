@@ -1,4 +1,25 @@
-## Round 109 (v0.5.124, code 131)
+## Round 110 (v0.5.125, code 132)
+
+## CI fix #2 — compiler options DSL migration
+Progress from the last round: the TOML fix worked; Gradle configuration now
+runs and the build reached script compilation. The next real error:
+
+  build.gradle.kts line 34: Using the deprecated Kotlin compiler options
+  DSL is an error. Please migrate to the compilerOptions DSL.
+
+Kotlin 2.2.20 turned the legacy compiler-options DSL into a hard error.
+
+- Root build.gradle.kts: the subprojects { tasks.withType<KotlinCompile> }
+  block now uses the task-level compilerOptions DSL (freeCompilerArgs.add),
+  and the deprecated project.buildDir became
+  project.layout.buildDirectory.get().asFile — those warnings are gone too.
+- app/build.gradle.kts: the Android Kotlin options block (the
+  -Xcontext-receivers and ExperimentalComposeUiApi opt-in flags added in
+  the glass round, plus jvmTarget 17) migrated to the project-level
+  kotlin { compilerOptions { } } DSL. No legacy usages remain anywhere in
+  the build scripts.
+
+# Round 109 (v0.5.124, code 131)
 
 ## CI fix — first real build error resolved
 The CI run failed at Gradle configuration:

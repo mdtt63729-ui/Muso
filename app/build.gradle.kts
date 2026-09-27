@@ -26,8 +26,8 @@ android {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 131
-        versionName = "0.5.124"
+        versionCode = 132
+        versionName = "0.5.125"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -82,10 +82,17 @@ android {
     kotlin {
         jvmToolchain(17)
     }
-    kotlinOptions {
-        freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers" +
-            "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi"
-        jvmTarget = "17"
+    // KGP 2.2: the legacy Android Kotlin compiler DSL is a hard error
+    // now — the project-level kotlin { compilerOptions } block replaces
+    // it (same args, same target).
+    kotlin {
+        compilerOptions {
+            freeCompilerArgs.addAll(
+                "-Xcontext-receivers",
+                "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
+            )
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true

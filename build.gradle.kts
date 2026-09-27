@@ -31,11 +31,14 @@ tasks.register<Delete>("Clean") {
 
 subprojects {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        kotlinOptions {
+        // KGP 2.2: the legacy Kotlin compiler DSL is a hard error now —
+        // migrated to the task-level compilerOptions DSL.
+        compilerOptions {
             if (project.findProperty("enableComposeCompilerReports") == "true") {
                 arrayOf("reports", "metrics").forEach {
-                    freeCompilerArgs = freeCompilerArgs + listOf(
-                        "-P", "plugin:androidx.compose.compiler.plugins.kotlin:${it}Destination=${project.buildDir.absolutePath}/compose_metrics"
+                    freeCompilerArgs.add("-P")
+                    freeCompilerArgs.add(
+                        "plugin:androidx.compose.compiler.plugins.kotlin:${it}Destination=${project.layout.buildDirectory.get().asFile.absolutePath}/compose_metrics"
                     )
                 }
             }
