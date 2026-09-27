@@ -1,6 +1,10 @@
 package com.muso.music.ui.screens
 
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -10,8 +14,12 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
+import androidx.navigation.toRoute
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
+import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDestination
+import com.maxrave.simpmusic.ui.navigation.destination.search.SearchDestination
 import com.muso.music.ui.screens.artist.ArtistItemsScreen
 import com.muso.music.ui.screens.artist.ArtistScreen
 import com.muso.music.ui.screens.artist.ArtistSongsScreen
@@ -49,9 +57,27 @@ fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
+    onOpenSearch: () -> Unit = {},
 ) {
-    composable(Screens.Home.route) {
+    // The three tab routes are SimpMusic's own type-safe destinations now —
+    // the suite navigation bar navigates with these objects.
+    composable<HomeDestination> {
         HomeScreen(navController)
+    }
+    // Muso's search is the SearchBar overlay, not a destination: this proxy
+    // opens the overlay (exactly what the old bar's Search entry did) and
+    // immediately pops itself with instant transitions.
+    composable<SearchDestination>(
+        enterTransition = { fadeIn(snap()) },
+        exitTransition = { fadeOut(snap()) },
+        popEnterTransition = { fadeIn(snap()) },
+        popExitTransition = { fadeOut(snap()) },
+    ) {
+        LaunchedEffect(Unit) {
+            onOpenSearch()
+            navController.popBackStack()
+        }
+        Box(Modifier.fillMaxSize())
     }
     composable(
         route = "auto_playlist/{playlist}",
@@ -71,7 +97,7 @@ fun NavGraphBuilder.navigationBuilder(
     composable("cached") {
         CachedScreen(navController)
     }
-    composable("library") {
+    composable<LibraryDestination> {
         LibraryScreen(navController)
     }
     composable(Screens.Songs.route) {
@@ -130,6 +156,29 @@ fun NavGraphBuilder.navigationBuilder(
         }
     ) {
         OnlineSearchResult(navController)
+    }
+    // The SimpMusic suite navigates with type-safe destination objects;
+    // these thin proxies forward into Muso's own routes.
+    composable<com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination> { entry ->
+        val channelId = entry.toRoute<com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination>().channelId
+        LaunchedEffect(channelId) {
+            navController.navigate("artist/$channelId") { launchSingleTop = true }
+            navController.popBackStack()
+        }
+    }
+    composable<com.maxrave.simpmusic.ui.navigation.destination.list.AlbumDestination> { entry ->
+        val browseId = entry.toRoute<com.maxrave.simpmusic.ui.navigation.destination.list.AlbumDestination>().browseId
+        LaunchedEffect(browseId) {
+            navController.navigate("album/$browseId") { launchSingleTop = true }
+            navController.popBackStack()
+        }
+    }
+    composable<com.maxrave.simpmusic.ui.navigation.destination.list.PlaylistDestination> { entry ->
+        val destination = entry.toRoute<com.maxrave.simpmusic.ui.navigation.destination.list.PlaylistDestination>()
+        LaunchedEffect(destination) {
+            navController.navigate("online_playlist/${destination.playlistId}") { launchSingleTop = true }
+            navController.popBackStack()
+        }
     }
     composable(
         route = "album/{albumId}",
@@ -191,8 +240,17 @@ fun NavGraphBuilder.navigationBuilder(
                 type = NavType.StringType
             }
         )
-    ) {
-        OnlinePlaylistScreen(navController, scrollBehavior)
+    ) { entry ->
+        // The SimpMusic playlist screen replaces Muso's own: hero header,
+        // action cluster, track list, in-page search and selection mode.
+        val playlistId = entry.arguments?.getString("playlistId") ?: ""
+        com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+            com.maxrave.simpmusic.ui.screen.other.PlaylistScreen(
+                playlistId = playlistId,
+                isYourYouTubePlaylist = true,
+                navController = navController,
+            )
+        }
     }
     composable(
         route = "local_playlist/{playlistId}",

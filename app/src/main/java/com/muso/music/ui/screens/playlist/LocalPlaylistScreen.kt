@@ -129,6 +129,7 @@ import com.muso.music.utils.makeTimeString
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import com.muso.music.viewmodels.LocalPlaylistViewModel
+import com.muso.music.constants.CONTENT_TYPE_SONG
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -379,7 +380,8 @@ fun LocalPlaylistScreen(
 
             itemsIndexed(
                 items = if (isSearching) filteredSongs else mutableSongs, // mutableSongs has higher response when reordering
-                key = { _, song -> song.map.id }
+                key = { _, song -> song.map.id },
+                contentType = { _, _ -> CONTENT_TYPE_SONG },
             ) { index, song ->
                 ReorderableItem(
                     state = reorderableState,

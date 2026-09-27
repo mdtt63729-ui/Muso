@@ -50,6 +50,13 @@ import java.time.LocalDateTime
 @Dao
 interface DatabaseDao {
     @Transaction
+    @Query("SELECT * FROM song WHERE id IN (:ids)")
+    fun songsByIds(ids: Array<String>): Flow<List<Song>>
+
+    @Query("UPDATE song SET liked = :liked WHERE id = :id")
+    suspend fun setLikedById(id: String, liked: Boolean)
+
+    @Transaction
     @Query("SELECT * FROM song WHERE inLibrary IS NOT NULL ORDER BY rowId")
     fun songsByRowIdAsc(): Flow<List<Song>>
 

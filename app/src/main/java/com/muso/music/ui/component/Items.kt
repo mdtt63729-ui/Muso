@@ -562,10 +562,25 @@ fun PlaylistGridItem(
             thumbnails = playlist.thumbnails,
             size = width,
             placeHolder = {
+                // SimpMusic playlist card: deterministic gradient from the title
+                // hash — same playlist, same colours, every time.
+                val gradient = com.maxrave.simpmusic.ui.component.playlistTitleGradient(playlist.playlist.name)
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.linearGradient(gradient),
+                        ),
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.08f)),
+                )
                 Icon(
                     painter = painterResource(R.drawable.queue_music),
                     contentDescription = null,
-                    tint = LocalContentColor.current.copy(alpha = 0.8f),
+                    tint = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f),
                     modifier = Modifier
                         .size(width / 2)
                         .align(Alignment.Center)

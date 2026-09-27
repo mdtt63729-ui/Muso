@@ -212,11 +212,9 @@
     <string name="settings_desc_update">Check and install new versions</string>
     <string name="player_style">Player style</string>
     <string name="player_style_desc">Pick the fullscreen player design</string>
-    <string name="player_style_classic">Muso Classic</string>
-    <string name="player_style_expressive">Material 3 Expressive</string>
+    <string name="player_style_classic">Classic</string>
+    <string name="player_style_expressive">Expressive</string>
     <string name="player_style_immersive">Immersive</string>
-    <string name="player_style_apple">Apple Music</string>
-    <string name="player_style_spotify">Spotify</string>
     <string name="animation">Animation</string>
     <string name="animations">Animations</string>
     <string name="animations_desc">Smooth fades and motion effects</string>
@@ -269,6 +267,8 @@
     <string name="theme_color_custom">Custom</string>
     <string name="liquid_glass_effect">Liquid glass effect</string>
     <string name="liquid_glass_effect_desc">Translucent glassy navigation bar and player background</string>
+    <string name="liquid_glass_nav_bar">Liquid glass navigation bar</string>
+    <string name="liquid_glass_nav_bar_desc">SimpMusic\'s floating glass bar with its own mini player; off renders the flat capsule bar</string>
     <string name="play_explicit_content">Play explicit content</string>
     <string name="play_explicit_content_desc">Allow explicit songs in search and playlists</string>
     <string name="preferred_audio_language">Preferred audio language</string>
@@ -549,4 +549,9 @@
     <string name="video_quality_1080">1080p (high)</string>
     <string name="show">Show</string>
     <string name="song_views">%1$s views</string>
+    <string name="lyrics">Lyrics</string>
+    <string name="lyrics_offset">Lyrics timing offset</string>
+    <string name="lyrics_offset_desc">Sync lyrics earlier or later to match what you hear</string>
+    <string name="open_system_equalizer">Open system equalizer</string>
+    <string name="open_system_equalizer_desc">Use the equalizer built into your phone instead</string>
 </resources>

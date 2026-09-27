@@ -12,6 +12,8 @@ val PureBlackKey = booleanPreferencesKey("pureBlack")
 val PlayerTextAlignmentKey = stringPreferencesKey("playerTextAlignment")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")
 val PlayerStyleKey = stringPreferencesKey("playerStyle")
+val LiquidGlassNavBarKey = booleanPreferencesKey("liquidGlassNavBar")
+val LyricsOffsetKey = intPreferencesKey("lyricsOffsetMs")
 val AnimationsEnabledKey = booleanPreferencesKey("animationsEnabled")
 val GestureAnimationsKey = booleanPreferencesKey("gestureAnimations")
 val ReducedMotionKey = booleanPreferencesKey("reducedMotion")
@@ -76,12 +78,16 @@ enum class AutoBackupFrequency {
     WEEKLY,
 }
 
+/**
+ * Now-playing player styles. All three render the real SimpMusic suite
+ * (ported byte-for-byte): CLASSIC is the suite's Spotify layout (and the
+ * default), EXPRESSIVE is Material 3 Expressive, IMMERSIVE is Apple Music.
+ */
 enum class PlayerStyle {
-    SPOTIFY,
+    CLASSIC,
     EXPRESSIVE,
-    APPLE,
+    IMMERSIVE,
 }
-
 /** Video quality for the in-player video stream (SimpMusic setting). */
 enum class VideoQuality {
     Q360, Q720, Q1080

@@ -129,6 +129,22 @@ fun AudioEffectsSettings(
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
 
+        // v2.2.0: let the phone's own equalizer take over instead of the built-in one.
+        val systemEqContext = androidx.compose.ui.platform.LocalContext.current
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.open_system_equalizer)) },
+            description = stringResource(R.string.open_system_equalizer_desc),
+            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            onClick = {
+                runCatching {
+                    systemEqContext.startActivity(
+                        android.content.Intent("android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL")
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            },
+        )
+
         SwitchPreference(
             title = { Text(stringResource(R.string.audio_effects)) },
             description = stringResource(R.string.audio_effects_desc),

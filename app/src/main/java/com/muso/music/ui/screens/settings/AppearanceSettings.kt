@@ -83,6 +83,7 @@ import com.muso.music.constants.ShowUploadedPlaylistKey
 import com.muso.music.constants.SliderStyle
 import com.muso.music.constants.SliderStyleKey
 import com.muso.music.constants.DynamicThemeKey
+import com.muso.music.constants.LiquidGlassNavBarKey
 import com.muso.music.constants.TranslucentNavigationBarKey
 import com.muso.music.ui.component.DefaultDialog
 import com.muso.music.ui.component.EnumListPreference
@@ -136,6 +137,7 @@ fun AppearanceSettings(
     val (dynamicTheme, onDynamicThemeChange) = rememberPreference(key = DynamicThemeKey, defaultValue = true)
     val (customThemeColor, onCustomThemeColorChange) = rememberPreference(key = CustomThemeColorKey, defaultValue = 0)
     val (translucentNavBar, onTranslucentNavBarChange) = rememberPreference(key = TranslucentNavigationBarKey, defaultValue = false)
+    val (liquidGlassNavBar, onLiquidGlassNavBarChange) = rememberPreference(key = LiquidGlassNavBarKey, defaultValue = true)
     val (highRefreshRate, onHighRefreshRateChange) = rememberPreference(key = HighRefreshRateKey, defaultValue = false)
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(key = DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
     val (gridCellSize, onGridCellSizeChange) = rememberEnumPreference(key = GridCellSizeKey, defaultValue = GridCellSize.SMALL)
@@ -332,9 +334,9 @@ fun AppearanceSettings(
             onValueSelected = onPlayerStyleChange,
             valueText = {
                 when (it) {
-                    PlayerStyle.SPOTIFY -> stringResource(R.string.player_style_spotify)
+                    PlayerStyle.CLASSIC -> stringResource(R.string.player_style_classic)
                     PlayerStyle.EXPRESSIVE -> stringResource(R.string.player_style_expressive)
-                    PlayerStyle.APPLE -> stringResource(R.string.player_style_apple)
+                    PlayerStyle.IMMERSIVE -> stringResource(R.string.player_style_immersive)
                 }
             },
         )
@@ -403,6 +405,14 @@ fun AppearanceSettings(
                     if (on) PlayerBackgroundStyle.BLURRED_ARTWORK else PlayerBackgroundStyle.DEFAULT,
                 )
             },
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.liquid_glass_nav_bar)) },
+            description = stringResource(R.string.liquid_glass_nav_bar_desc),
+            icon = { Icon(painterResource(R.drawable.tune), null) },
+            checked = liquidGlassNavBar,
+            onCheckedChange = onLiquidGlassNavBarChange,
         )
 
         SwitchPreference(

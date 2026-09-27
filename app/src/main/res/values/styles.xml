@@ -11,8 +11,11 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
-    <!-- Black window so the splash never flashes white, on any API level. -->
+    <!-- Pre-Android-12 launch window: the window background IS the splash
+         (black + static waveform logo), so the brand is on screen the moment
+         the window opens - no black pause while the process starts. Android
+         12+ overrides this in values-v31 with the system splash icon. -->
     <style name="MusoSplashTheme" parent="@style/Theme.InnerTune">
-        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowBackground">@drawable/splash_bars_window</item>
     </style>
 </resources>

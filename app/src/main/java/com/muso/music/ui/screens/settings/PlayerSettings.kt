@@ -52,6 +52,7 @@ import com.muso.music.constants.AudioOffloadKey
 import com.muso.music.constants.DownloadOnWifiOnlyKey
 import com.muso.music.constants.DataSaverKey
 import com.muso.music.constants.CrossfadeDurationKey
+import com.muso.music.constants.LyricsOffsetKey
 import com.muso.music.constants.CrossfadeEnabledKey
 import com.muso.music.constants.KeepScreenOnKey
 import com.muso.music.constants.AnimatedArtworkKey
@@ -85,6 +86,7 @@ fun PlayerSettings(
     val (stopMusicOnTaskClear, onStopMusicOnTaskClearChange) = rememberPreference(StopMusicOnTaskClearKey, defaultValue = false)
     val (crossfadeEnabled, onCrossfadeEnabledChange) = rememberPreference(CrossfadeEnabledKey, defaultValue = false)
     val (crossfadeDuration, onCrossfadeDurationChange) = rememberPreference(CrossfadeDurationKey, defaultValue = 4)
+    val (lyricsOffset, onLyricsOffsetChange) = rememberPreference(LyricsOffsetKey, defaultValue = 0)
     val (playerTextAlignment, onPlayerTextAlignmentChange) = rememberEnumPreference(PlayerTextAlignmentKey, defaultValue = PlayerTextAlignment.CENTER)
     val (animationsEnabled, onAnimationsEnabledChange) = rememberPreference(AnimationsEnabledKey, defaultValue = true)
     val (gestureAnimations, onGestureAnimationsChange) = rememberPreference(GestureAnimationsKey, defaultValue = true)
@@ -340,6 +342,28 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.discover_tune), null) },
             checked = reducedMotion,
             onCheckedChange = onReducedMotionChange
+        )
+
+        PreferenceGroupTitle(title = stringResource(R.string.lyrics))
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.lyrics_offset)) },
+            description = stringResource(R.string.lyrics_offset_desc) +
+                "  (" + (if (lyricsOffset > 0) "+" else "") + "${lyricsOffset}ms)",
+            icon = { Icon(painterResource(R.drawable.mic), null) },
+            content = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Slider(
+                        value = lyricsOffset.toFloat(),
+                        onValueChange = { onLyricsOffsetChange(it.toInt()) },
+                        valueRange = -5000f..5000f,
+                        steps = 99,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
         )
 
         PreferenceGroupTitle(title = stringResource(R.string.crossfade))

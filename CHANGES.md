@@ -1,3 +1,451 @@
+## Round 108 (v0.5.123, code 130)
+
+## What's new — iOS-style page transitions + 120Hz smoothness work
+(Transitions & performance PRD — phases 2/3 core + phase-1 playlist fixes.)
+
+- **NavigationTransitions.kt (new, Muso layer):** the full iOS push/pop
+  engine — push 420ms / pop 400ms, CubicBezierEasing(0.25, 0.1, 0.25, 1)
+  (iOS's exact curve), incoming page slides from 100% width, outgoing page
+  parks at -30% parallax with a dim, zero spring/overshoot. Back is the
+  exact mirror. Motion runs entirely through graphicsLayer-backed
+  transition modifiers (slide/fade/scale) — render thread, no per-frame
+  recomposition, no layout invalidation.
+- **Two looks, one engine:** Liquid Glass ON = the incoming page floats in
+  like a translucent plate over the barely-dimmed page behind (lighter
+  fade + 0.86 dim). OFF = same timing and easing, stronger 0.72 dim and
+  the outgoing page settles to a 0.96 scale. No feature is lost with glass
+  off — only the look changes. Blur is deliberately never animated per
+  frame (the PRD's #1 jank rule), so no RuntimeShader churn during
+  navigation.
+- **Top-level tab switch** (Home <-> Library) no longer slides: a 150ms
+  crossfade with a touch of scale, iOS tab-switch style. Detail pages
+  (playlist, album, artist, settings, search results) keep the slide.
+- **Predictive back:** already wired — enableOnBackInvokedCallback was
+  already set in the manifest, so Android 14+ edge-swipe drag tracks the
+  finger with the same motion via navigation-compose's built-in support.
+- **Playlist lag fixes (PRD phase 1):** Muso's own playlist screens
+  already had LazyColumn keys; LocalPlaylistScreen's reorderable track
+  list now also carries contentType so rows don't re-inflate while
+  scrolling. Image pipeline already had memory/disk cache, hardware
+  bitmaps and the HqThumbnailInterceptor — verified, unchanged. The
+  gradient-placeholder playlist cards stay a cheap plain Box (no
+  SubcomposeLayout).
+- Old "Echo-style" EmphasizedEasing it/8 transitions on the NavHost were
+  replaced by the engine above; the search result page keeps its own
+  fine-tuned fade/slide overrides, and the Search tab proxy keeps its
+  instant cut.
+
+# Round 107 (v0.5.122, code 129)
+
+## What's new — Settings Screen Integration (settings PRD)
+Every delivered SimpMusic feature now has its setting in the right category,
+with the right control and perfect (instant, no-restart) wiring:
+
+- **User interface (Appearance):** Now playing style (Classic / Expressive /
+  Immersive) — already there; NEW **Lyrics style** selector (Classic / Apple
+  Music, "Android 12+" note on the Apple option — below 12 it safely falls
+  back to Classic, same as upstream's blur gating) — mirrors live into the
+  suite renderer through the DataStoreManager shim, so the running player's
+  lyrics restyle on the very next composition. Liquid glass switch — already
+  there (drives nav bar, MiniPlayer and every glass button through one
+  composition local).
+- **Lyrics (Player & audio):** the timing-offset slider from the v2.2.0
+  round, plus the new style selector's sibling in the player settings.
+- **Audio:** "Open system equalizer" row — already there.
+- The suite player's own More-sheet keeps its in-player settings (endless
+  queue, crossfade, playback speed/pitch) writing straight into the shim,
+  exactly SimpMusic's pattern.
+- Not carried over on purpose (PRD §5): MiniPlayer style (removed upstream
+  in v2.2.0), word-by-word/landscape lyrics toggles (automatic with the
+  lyrics style), playlist card gradient and the morphing loader (design
+  system, not user options), lyrics prefetch/cache (invisible optimization),
+  QR desktop sign-in and preferred audio language (Muso's own login/stream
+  pipeline).
+
+# Round 106 (v0.5.121, code 128)
+
+## What's new — lyrics-and-cards package
+- **Playlist card design (SimpMusic):** ported PlaylistThumbnail.kt (the
+  title-hash gradient system) and FiveImagesComponent.kt (the 1+4 collage).
+  Muso's playlist grid cards (library grid + home shelves) now fall back to
+  the deterministic title gradient + subtle darken when a playlist has no
+  thumbnail — same playlist, same colours, every time, exactly like
+  SimpMusic's cards.
+- **Lyrics engine hardened to the PRD's "resume at current line" rule:** the
+  current-line index is now computed from playback position PLUS the user's
+  lyrics timing offset, and honours any synced lyric type (not just
+  line-synced). Toggling the lyrics button off and on (or opening fullscreen
+  lyrics) lands on the line that is singing right now — the tracking runs in
+  the background regardless of visibility.
+- Verified the rest of the package was already aboard: the full lyrics UI
+  stack (LyricsView word-by-word, fullscreen landscape, share card, vote
+  dialog, translation), the Room-backed lyrics cache through Muso's own
+  lyrics table, the morphing M3 CenterLoadingBox loader, and the settings
+  slider — all byte-identical from earlier packages off the same v2.2.0
+  commit.
+
+# Round 105 (v0.5.120, code 127)
+
+## What's new — SimpMusic v2.2.0 update applied
+- **Verified & refreshed the full v2.2.0 file set.** All the earlier packages
+  (player, navbar, playlist UI, liquid glass) were cut from the same v2.2.0
+  commit, so the core systems — word-by-word lyrics rendering, fullscreen
+  lyrics, the new MiniPlayer default, Compose-drawn playback indicators, the
+  navbar search-tab keyboard fix — were already aboard; this round re-ports
+  them cleanly from the official update package so everything is guaranteed
+  v2.2.0 state (LyricsView, FullscreenLyricsContent, all three player content
+  styles, AppleMusicQueueView, ExpressiveTransportRow, MiniPlayer,
+  PlaybackIndicators, DescriptionView, FullWidthItems, ModalBottomSheet,
+  PlaylistScreen, Scrollbar, ComposeResUtils, icons).
+- **Lyrics timing offset (new feature):** Player & audio settings now has a
+  Lyrics group with a -5s..+5s (100ms step) slider. The value flows into the
+  suite player live, so synced lyrics shift to match what your ears hear —
+  the seek bar and time readouts stay untouched, exactly like upstream.
+- **System equalizer (new feature):** Audio effects settings gained an "Open
+  system equalizer" row that launches the phone's built-in EQ instead of
+  Muso's own.
+- **26 new languages for the suite UI:** the full SimpMusic translation set
+  (Arabic, Azerbaijani, Bulgarian, Catalan, German, Spanish, Persian, French,
+  Hindi, Croatian, Indonesian, Italian, Hebrew, Japanese, Korean, Polish,
+  Portuguese, Russian, Swedish, Thai, Turkish, Ukrainian, Vietnamese, Chinese
+  simplified/traditional) now ships as translated simp_strings resources —
+  the suite screens (player, playlist, navbar, sheets) follow the app
+  language.
+
+## Skipped (not applicable to Muso)
+- QR login sync and unofficial-build blocking — SimpMusic's own account /
+  anti-repackage systems; Muso keeps its own login and builds.
+- Core media3 service rewrites, Room schema v26, scraper/audio-language
+  selection — Muso plays through its own service, database and Innertube
+  pipeline; the suite rides on top.
+- Suite Browse/Artist/Settings screens — Muso's own home, artist and
+  settings screens serve those routes.
+
+# Round 104 (v0.5.119, code 126)
+
+## What's new
+- **The real liquid glass engine is in.** The hand-written Kyant stubs are gone,
+  replaced by the actual `io.github.kyant0:backdrop:2.0.1` (+ `shapes:1.2.1`)
+  library — AGSL RuntimeShader refraction on Android. With the glass setting
+  on, the floating navigation bar, its glass MiniPlayer, the playlist screen's
+  top-bar buttons and the player's Apple-Music-style buttons now get the full
+  SimpMusic recipe: vibrancy saturation boost, luminance-driven blur
+  (2-16dp), the 24dp lens refraction at the edges, and the separate
+  onDrawSurface darkening.
+- **Hosting follows the upstream pattern exactly:** MainActivity now creates
+  the shared backdrop (white base on light theme, black on dark), marks the
+  NavHost content layer with `layerBackdrop`, and the bar + MiniPlayer stay
+  siblings of that layer — the render-feedback crash rule from the PRD is
+  respected. `LocalLiquidGlassEnabled` is provided from the existing Liquid
+  glass navigation bar setting, so every glass surface (including detail
+  screens) honors the toggle while keeping its shape and hit target.
+- Luminance adaptation: the bar samples the content behind it every second
+  and tweens blur + darkening over 500ms, so the glass re-lights as artwork
+  changes. Press interaction (scale-up + pointer-following glow, spring
+  return) now actually renders.
+- Setting OFF still falls back to the same flat `surfaceContainerHighest @
+  80%` pill with unchanged layout.
+
+## Technical
+- `expect/ui/LiquidGlass.kt` replaced by the upstream 78-line common-code
+  version (PlatformBackdrop = typealias LayerBackdrop, layerBackdrop wrapper,
+  rememberBackdrop, drawBackdropCustomShape with the exact effect stack).
+- Engine layer 2 (`LiquidGlassContainer.kt`, 421 lines) and Theme were
+  already byte-identical; MiniPlayer/TabBar/AppBottomNavigationBar only
+  differed by our resource conversions, so they were kept.
+- Added `-opt-in=androidx.compose.ui.ExperimentalComposeUiApi` for the
+  GraphicsLayer APIs the engine uses.
+
+# Round 103 (v0.5.118, code 125)
+
+## What's new
+- **The real SimpMusic Playlist screen (PRD playlist package).** Tapping any
+  online playlist card now opens the suite's own playlist detail screen:
+  full-bleed hero artwork with palette-driven immersive gradient, title block
+  with author/metadata, the centered 48dp Shuffle-Play pill-Download cluster,
+  expandable description, and the square-thumbnail track rows with three-dot
+  menus and a now-playing indicator.
+- **In-page search**: the top-bar search button morphs into a search field
+  (SearchBarTransition) and filters the track list live.
+- **Selection mode**: long-press a track to enter selection with the animated
+  top bar and "n selected" count; the selection sheet can play next, add to
+  queue, download, like, add to a Muso playlist or remove from it.
+- **Download** on the playlist works end-to-end: per-track progress states
+  flow from Muso's download manager, and the button crossfades
+  normal -> downloading -> downloaded.
+- **Tapping a track starts the queue from that track** (or shuffled), backed
+  by the suite's QueueData pipeline; Play Next / Add to Queue from the sheets
+  route into Muso's player too. The suite's glass MiniPlayer and the player
+  follow along.
+- Start Radio builds a radio queue via YouTube.next; "save to local playlist"
+  creates a real Muso playlist with all tracks.
+
+## Technical
+- Ported PlaylistScreen (1,388 lines), PlaylistViewModel, SongSelectionViewModel,
+  BaseViewModel, the selection components, SearchBarTransition,
+  PlaybackIndicators, SurfaceDarkColors, LoadingDialog, ImageCropperDialog and
+  the Config object - byte-for-byte apart from resource references.
+- MediaPlayerHandler became a functional adapter: the playlist ViewModels call
+  setQueueData/loadMediaItem/shufflePlaylist/playNext/loadMoreCatalog on it,
+  and MusoSuiteBridge executes those commands against Muso's PlayerConnection
+  (SuiteTrackQueue serves the loaded track list as a Muso queue). The bridge
+  also feeds the handler's nowPlaying/control state now.
+- New Muso adapters registered in Koin: MusoPlaylistRepository (Innertube
+  fetch + in-memory live playlist store), MusoSongRepository (Room-backed
+  reads, playlist continuation via Innertube), MusoDownloadHandler
+  (ExoDownloadService + DownloadUtil progress), MusoLocalPlaylistRepository
+  (Room playlists with a Long<->UUID id bridge). They reach Muso's Hilt
+  singletons through a SuiteEntryPoint.
+- DatabaseDao gained songsByIds()/setLikedById(); SharedViewModel gained
+  getQueueDataState() and a working addListToQueue; online_playlist now hosts
+  the suite screen, with type-safe Artist/Album/Playlist destination proxies
+  forwarding into Muso's routes. Fixed a duplicated RepeatState declaration
+  that would have broken compilation. Added koin-compose-viewmodel.
+
+# Round 102 (v0.5.117, code 124)
+
+## What's new
+- **The real SimpMusic floating navigation bar (PRD section 12).** Muso's old
+  hand-built bottom NavigationBar is removed entirely; the suite's own bar
+  renders in its place - a floating capsule of tabs plus a separate round
+  Search button, exactly the geometry SimpMusic ships (96/64/56dp, 12dp gap).
+- **Liquid glass variant (default ON)**: LiquidGlassAppBottomNavigationBar
+  with the frosted capsule, the sliding frosted-blob tab indicator, the glass
+  Search FAB, and the suite's own glass MiniPlayer riding above the bar (with
+  progress ring, play/pause, like, swipe-to-change-track and drag-down
+  dismiss). The bar collapses to a single glass pill while content is
+  scrolled and expands back at the top.
+- **Flat variant** (new setting "Liquid glass navigation bar" OFF): the same
+  capsule-and-FAB form drawn flat, with Muso's own mini player kept.
+- Tabs: Home, Library, plus Search in its round button. Tapping the selected
+  tab again reloads that screen (scroll-to-top), and switching tabs restores
+  each tab's saved scroll state. Search opens Muso's search overlay exactly
+  like the old bar's Search entry did.
+- Added the suite's full destination set (Home/Search/Library/Analytics/Mix/
+  login/list), the simp_mono rail logo, and the suite MiniPlayer, all ported
+  byte-for-byte with only resource-reference adaptation.
+
+## Technical
+- The tab routes in the nav graph are now SimpMusic's type-safe @Serializable
+  destinations (HomeDestination / LibraryDestination); a SearchDestination
+  proxy opens the search overlay and pops itself with instant transitions.
+- MusoSuiteBridge (new, in MusoSuiteHost.kt) keeps the suite's
+  SharedViewModel shim fed with live state - nowPlayingState (mapped to the
+  domain SongEntity/GenericMediaItem), controllerState, a 250ms timeline
+  poll - and routes its UIEvents back into Muso's player; stopPlayer() stops
+  and clears Muso's queue. The shim gained getEnableLiquidGlass() backed by
+  the DataStoreManager stub.
+- Koin: SharedViewModel now receives the DataStoreManager. The kyant backdrop
+  stub was split into its real package layout (com.kyant.backdrop.effects /
+  .highlight / .shadow) with the full drawBackdrop signature the tab bar uses
+  (shadow, innerShadow, layerBlock, Highlight.copy). A duplicate SuiteRes
+  declaration was removed. Added androidx.constraintlayout:compose.
+- MainActivity: removed the old NavigationBar/NavigationBarItem block and
+  navigationItems/topLevelScreens; every route check now uses hasRoute();
+  BottomSheetPlayer hides its collapsed mini player while the glass bar's own
+  MiniPlayer is showing.
+
+# Round 101 (v0.5.116, code 123)
+
+## What's new
+- **The SimpMusic suite is now the only player.** Muso's hand-built native
+  players (the old Spotify, Apple Music and Material 3 Expressive layouts,
+  including the canvas video player) were removed entirely - about 2,500
+  lines. Every player style now renders the real, byte-for-byte SimpMusic
+  suite.
+- **The three styles were renamed** to drop the "SimpMusic" prefix:
+  - **Classic** (default) - the suite's Spotify layout
+  - **Expressive** - the suite's Material 3 Expressive layout
+  - **Immersive** - the suite's Apple Music layout
+- Existing installs migrate automatically: a stored style that no longer
+  exists (including the old SIMPMUSIC* values) falls back to Classic.
+
+## Technical
+- Player.kt was rewritten as a slim shell (~320 lines): mini-player,
+  background, codec readout, keep-screen-on, the suite host and the info /
+  add-to-playlist dialogs - the latter previously never rendered in suite
+  mode because they lived only inside the removed native layouts.
+- Deleted: SimpExpressivePlayer.kt (SongInfoDialog moved into Player.kt),
+  PlayerVideo.kt, Thumbnail.kt, PlaybackError.kt.
+- PlayerStyle enum reduced to CLASSIC / EXPRESSIVE / IMMERSIVE; stored
+  preference values are enum names, so the migration is a plain fallback to
+  the CLASSIC default.
+
+# Round 100 (v0.5.115, code 122)
+
+## What's new
+- **All three SimpMusic player styles are now individually selectable.** The
+  Now Playing Style setting gained two new entries, "SimpMusic Apple Music"
+  and "SimpMusic Spotify", next to the existing "SimpMusic" (renamed
+  "SimpMusic Expressive"). Each renders the suite's own byte-for-byte layout —
+  NowPlayingContentAppleMusic, NowPlayingContentSpotify or
+  NowPlayingContentM3Expressive — through the same MusoSuiteHost adapter,
+  with the live lyrics and artwork-palette feeds from Round 99.
+- Fixed a latent compile error: the native controlsContent switch in
+  Player.kt was not exhaustive once the suite styles exist; the suite
+  entries now (unreachable) map to the classic controls.
+
+## Technical
+- PlayerStyle enum: added SIMPMUSIC_APPLE and SIMPMUSIC_SPOTIFY plus a
+  suiteStyles companion set; both the video-disable guard and the suite
+  routing in Player.kt now use it. The stored preference string is
+  unchanged, so existing installs keep their current style.
+
+# Round 99 — v0.5.114 (121)
+PHASE 2 OF THE SIMPMUSIC SUITE — lyrics and live palette colors:
+- LYRICS IN THE SUITE: Muso's stored lyrics (LRC or plain text) are parsed
+  into SimpMusic's Lyrics model and fed through NowPlayingScreenData, so the
+  Apple Music style's Lyrics tab and the Spotify lyrics view now render Muso's
+  own lyrics - synced (line highlight follows playback via the timeline flow)
+  and unsynced alike. Tapping a line seeks to that timestamp. Provider is
+  reported as LRCLIB (Muso's primary source); translations and the
+  community-vote dialog stay Phase 3.
+- LIVE PALETTE: the Apple Music / M3 Expressive gradient wash now derives its
+  dominant color from the current artwork (kmpalette over the Coil3-loaded
+  bitmap, animated 800ms) instead of the static brand green. The Spotify style
+  already generated its palette internally and is unchanged.
+- FIX: UIEvent.UpdateProgress arrives as a 0..100 percent (lyrics line clicks
+  and description timestamps), not a 0..1 fraction - lyric taps now seek to the
+  right position instead of the end of the track.
+- LyricsView's injected LyricsRomanizerRepository is provided as a no-op
+  (original lines render unchanged), registered through Koin alongside the
+  other suite collaborators.
+- PRE-CI HARDENING: resolved every external library the suite's ported files
+  reference but Muso does not ship. Kermit logging -> android.util.Log; the
+  CMPToast API -> a platform-Toast shim under the same package; the Google
+  Cast button -> a no-op (Muso has no cast; all cast UI auto-hides); the Kyant
+  liquid-glass backdrop -> an API-compatible shim that draws the glass panels'
+  surface tints without the blur/refraction sampling; the unused haze blur
+  helper, desktop MPV player module, YouTube link parser, generic intents,
+  import repository and BaseViewModel were deleted. Added dependencies:
+  lifecycle-runtime-compose, kotlinx-datetime, androidx.paging (common),
+  kotlinx-serialization (with the plugin applied to :app). Restored the
+  MediaService handler type declarations (ControlState, QueueData,
+  SleepTimerState, NowPlayingTrackState...) that a bad extraction had dropped,
+  trimmed LocalPlaylistRepository to the call surface the sheets use and
+  registered a no-op implementation in Koin.
+
+## Round 98 — v0.5.113 (120)
+STARTUP BLACK FIXED FOR PRE-ANDROID-12 DEVICES — from the 07:23 recording:
+the app opened to ~1s of black before the splash on devices below API 31,
+because R95's instant logo used the Android 12+ system splash, which doesn't
+exist on older Androids. Now every Android version opens straight into the
+brand:
+- The pre-31 launch window's background IS the logo: a layer-list (black +
+  static waveform) sized per smallest-width bucket (drawable-sw400dp/440/480
+  plus the base) so the logo sits on screen milliseconds after the tap, while
+  the process starts underneath - no black pause at any API level.
+- The Compose splash starts pre-revealed below API 31 (initialT = T_REVEAL_END):
+  its first frame draws the bars at full alpha, matching the window logo, so
+  the window -> Compose handoff is seamless and the logo never blinks off;
+  the wave/pulse animation continues from there exactly as before.
+- Android 12+ behavior is unchanged (system splash icon + full materialize).
+
+## Round 97 — v0.5.112 (119)
+THE REAL SIMPMUSIC PLAYER SUITE, INTEGRATED — the actual SimpMusic Now Playing UI
+(maxrave-dev/SimpMusic, GPL-3.0), ported byte-for-byte per the integration PRD:
+- A fourth player style option in Settings > Appearance: "SimpMusic (exact port)"
+  (PlayerStyle.SIMPMUSIC). The other three styles are untouched.
+- The three SimpMusic Now Playing screens render unmodified: Spotify, Apple
+  Music, and M3 Expressive — artwork pager, gradient washes, controls, seek
+  slider, queue swipe, canvas video frame, all animations at full fidelity.
+- MusoSuiteHost.kt is the adapter: it feeds NowPlayingContentState from Muso's
+  PlayerConnection (queue, metadata, timeline, like status, canvas video URL)
+  and routes every NowPlayingContentActions callback back to the player
+  (play/pause, next/prev, seek, shuffle/repeat, like, queue reorder/remove,
+  slider, artist navigation, info/add-to-playlist/song-menu sheets).
+- Stack bumped to the PRD's pinned versions: Kotlin 2.2.20, KSP 2.2.20-2.0.2,
+  Compose 1.9.4 / material3 1.5.0-alpha22, media3 1.11.1, Room 2.8.5,
+  Hilt 2.56.2, AGP 8.9.1, Gradle 8.11.1, compileSdk 36; added Koin (4.2.2),
+  Coil3 (3.6.3), kmpalette (3.1.0), materialkolor (5.0.1).
+- Suite platform layer: SimpMusic's Android actuals for expect/ui (video view,
+  device volume, scrollbar, photo picker, etc.), 905 prefixed string resources
+  (simp_*), placeholder drawables, Poppins Medium font.
+- Shim layer (Phase 1, documented in-file): SharedViewModel,
+  NowPlayingBottomSheetViewModel, MediaPlayerHandler, DataStoreManager provide
+  neutral defaults; sheets/dialogs that read them render but act as no-ops.
+- Known Phase-1 limits (next round): in-player lyrics (LyricsData mapping from
+  Muso's LRC), playlist-add/sleep-timer actions in the suite sheets, dynamic
+  artwork palette colors, and cast/vote UIs.
+
+## Round 96 (v0.5.111): canvas-video overlay look fixed Apple-Music style, video availability
+
+- **CONTROLS OVER THE VIDEO (the overlay complaint):** SimpMusic's exact canvas
+  scrims now ride the UI fade - the top 22% of the screen falls from black
+  0.55 to clear, the bottom 60% darkens in graded steps to 0.97 black. The
+  title, slider, transport and dock sit on that proper dark band, exactly like
+  Apple Music in SimpMusic - no more buttons floating raw over the busy video.
+  (The old weak controls-block scrim is replaced by this screen-wide pair.)
+- **AUTO-HIDE 5s:** the canvas-mode UI now hides 5 seconds after the last
+  touch (SimpMusic's timing), leaving the clean video + the idle overlay.
+- **SOME VIDEOS NEVER PLAYED:** the strict quality rule was too strict in one
+  spot - many songs only offer a MUXED (video+audio) stream at a perfectly
+  good quality, which were all rejected. The bar itself stays absolute (at
+  least the set video quality or no video at all), but a muxed stream AT/ABOVE
+  the bar now plays as fallback when no video-only adaptive stream qualifies.
+
+**Version:** 0.5.111 (versionCode 118); release tag v0.5.111, APK Muso_v0.5.111_v118.apk.
+
+## Round 95 (v0.5.110): splash black-gap + handoff lag, lyrics fetching, All-search fix
+
+- **SPLASH, THE BLACK PAUSE AT OPEN:** the Android 12+ launch window now shows
+  the static waveform logo - the SYSTEM draws it within milliseconds of the
+  tap, so the app opens straight into the logo instead of a black pause, and
+  the live waveform animation (which now starts on its very first frames)
+  takes over seamlessly. The overlay is opaque from frame one.
+- **SPLASH-OUT TO HOME-IN LAG:** the exit fade now WAITS for the home screen -
+  the splash holds its settled frame while the heavy startup composition runs,
+  and only fades once the main UI has actually rendered two frames beneath
+  it. The dead black gap between the two animations is gone.
+- **LYRICS NOT LOADING:** fixed. The fetch was gated on the persisted
+  show-lyrics preference, which the per-session lyrics change had orphaned -
+  lyrics are now fetched and cached for every song regardless.
+- **SEARCH - ALL TAB EMPTY:** YouTube flattened the All-search response (no
+  more shelf sections - a top-result card plus a flat run of single-item
+  rows). The parser now reads the flat rows and regroups them by type, so the
+  All tab shows titled Songs / Videos / Albums / Artists sections again. The
+  filtered tabs (which return shelves) were already fine.
+
+**Version:** 0.5.110 (versionCode 117); release tag v0.5.110, APK Muso_v0.5.110_v117.apk.
+
+## Round 94 (v0.5.109): canvas video - HIGH QUALITY OR NOTHING
+
+The canvas video now accepts ONLY a video-only adaptive stream at least as
+tall as the video-quality setting (the smallest one that meets the bar, so a
+720p setting does not stream 1080p data for a background loop). When nothing
+that good exists the video simply never comes - no low-quality stream, no
+muxed fallback - the thumbnail stays. The playback itself is unchanged: the
+SimpMusic recording's way - fullscreen edge-to-edge behind the player, the
+7-10s seamless highlight loop, and the Apple idle overlay.
+
+**Version:** 0.5.109 (versionCode 116); release tag v0.5.109, APK Muso_v0.5.109_v116.apk.
+
+## Round 93 (v0.5.108): canvas video done right - per-song URL, quality, lag, taps, Apple idle overlay
+
+- **THE PREVIOUS SONG'S VIDEO**: the canvas URL was only published by the
+  audio resolver - which is SKIPPED for downloaded/cached songs, so the canvas
+  kept playing whatever came before. The video now resolves on its own scope
+  for EVERY song (independent of the audio path), and the URL is cleared the
+  moment the song changes, so a stale video can never bleed through.
+- **LOW QUALITY**: the "closest to target" tie-break could land on a tiny
+  240/360p stream. The tallest video-only stream within the video-quality
+  setting now wins, with the best muxed stream as the fallback.
+- **THE APP-WIDE LAG**: the canvas kept decoding full-res video behind the
+  collapsed sheet (mini player). It now pauses whenever the player is not
+  expanded - the mini player never decodes video in the background.
+- **TAP SHOW/HIDE (rebuilt)**: a tap on any empty spot now toggles the whole
+  UI through one parent handler on the player itself - buttons consume their
+  own taps, drags stay with the slider/pager/sheet. While hidden, the catcher
+  above everything takes the first tap to bring it all back.
+- **LYRICS AUTO-ON**: show-lyrics is no longer a persisted preference - it is
+  a per-session choice that starts OFF every time.
+- **APPLE IDLE OVERLAY (from the SimpMusic recording)**: while the controls
+  hide over the video, the SimpMusic cluster stays - the current lyric line,
+  the 55dp artwork with compact title/artist, and the favourite + more
+  buttons - fading in/out with the controls.
+
+**Version:** 0.5.108 (versionCode 115); release tag v0.5.108, APK Muso_v0.5.108_v115.apk.
+
 ## Round 92 (v0.5.107): CI fix - Kotlin errors that hid behind the KSP failure
 
 The 0.5.105 build died at KSP before Kotlin ever compiled, so a batch of

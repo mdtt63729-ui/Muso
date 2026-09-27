@@ -1,6 +1,9 @@
 package com.muso.music
 
 import android.app.Application
+import org.koin.core.context.startKoin
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
 import android.os.Build
 import android.widget.Toast
 import android.widget.Toast.LENGTH_SHORT
@@ -51,6 +54,39 @@ class App : Application(), ImageLoaderFactory {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        // The SimpMusic player suite resolves its few injected collaborators
+        // (tab memory, sheet state, the queue-view handler) through Koin.
+        startKoin {
+            modules(
+                module {
+                // Muso's Hilt-managed singletons, exposed to the suite's Koin modules.
+                val suiteEntryPoint = dagger.hilt.EntryPointAccessors.fromApplication(
+                    this@App,
+                    com.muso.music.suite.SuiteEntryPoint::class.java,
+                )
+                single { suiteEntryPoint.database() }
+                single { suiteEntryPoint.downloadUtil() }
+                single { com.muso.music.suite.MusoPlaylistRepository() }
+                single<com.maxrave.domain.repository.SongRepository> { com.muso.music.suite.MusoSongRepository(get()) }
+                single<com.maxrave.domain.mediaservice.handler.DownloadHandler> {
+                    com.muso.music.suite.MusoDownloadHandler(this@App, get())
+                }
+                single<com.maxrave.domain.repository.LocalPlaylistRepository> {
+                    com.muso.music.suite.MusoLocalPlaylistRepository(get())
+                }
+                single<com.maxrave.domain.repository.LyricsRomanizerRepository> {
+                    com.maxrave.domain.repository.NoopLyricsRomanizerRepository()
+                }
+                    single { com.maxrave.simpmusic.viewModel.SharedViewModel(get(), get()) }
+                    single { com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel() }
+                    single { com.maxrave.domain.mediaservice.handler.MediaPlayerHandler() }
+                    single { com.maxrave.domain.manager.DataStoreManager() }
+                viewModel { com.maxrave.simpmusic.viewModel.PlaylistViewModel(get(), get(), get()) }
+                viewModel { com.maxrave.simpmusic.viewModel.SongSelectionViewModel(get(), get()) }
+                }
+            )
+        }
+        com.maxrave.simpmusic.ui.component.SuiteRes.context = this
 
         // Crash log capture: writes the stack trace of any uncaught crash to
         // files/crash.log so the next start can show it in-app without adb -

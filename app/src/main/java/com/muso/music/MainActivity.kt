@@ -1,5 +1,17 @@
 package com.muso.music
 
+import com.muso.music.ui.player.MusoNavbarHost
+import com.muso.music.constants.LiquidGlassNavBarKey
+import com.maxrave.simpmusic.ui.navigation.destination.search.SearchDestination
+import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDestination
+import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
+import com.maxrave.simpmusic.expect.ui.rememberBackdrop
+import com.maxrave.simpmusic.expect.ui.layerBackdrop
+import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
+import androidx.compose.ui.graphics.luminance
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination
+import androidx.compose.runtime.derivedStateOf
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
@@ -62,7 +74,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
@@ -161,6 +172,10 @@ import com.muso.music.ui.screens.MusoSplash
 import com.muso.music.constants.HighRefreshRateKey
 import com.muso.music.ui.screens.Screens
 import com.muso.music.ui.screens.splashAlreadyShown
+import com.muso.music.ui.navigation.iosEnter
+import com.muso.music.ui.navigation.iosExit
+import com.muso.music.ui.navigation.iosPopEnter
+import com.muso.music.ui.navigation.iosPopExit
 import com.muso.music.ui.screens.navigationBuilder
 import com.muso.music.ui.screens.search.LocalSearchScreen
 import com.muso.music.ui.screens.search.OnlineSearchScreen
@@ -364,9 +379,10 @@ class MainActivity : ComponentActivity() {
             // of the entire launch, and the animation only gets frames when the main
             // thread is free.
             var composeMainUi by remember { mutableStateOf(!showSplash) }
-            // The splash holds its (fully faded) final frame until the main UI has
-            // actually rendered, so the handoff never flashes black.
+            // The splash holds its settled frame until the main UI has
+            // actually RENDERED, so the handoff never flashes black.
             var splashAnimationDone by remember { mutableStateOf(false) }
+            var mainUiRendered by remember { mutableStateOf(!showSplash) }
 
             // Android 13+ requires asking before ANY notification can appear -
             // needed both for the music notification and the update notification.
@@ -388,6 +404,13 @@ class MainActivity : ComponentActivity() {
             }
 
             if (composeMainUi) {
+                // First-frame reporter: the splash's exit fade waits for this,
+                // so home is genuinely on screen before the splash lets go.
+                LaunchedEffect(Unit) {
+                    withFrameNanos { }
+                    withFrameNanos { }
+                    mainUiRendered = true
+                }
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
             val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
@@ -446,7 +469,6 @@ class MainActivity : ComponentActivity() {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val inSelectMode = navBackStackEntry?.savedStateHandle?.getStateFlow("inSelectMode", false)?.collectAsState()
 
-                    val navigationItems = remember { Screens.MainScreens }
                     val defaultOpenTab = remember {
                         dataStore[DefaultOpenTabKey].toEnum(defaultValue = NavigationTab.HOME)
                     }
@@ -456,11 +478,6 @@ class MainActivity : ComponentActivity() {
                             else -> null
                         }
                     }
-                    val topLevelScreens = listOf(
-                        Screens.Home.route,
-                        Screens.Library.route,
-                        "settings"
-                    )
 
                     val (query, onQueryChange) = rememberSaveable(stateSaver = TextFieldValue.Saver) {
                         mutableStateOf(TextFieldValue())
@@ -472,7 +489,7 @@ class MainActivity : ComponentActivity() {
                         active = newActive
                         if (!newActive) {
                             focusManager.clearFocus()
-                            if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
+                            if (isTopLevelTab(navBackStackEntry?.destination)) {
                                 onQueryChange(TextFieldValue())
                             }
                         }
@@ -499,7 +516,7 @@ class MainActivity : ComponentActivity() {
 
                     val shouldShowSearchBar = remember(active, navBackStackEntry, inSelectMode?.value) {
                         (active ||
-                                navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
+                                isTopLevelTab(navBackStackEntry?.destination) ||
                                 navBackStackEntry?.destination?.route?.startsWith("search/") == true) &&
                                 inSelectMode?.value != true
                     }
@@ -507,11 +524,11 @@ class MainActivity : ComponentActivity() {
                     // SimpMusic-style home: no search bar on the home tab - a header with the
                     // app name takes its place, keeping the small history + settings buttons.
                     val onHomeTop = remember(navBackStackEntry, active) {
-                        !active && navBackStackEntry?.destination?.route == Screens.Home.route
+                        !active && navBackStackEntry?.destination?.hasRoute(HomeDestination::class) == true
                     }
                     val shouldShowNavigationBar = remember(navBackStackEntry, active) {
                         navBackStackEntry?.destination?.route == null ||
-                                navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } && !active
+                                isTopLevelTab(navBackStackEntry?.destination) && !active
                     }
                     val navigationBarHeight by animateDpAsState(
                         targetValue = if (shouldShowNavigationBar) NavigationBarHeight else 0.dp,
@@ -520,6 +537,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     val (translucentNavBar, onTranslucentNavBarChange) = rememberPreference(TranslucentNavigationBarKey, defaultValue = false)
+                    val liquidGlassNavBar by rememberPreference(LiquidGlassNavBarKey, defaultValue = true)
 
                     val playerBottomSheetState = rememberBottomSheetState(
                         dismissedBound = 0.dp,
@@ -550,6 +568,10 @@ class MainActivity : ComponentActivity() {
                                     (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed)
                         }
                     )
+                    // The suite glass bar collapses while content is scrolled away from the top.
+                    val isScrolledToTop by remember {
+                        derivedStateOf { searchBarScrollBehavior.state.overlappedFraction == 0f }
+                    }
 
                     LaunchedEffect(navBackStackEntry) {
                         if (navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
@@ -557,7 +579,7 @@ class MainActivity : ComponentActivity() {
                                 URLDecoder.decode(navBackStackEntry?.arguments?.getString("query")!!, "UTF-8")
                             }
                             onQueryChange(TextFieldValue(searchQuery, TextRange(searchQuery.length)))
-                        } else if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
+                        } else if (isTopLevelTab(navBackStackEntry?.destination)) {
                             onQueryChange(TextFieldValue())
                         }
                         searchBarScrollBehavior.state.resetHeightOffset()
@@ -680,85 +702,50 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    // Liquid glass engine: the backdrop the floating bar and its
+                    // MiniPlayer refract. Base colour must match the theme (white on
+                    // light, black on dark) or the glass reads as a muddy overlay.
+                    val glassBackdrop = rememberBackdrop(
+                        if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.White else Color.Black,
+                    )
                     CompositionLocalProvider(
                         LocalDatabase provides database,
                         LocalContentColor provides contentColorFor(MaterialTheme.colorScheme.surface),
                         LocalPlayerConnection provides playerConnection,
                         LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
                         LocalDownloadUtil provides downloadUtil,
-                        LocalShimmerTheme provides ShimmerTheme
+                        LocalShimmerTheme provides ShimmerTheme,
+                        LocalLiquidGlassEnabled provides liquidGlassNavBar
                     ) {
                         NavHost(
+                            // The content layer the glass surfaces sample; the bar and
+                            // its MiniPlayer stay SIBLINGS of this NavHost (never inside
+                            // it — nesting a glass surface in its own source crashes the
+                            // RuntimeShader with a render-feedback loop).
+                            modifier = Modifier.layerBackdrop(glassBackdrop),
                             navController = navController,
                             startDestination = when (tabOpenedFromShortcut ?: defaultOpenTab) {
-                                NavigationTab.HOME -> Screens.Home
-                                NavigationTab.LIBRARY -> Screens.Library
-                            }.route,
+                                NavigationTab.HOME -> HomeDestination
+                                NavigationTab.LIBRARY -> LibraryDestination
+                            },
                             // Echo-style page motion: emphasized-easing slide + fade,
                             // direction-aware from the tab order; an instant cut when animations are off.
-                            enterTransition = {
-                                if (!animationsEnabled) {
-                                    fadeIn(snap())
-                                } else {
-                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
-                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
-                                    if (targetIndex == -1 || targetIndex > initialIndex) {
-                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
-                                                fadeIn(tween(400, easing = EmphasizedEasing))
-                                    } else {
-                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
-                                                fadeIn(tween(400, easing = EmphasizedEasing))
-                                    }
-                                }
-                            },
-                            exitTransition = {
-                                if (!animationsEnabled) {
-                                    fadeOut(snap())
-                                } else {
-                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
-                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
-                                    if (targetIndex == -1 || targetIndex > initialIndex) {
-                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
-                                                fadeOut(tween(400, easing = EmphasizedEasing))
-                                    } else {
-                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
-                                                fadeOut(tween(400, easing = EmphasizedEasing))
-                                    }
-                                }
-                            },
-                            popEnterTransition = {
-                                if (!animationsEnabled) {
-                                    fadeIn(snap())
-                                } else {
-                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
-                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
-                                    if (initialIndex != -1 && initialIndex < targetIndex) {
-                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
-                                                fadeIn(tween(400, easing = EmphasizedEasing))
-                                    } else {
-                                        slideInHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
-                                                fadeIn(tween(400, easing = EmphasizedEasing))
-                                    }
-                                }
-                            },
-                            popExitTransition = {
-                                if (!animationsEnabled) {
-                                    fadeOut(snap())
-                                } else {
-                                    val targetIndex = navigationItems.indexOfFirst { it.route == targetState.destination.route }
-                                    val initialIndex = navigationItems.indexOfFirst { it.route == initialState.destination.route }
-                                    if (initialIndex != -1 && initialIndex < targetIndex) {
-                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { -it / 8 } +
-                                                fadeOut(tween(400, easing = EmphasizedEasing))
-                                    } else {
-                                        slideOutHorizontally(tween(400, easing = EmphasizedEasing)) { it / 8 } +
-                                                fadeOut(tween(400, easing = EmphasizedEasing))
-                                    }
-                                }
-                            },
+                            // iOS-style page motion (NavigationTransitions.kt):
+                            // 420/400ms push/pop, iOS cubic-bezier curve, incoming
+                            // full-width slide, outgoing -30% parallax + dim, zero
+                            // spring bounce. Top-level tabs crossfade (150ms) with
+                            // a touch of scale instead of sliding. Glass ON keeps
+                            // the lighter translucent-plate look; OFF adds the
+                            // 0.96 settle scale — same timing, same smoothness.
+                            // Android 14+ predictive back rides navigation-compose's
+                            // built-in seekable support with the same motion.
+                            enterTransition = { iosEnter(liquidGlassNavBar, animationsEnabled) },
+                            exitTransition = { iosExit(liquidGlassNavBar, animationsEnabled) },
+                            popEnterTransition = { iosPopEnter(liquidGlassNavBar, animationsEnabled) },
+                            popExitTransition = { iosPopExit(liquidGlassNavBar, animationsEnabled) },
                             modifier = Modifier
                                 .nestedScroll(
-                                    if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
+                                    if (isTopLevelTab(navBackStackEntry?.destination) ||
                                         navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
                                         searchBarScrollBehavior.nestedScrollConnection
                                     } else {
@@ -766,7 +753,21 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                         ) {
-                            navigationBuilder(navController, topAppBarScrollBehavior, latestVersionName)
+                            navigationBuilder(
+                                navController,
+                                topAppBarScrollBehavior,
+                                latestVersionName,
+                                onOpenSearch = {
+                                    // Exactly what the old bar's Search entry did: open the
+                                    // SearchBar overlay and pull the keyboard up once it settles.
+                                    onActiveChange(true)
+                                    coroutineScope.launch {
+                                        withFrameNanos { }
+                                        delay(250)
+                                        runCatching { searchBarFocusRequester.requestFocus() }
+                                    }
+                                },
+                            )
                         }
 
                         AnimatedVisibility(
@@ -797,7 +798,7 @@ class MainActivity : ComponentActivity() {
                                         onClick = {
                                             when {
                                                 active -> onActiveChange(false)
-                                                !navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } -> {
+                                                !isTopLevelTab(navBackStackEntry?.destination) -> {
                                                     navController.navigateUp()
                                                 }
 
@@ -807,7 +808,7 @@ class MainActivity : ComponentActivity() {
                                         onLongClick = {
                                             when {
                                                 active -> {}
-                                                !navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } -> {
+                                                !isTopLevelTab(navBackStackEntry?.destination) -> {
                                                     navController.backToMain()
                                                 }
 
@@ -817,7 +818,7 @@ class MainActivity : ComponentActivity() {
                                     ) {
                                         Icon(
                                             painterResource(
-                                                if (active || !navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
+                                                if (active || !isTopLevelTab(navBackStackEntry?.destination)) {
                                                     R.drawable.arrow_back
                                                 } else {
                                                     R.drawable.search
@@ -854,7 +855,8 @@ class MainActivity : ComponentActivity() {
                                                 contentDescription = null
                                             )
                                         }
-                                    } else if (navBackStackEntry?.destination?.route in topLevelScreens) {
+                                    } else if (isTopLevelTab(navBackStackEntry?.destination) ||
+                                        navBackStackEntry?.destination?.route == "settings") {
                                         Box(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier
@@ -969,81 +971,31 @@ class MainActivity : ComponentActivity() {
 
                         BottomSheetPlayer(
                             state = playerBottomSheetState,
-                            navController = navController
+                            navController = navController,
+                            // The glass bar draws its own MiniPlayer; avoid two of them.
+                            showCollapsedMiniPlayer = !liquidGlassNavBar,
                         )
 
-                        NavigationBar(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .offset {
-                                    if (navigationBarHeight == 0.dp) {
-                                        IntOffset(x = 0, y = (bottomInset + NavigationBarHeight).roundToPx())
-                                    } else {
-                                        val slideOffset = (bottomInset + NavigationBarHeight) * playerBottomSheetState.progress.coerceIn(0f, 1f)
-                                        val hideOffset = (bottomInset + NavigationBarHeight) * (1 - navigationBarHeight / NavigationBarHeight)
-                                        IntOffset(
-                                            x = 0,
-                                            y = (slideOffset + hideOffset).roundToPx()
-                                        )
-                                    }
-                                },
-                            containerColor = if (translucentNavBar) {
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
-                            } else {
-                                MaterialTheme.colorScheme.surface
+                        // === SimpMusic floating navigation bar (PRD section 12) ============
+                        // The old hand-built NavigationBar is gone: the suite's own glass
+                        // (default) or flat capsule-and-FAB bar takes over, sliding under
+                        // the player sheet and away on screens that hide it, exactly like
+                        // the bar it replaces.
+                        MusoNavbarHost(
+                            backdrop = glassBackdrop,
+                            navController = navController,
+                            playerConnection = playerConnection,
+                            playerBottomSheetState = playerBottomSheetState,
+                            bottomInset = bottomInset,
+                            visibleHeight = navigationBarHeight,
+                            isScrolledToTop = isScrolledToTop,
+                            onReloadTab = {
+                                navBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
+                                coroutineScope.launch {
+                                    searchBarScrollBehavior.state.resetHeightOffset()
+                                }
                             },
-                        ) {
-                            navigationItems.fastForEach { screen ->
-                                NavigationBarItem(
-                                    selected = screen.route != Screens.Search.route &&
-                                            navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true,
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(screen.iconId),
-                                            contentDescription = null
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = stringResource(screen.titleId),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    },
-                                    onClick = {
-                                        if (screen.route == Screens.Search.route) {
-                                            // The Search entry is an action, not a destination:
-                                            // open the search field like the ACTION_SEARCH intent does.
-                                            // The focus request must be deferred to the next frame -
-                                            // requesting it synchronously crashes with
-                                            // "FocusRequester is not initialized" whenever the
-                                            // SearchBar is not composed yet (e.g. on the home tab).
-                                            onActiveChange(true)
-                                            coroutineScope.launch {
-                                                withFrameNanos { }
-                                                // Let the search bar expansion settle before
-                                                // pulling the keyboard up - both at once janks.
-                                                delay(250)
-                                                runCatching { searchBarFocusRequester.requestFocus() }
-                                            }
-                                        } else if (navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true) {
-                                            navBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
-                                            coroutineScope.launch {
-                                                searchBarScrollBehavior.state.resetHeightOffset()
-                                            }
-                                        } else {
-                                            navController.navigate(screen.route) {
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    saveState = true
-                                                }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
+                        )
 
                         // Premium Material 3 update popup: slides up from the bottom
                         // of the screen when a newer GitHub release exists. "Later"
@@ -1165,6 +1117,7 @@ class MainActivity : ComponentActivity() {
                 MusoSplash(
                     onContentNeeded = { composeMainUi = true },
                     onFinish = { splashAnimationDone = true },
+                    contentRendered = { mainUiRendered },
                 )
             }
             LaunchedEffect(splashAnimationDone, composeMainUi) {
@@ -1225,3 +1178,16 @@ val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database
 val LocalPlayerConnection = staticCompositionLocalOf<PlayerConnection?> { error("No PlayerConnection provided") }
 val LocalPlayerAwareWindowInsets = compositionLocalOf<WindowInsets> { error("No WindowInsets provided") }
 val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No DownloadUtil provided") }
+
+// --- Suite navigation helpers -------------------------------------------------
+// The tab routes are SimpMusic's type-safe destinations (HomeDestination /
+// LibraryDestination); these replace the old string-route checks.
+private fun isTopLevelTab(destination: NavDestination?): Boolean =
+    destination?.hasRoute(HomeDestination::class) == true ||
+            destination?.hasRoute(LibraryDestination::class) == true
+
+private fun tabIndexOf(destination: NavDestination?): Int = when {
+    destination?.hasRoute(HomeDestination::class) == true -> 0
+    destination?.hasRoute(LibraryDestination::class) == true -> 1
+    else -> -1
+}

@@ -85,7 +85,9 @@ private const val SPLASH_SAFETY_TIMEOUT_MS = 5_000L
 private const val CLOCK_CAP_NANOS = 50_000_000L
 
 // ---------- Timeline (seconds); ideal total ~1.95 s ----------
-private const val T_REVEAL_START = 0.15f
+// The reveal begins on the very first frames: with the launch-window logo
+// underneath (values-v31) the app opens straight into motion - no black pause.
+private const val T_REVEAL_START = 0.03f
 private const val T_REVEAL_END = 0.40f
 private const val T_COMPRESS_END = 0.62f
 private const val T_PULSE_END = 1.20f
@@ -291,6 +293,12 @@ private class GlowPaintCache {
 internal fun MusoSplash(
     onFinish: () -> Unit,
     onContentNeeded: (() -> Unit)? = null,
+    // True once the main UI has actually rendered its first frame. The exit
+    // fade WAITS for it: the splash holds its settled frame instead of
+    // revealing a not-yet-composed (black) home screen - the old dead gap
+    // between the splash-out and home-in animations. (A lambda so the clock
+    // always reads the CURRENT value - a captured Boolean would go stale.)
+    contentRendered: () -> Boolean = { true },
 ) {
     val context = LocalContext.current
     val (reducedMotionPref) = rememberPreference(ReducedMotionKey, defaultValue = false)
@@ -306,10 +314,15 @@ internal fun MusoSplash(
     val reduced = reducedMotionPref || animatorScale == 0f
     val glowPaints = remember { GlowPaintCache() }
 
-    // The system splash window is plain black with no icon, so the custom
-    // animation always plays from the very beginning - and it fades IN over the
-    // black window, so app-open to animation reads as one continuous move.
-    val initialT = 0f
+    // On Android 11 and below the launch window's background IS the static
+    // logo (drawable/splash_bars_window) - it is on screen within milliseconds
+    // of the tap. The Compose splash therefore starts PRE-REVEALED there:
+    // its first frame already draws the bars at full alpha, so the window ->
+    // Compose handoff is seamless and the logo never blinks off to black.
+    // The animation then continues from the compression phase. On Android 12+
+    // the system splash covers the start, so the full materialize plays.
+    val initialT =
+        if (android.os.Build.VERSION.SDK_INT < 31) T_REVEAL_END else 0f
 
     // Master clock: written once per frame, read ONLY inside draw/layer lambdas below.
     // Compose sees those deferred reads and performs draw-only invalidation - the
@@ -335,7 +348,13 @@ internal fun MusoSplash(
                 withFrameNanos { now ->
                     val dtNanos = (now - lastNanos).coerceIn(0, CLOCK_CAP_NANOS)
                     lastNanos = now
-                    t += dtNanos / 1_000_000_000f
+                    // HOLD the settled frame while the home screen composes:
+                    // the exit fade only begins once it has actually rendered.
+                    if (t >= T_EXIT_END && !contentRendered()) {
+                        // stay put - one frame of work while waiting, nothing else
+                    } else {
+                        t += dtNanos / 1_000_000_000f
+                    }
                 }
                 if (!contentRequested && t >= contentRequestT) {
                     contentRequested = true
@@ -362,16 +381,14 @@ internal fun MusoSplash(
                 // Handoff: only AFTER the full animation has completed, fade the whole
                 // overlay into the home screen beneath over 150ms. Before T_EXIT_END the
                 // alpha stays 1 - the app can never be seen early.
-                alpha = (
-                    if (reduced) {
-                        pr(t, 0f, 0.25f)
-                    } else {
-                        // Eased (iOS-style) reveal: home arrives quickly and settles gently.
-                        1f - easeBezier(pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF))
-                    }
-                    // Smooth fade-IN over the black launch window at the start,
-                    // so the animation arrives instead of popping.
-                ) * pr(t, 0f, 0.25f)
+                alpha = if (reduced) {
+                    pr(t, 0f, 0.25f)
+                } else {
+                    // Opaque from frame one (the launch-window logo is already
+                    // the same look), then the eased exit reveal once home has
+                    // rendered beneath.
+                    1f - easeBezier(pr(t, T_EXIT_END, T_EXIT_END + SPLASH_HANDOFF))
+                }
             },
         // Intentionally NO pointerInput: the splash must not be tappable -
         // touches pass through to nothing and the animation always plays in full.

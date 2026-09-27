@@ -136,6 +136,7 @@ import com.muso.music.utils.isInternetAvailable
 import com.muso.music.utils.reportException
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -210,6 +211,28 @@ class MusicService : MediaLibraryService(),
     var queueTitle: String? = null
 
     val currentMediaMetadata = MutableStateFlow<com.muso.music.models.MediaMetadata?>(null)
+
+    /** Own scope for the canvas-video resolver: it survives playback-scope
+     *  recreation and its work never competes with the audio path. */
+    private val canvasScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    init {
+        // SimpMusic canvas: the video URL is resolved for EVERY song,
+        // independently of the audio path - downloaded/cached songs skip the
+        // audio resolver, so it could never publish their URL and the canvas
+        // kept playing the PREVIOUS song's video. Clearing first guarantees a
+        // stale video can never bleed into the next song.
+        canvasScope.launch {
+            currentMediaMetadata.collectLatest { mediaMetadata ->
+                if (mediaMetadata == null || !showVideoInPlayer) {
+                    videoStreamUrl.value = null
+                } else {
+                    videoStreamUrl.value = null
+                    videoStreamUrl.value = resolveCanvasVideoUrl(mediaMetadata)
+                }
+            }
+        }
+    }
     private val currentSong = currentMediaMetadata.flatMapLatest { mediaMetadata ->
         database.song(mediaMetadata?.id)
     }.stateIn(scope, SharingStarted.Lazily, null)
@@ -420,13 +443,12 @@ class MusicService : MediaLibraryService(),
             }
         }
 
-        combine(
-            currentMediaMetadata.distinctUntilChangedBy { it?.id },
-            dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged()
-        ) { mediaMetadata, showLyrics ->
-            mediaMetadata to showLyrics
-        }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
-            if (showLyrics && mediaMetadata != null && database.lyrics(mediaMetadata.id).first() == null) {
+        // Lyrics are fetched for EVERY song (cached in the DB; the not-found
+        // marker prevents refetch loops). The old gate on the persisted
+        // show-lyrics preference broke fetching once the player moved to
+        // per-session lyrics state - the view then spun on its loader forever.
+        currentMediaMetadata.distinctUntilChangedBy { it?.id }.collectLatest(scope) { mediaMetadata ->
+            if (mediaMetadata != null && database.lyrics(mediaMetadata.id).first() == null) {
                 val lyrics = lyricsHelper.getLyrics(mediaMetadata)
                 database.query {
                     upsert(
@@ -877,6 +899,37 @@ class MusicService : MediaLibraryService(),
             .setCacheWriteDataSinkFactory(null)
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
 
+    /**
+     * The fullscreen-canvas video URL for a song, resolved independently of
+     * the audio path. HIGH QUALITY OR NOTHING (the user's rule): only a
+     * VIDEO-ONLY adaptive stream at least as tall as the video-quality setting
+     * is accepted - the smallest one at or above it, so 720p does not stream
+     * 1080p data for a background loop. When nothing that good exists the
+     * canvas simply never comes: no low-quality stream, no muxed fallback - the
+     * thumbnail stays. Never throws.
+     */
+    private suspend fun resolveCanvasVideoUrl(mediaMetadata: com.muso.music.models.MediaMetadata): String? =
+        runCatching {
+            val playerResponse = YouTube.player(mediaMetadata.id).getOrThrow()
+            val targetHeight = when (videoQuality) {
+                VideoQuality.Q360 -> 360
+                VideoQuality.Q720 -> 720
+                VideoQuality.Q1080 -> 1080
+            }
+            val streamingData = playerResponse.streamingData
+            // The quality bar is absolute (Round 94): a stream must be at least
+            // the target height or there is no video at all. A MUXED stream
+            // at/above the bar is equally sharp though, so it is a valid
+            // fallback when the video-only adaptive set has nothing at that
+            // height - that is what made "some videos never play": a lot of
+            // songs only offer muxed pictures at a perfectly good quality.
+            val adaptive = streamingData?.adaptiveFormats.orEmpty()
+                .filter { !it.url.isNullOrEmpty() && !it.isAudio && (it.height ?: 0) >= targetHeight }
+            val muxed = streamingData?.formats.orEmpty()
+                .filter { !it.url.isNullOrEmpty() && (it.height ?: 0) >= targetHeight }
+            (adaptive.minByOrNull { it.height ?: 0 } ?: muxed.maxByOrNull { it.height ?: 0 })?.url
+        }.getOrNull()
+
     private fun createDataSourceFactory(): DataSource.Factory {
         val songUrlCache = HashMap<String, Pair<String, Long>>()
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
@@ -916,30 +969,6 @@ class MusicService : MediaLibraryService(),
                 throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
             }
 
-            // Spotify-Canvas-style video: the MAIN player always plays the audio
-            // selection. When "show video in player" is on and the song has a
-            // video, its URL is published to [videoStreamUrl] for the player's
-            // fullscreen canvas surface, which loops a short muted highlight
-            // independently of the audio position.
-            val canvasVideoFormat = if (showVideoInPlayer) {
-                // SimpMusic video quality setting: the VIDEO-ONLY adaptive stream
-                // closest to the user's chosen height (360p / 720p / 1080p),
-                // falling back to a muxed stream when there is no adaptive video.
-                val targetHeight = when (videoQuality) {
-                    VideoQuality.Q360 -> 360
-                    VideoQuality.Q720 -> 720
-                    VideoQuality.Q1080 -> 1080
-                }
-                playerResponse.streamingData?.adaptiveFormats.orEmpty()
-                    .filter { !it.url.isNullOrEmpty() && !it.isAudio && (it.height ?: 0) > 0 }
-                    .minByOrNull { kotlin.math.abs((it.height ?: 0) - targetHeight) }
-                    ?: playerResponse.streamingData?.formats.orEmpty()
-                        .filter { !it.url.isNullOrEmpty() && (it.height ?: 0) > 0 }
-                        .minByOrNull { kotlin.math.abs((it.height ?: 0) - targetHeight) }
-            } else {
-                null
-            }
-
             val format = playedFormat?.let { pf ->
                     playerResponse.streamingData?.adaptiveFormats?.find {
                         // Use itag to identify previously played format
@@ -956,10 +985,6 @@ class MusicService : MediaLibraryService(),
                         } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
                     }
                 ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
-
-            // Null when the setting is off or the song has no video - the player's
-            // thumbnail then simply stays in place.
-            videoStreamUrl.value = canvasVideoFormat?.url
 
             database.query {
                 upsert(

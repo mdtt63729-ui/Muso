@@ -10,6 +10,8 @@ import com.zionhuang.innertube.models.MusicCarouselShelfRenderer
 import com.zionhuang.innertube.models.PlaylistItem
 import com.zionhuang.innertube.models.SearchSuggestions
 import com.zionhuang.innertube.models.SongItem
+import com.zionhuang.innertube.models.YTItem
+import com.zionhuang.innertube.models.VideoItem
 import com.zionhuang.innertube.models.WatchEndpoint
 import com.zionhuang.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
@@ -108,33 +110,72 @@ object YouTube {
 
     suspend fun searchSummary(query: String): Result<SearchSummaryPage> = runCatching {
         val response = innerTube.search(WEB_REMIX, query).body<SearchResponse>()
-        SearchSummaryPage(
-            summaries = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.mapNotNull { it ->
-                if (it.musicCardShelfRenderer != null)
-                    SearchSummary(
-                        title = it.musicCardShelfRenderer.header.musicCardShelfHeaderBasicRenderer.title.runs?.firstOrNull()?.text ?: return@mapNotNull null,
-                        items = listOfNotNull(SearchSummaryPage.fromMusicCardShelfRenderer(it.musicCardShelfRenderer))
-                            .plus(
-                                it.musicCardShelfRenderer.contents
-                                    ?.mapNotNull { it.musicResponsiveListItemRenderer }
-                                    ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
-                                    .orEmpty()
-                            )
-                            .distinctBy { it.id }
-                            .ifEmpty { null } ?: return@mapNotNull null
-                    )
-                else
-                    SearchSummary(
-                        title = it.musicShelfRenderer?.title?.runs?.firstOrNull()?.text ?: return@mapNotNull null,
-                        items = it.musicShelfRenderer.contents
-                            ?.mapNotNull {
-                                SearchSummaryPage.fromMusicResponsiveListItemRenderer(it.musicResponsiveListItemRenderer)
-                            }
-                            ?.distinctBy { it.id }
-                            ?.ifEmpty { null } ?: return@mapNotNull null
-                    )
-            }!!
-        )
+        val sections = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer?.contents
+        val summaries = mutableListOf<SearchSummary>()
+        // YouTube FLATTENED the All-results: the response no longer carries
+        // musicShelfRenderers - it is a top-result card plus a run of
+        // itemSectionRenderer rows with ONE item each and no shelf titles.
+        // The flat run is regrouped by consecutive item type, so the All tab
+        // keeps its titled sections (Songs / Videos / Albums / Artists...).
+        val flatItems = mutableListOf<YTItem>()
+        sections?.forEach { section ->
+            val card = section.musicCardShelfRenderer
+            val shelf = section.musicShelfRenderer
+            when {
+                card != null -> {
+                    val title = card.header.musicCardShelfHeaderBasicRenderer.title.runs?.firstOrNull()?.text
+                    val items = (listOfNotNull(SearchSummaryPage.fromMusicCardShelfRenderer(card))
+                        + (card.contents
+                            ?.mapNotNull { it.musicResponsiveListItemRenderer }
+                            ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
+                            .orEmpty()))
+                        .distinctBy { it.id }
+                    if (title != null && items.isNotEmpty()) summaries.add(SearchSummary(title, items))
+                }
+                shelf != null -> {
+                    val title = shelf.title.runs?.firstOrNull()?.text
+                    val items = shelf.contents
+                        ?.mapNotNull {
+                            SearchSummaryPage.fromMusicResponsiveListItemRenderer(it.musicResponsiveListItemRenderer)
+                        }
+                        ?.distinctBy { it.id }
+                        .orEmpty()
+                    if (title != null && items.isNotEmpty()) summaries.add(SearchSummary(title, items))
+                }
+                else -> section.itemSectionRenderer?.contents?.forEach { content ->
+                    content.musicResponsiveListItemRenderer?.let { renderer ->
+                        SearchSummaryPage.fromMusicResponsiveListItemRenderer(renderer)?.let { flatItems.add(it) }
+                    }
+                }
+            }
+        }
+        // Consecutive same-type runs become one titled section.
+        var currentTitle: String? = null
+        val run = mutableListOf<YTItem>()
+        fun flush() {
+            if (currentTitle != null && run.isNotEmpty()) {
+                summaries.add(SearchSummary(currentTitle!!, run.toList()))
+            }
+            run.clear()
+        }
+        flatItems.forEach { item ->
+            val title = when (item) {
+                is SongItem -> "Songs"
+                is VideoItem -> "Videos"
+                is AlbumItem -> "Albums"
+                is ArtistItem -> "Artists"
+                is PlaylistItem -> "Playlists"
+                else -> "Results"
+            }
+            if (title != currentTitle) {
+                flush()
+                currentTitle = title
+            }
+            run.add(item)
+        }
+        flush()
+        SearchSummaryPage(summaries = summaries)
     }
 
     suspend fun search(query: String, filter: SearchFilter): Result<SearchResult> = runCatching {

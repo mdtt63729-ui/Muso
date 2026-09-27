@@ -7,6 +7,7 @@ plugins {
     kotlin("android")
     kotlin("kapt")
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.compose.compiler)
 }
@@ -19,14 +20,14 @@ if (isFullBuild && System.getenv("PULL_REQUEST") == null) {
 
 android {
     namespace = "com.muso.music"
-    compileSdk = 35
+    compileSdk = 36
     buildToolsVersion = "35.0.0"
     defaultConfig {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 114
-        versionName = "0.5.107"
+        versionCode = 130
+        versionName = "0.5.123"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -82,7 +83,8 @@ android {
         jvmToolchain(17)
     }
     kotlinOptions {
-        freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers"
+        freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers" +
+            "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi"
         jvmTarget = "17"
     }
     testOptions {
@@ -129,6 +131,24 @@ dependencies {
     implementation(libs.viewmodel.compose)
 
     implementation(libs.material3)
+
+    // ===== SimpMusic player suite =====
+    implementation(libs.coil3.compose)
+    implementation(libs.coil3.network.okhttp)
+    implementation(libs.kmpalette.core)
+    implementation(libs.materialkolor)
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
+    implementation(libs.kyant.backdrop)
+    implementation(libs.kyant.shapes)
+    implementation(libs.androidx.constraintlayout.compose)
+    implementation(libs.koin.android)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.androidx.paging)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.palette)
     implementation(projects.materialColorUtilities)
     implementation(libs.squigglyslider)
