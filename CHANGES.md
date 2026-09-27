@@ -1,3 +1,23 @@
+## Round 92 (v0.5.107): CI fix - Kotlin errors that hid behind the KSP failure
+
+The 0.5.105 build died at KSP before Kotlin ever compiled, so a batch of
+small compile errors from the last few rounds surfaced only now. All fixed:
+
+- LyricsMenu: the share action's LYRICS_NOT_FOUND companion import was
+  missing.
+- Player.kt: the stored-format (kbps) collect used `database` before it was
+  declared - moved below the declaration; the FormatEntity import was
+  missing (bad anchor); the SongMenu call passed the embedded SongEntity
+  instead of the Song wrapper.
+- AppleMusicQueueBody: its header got the favourite + more buttons earlier
+  but its signature never received the matching parameters - the queue body
+  now takes isLiked / onToggleLike / onShowMenu like the lyrics body, wired
+  at the call site.
+- PlayerVideo.kt: LocalContext was imported from the wrong package
+  (androidx.compose.runtime instead of androidx.compose.ui.platform).
+
+**Version:** 0.5.107 (versionCode 114); release tag v0.5.107, APK Muso_v0.5.107_v114.apk.
+
 ## Round 91 (v0.5.106): CI fix - Lyrics.kt leftover fragment
 
 The morph-loading replacement left the OLD equalizer body behind the new

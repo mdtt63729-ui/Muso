@@ -48,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.muso.music.LocalDatabase
 import com.muso.music.R
 import com.muso.music.db.entities.LyricsEntity
+import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.muso.music.models.MediaMetadata
 import com.muso.music.ui.component.DefaultDialog
 import com.muso.music.ui.component.GridMenu

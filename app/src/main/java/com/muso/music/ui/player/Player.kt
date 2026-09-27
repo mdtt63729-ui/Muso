@@ -185,6 +185,7 @@ import androidx.compose.ui.platform.LocalContext
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.muso.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
+import com.muso.music.db.entities.FormatEntity
 import com.muso.music.lyrics.LyricsEntry
 import com.muso.music.lyrics.LyricsEntry.Companion.HEAD_LYRICS_ENTRY
 import com.muso.music.lyrics.LyricsUtils.parseLyrics
@@ -313,14 +314,6 @@ fun BottomSheetPlayer(
                 ?.getTrackFormat(0)
             onDispose { playerToListen.removeListener(listener) }
         }
-        // The stored format (written on first play) is the reliable source of the
-        // stream's real bitrate - the media3 track format often carries none for
-        // progressive streams, which is why the pill used to show no kbps.
-        val dbFormat by database.format(mediaMetadata?.id).collectAsState(initial = null)
-        val codecLabel = remember(currentAudioFormat, dbFormat) {
-            formatAudioInfo(currentAudioFormat, dbFormat)
-        }
-
         // The canvas video (when one exists) plays from the moment it loads -
         // not from halfway through the song.
         val videoEnabled = showVideo && !showLyrics
@@ -333,6 +326,14 @@ fun BottomSheetPlayer(
         var showSongInfoDialog by rememberSaveable { mutableStateOf(false) }
         var showAddToPlaylistDialog by rememberSaveable { mutableStateOf(false) }
         val database = LocalDatabase.current
+        // The stored format (written on first play) is the reliable source of the
+        // stream's real bitrate - the media3 track format often carries none for
+        // progressive streams, which is why the pill used to show no kbps.
+        val dbFormat by database.format(mediaMetadata?.id).collectAsState(initial = null)
+        val codecLabel = remember(currentAudioFormat, dbFormat) {
+            formatAudioInfo(currentAudioFormat, dbFormat)
+        }
+
 
         // === SimpMusic artwork pager ============================================
         // One HorizontalPager across the queue's covers, two-way synced with the
@@ -1683,7 +1684,7 @@ fun BottomSheetPlayer(
                                 isLiked = currentSong?.song?.liked == true,
                                 onToggleLike = { playerConnection.toggleLike() },
                                 onShowMenu = {
-                                    currentSong?.song?.let { song ->
+                                    currentSong?.let { song ->
                                         menuState.show {
                                             SongMenu(
                                                 originalSong = song,
@@ -1705,7 +1706,19 @@ fun BottomSheetPlayer(
                                 queue = pagerQueueWindows,
                                 currentWindowIndex = currentWindowIndex,
                                 onPlayIndex = { index -> playerConnection.player.seekTo(index, 0) },
-                                onBack = { appleView = AppleMusicView.MAIN },
+                                isLiked = currentSong?.song?.liked == true,
+                                onToggleLike = { playerConnection.toggleLike() },
+                                onShowMenu = {
+                                    currentSong?.let { song ->
+                                        menuState.show {
+                                            SongMenu(
+                                                originalSong = song,
+                                                navController = navController,
+                                                onDismiss = menuState::dismiss,
+                                            )
+                                        }
+                                    }
+                                },
                             )
                         }
                     } else {
@@ -2260,7 +2273,9 @@ private fun AppleMusicQueueBody(
     queue: List<Timeline.Window>,
     currentWindowIndex: Int,
     onPlayIndex: (Int) -> Unit,
-    onBack: () -> Unit,
+    isLiked: Boolean,
+    onToggleLike: () -> Unit,
+    onShowMenu: () -> Unit,
 ) {
     Column(
         modifier = Modifier
