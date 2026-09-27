@@ -249,7 +249,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Войдите, чтобы получить плейлист YouTube</string>
     <string name="simp_sync_playlist_warning">SimpMusic автоматически создаст плейлист YouTube Music. Вы уверены?</string>
     <string name="simp_syncing">Синхронизация</string>
-    <string name="simp_unsync_playlist_warning">"Отменить синхронизацию этого плейлиста? Этот плейлист не будет удален из YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"Отменить синхронизацию этого плейлиста? Этот плейлист не будет удален из YouTube Music \"</string>
     <string name="simp_unsyncing">Отмена синхронизации</string>
     <string name="simp_added_to_youtube_playlist">Добавлено в плейлист YouTube</string>
     <string name="simp_removed_from_YouTube_playlist">Удалено из плейлиста YouTube</string>
@@ -407,7 +407,7 @@
     <string name="simp_theme_mode_system">Системная</string>
     <string name="simp_theme_mode_dark">Тёмная</string>
     <string name="simp_theme_mode_light">Светлая</string>
-    <string name="simp_now_playing_style">Стиль окна "Сейчас играет"</string>
+    <string name="simp_now_playing_style">Стиль окна \"Сейчас играет\"</string>
     <string name="simp_now_playing_style_spotify">Классический</string>
     <string name="simp_ai_translated">ИИ перевод</string>
     <string name="simp_lyrics_style">Стиль текстов песен</string>
@@ -483,7 +483,7 @@
     <string name="simp_downloading_audio">Загрузка аудио: %1$s </string>
     <string name="simp_downloading_video">Загрузка видео: %1$s </string>
     <string name="simp_ok">OK</string>
-    <string name="simp_to_download_folder">" в папку Загрузки"</string>
+    <string name="simp_to_download_folder">\" в папку Загрузки\"</string>
     <string name="simp_download_speed">Скорость загрузки: %1$s </string>
     <string name="simp_shuffle">Перемешать</string>
     <string name="simp_other_version">Другие версии</string>
@@ -491,7 +491,7 @@
     <string name="simp_give_a_star">Дать звезду</string>
     <string name="simp_enjoying_simpmusic">Нравится SimpMusic</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">Если вам нравится пользоваться SimpMusic, оцените SimpMusic на GitHub или оставьте свой отзыв на</string>
-    <string name="simp_if_you_love_my_work_consider">"Если вам нравится моя работа, рассмотрите "</string>
+    <string name="simp_if_you_love_my_work_consider">\"Если вам нравится моя работа, рассмотрите \"</string>
     <string name="simp_buying_me_a_coffee">купить мне кофе.</string>
     <string name="simp_footguns_promo_title">Все ловушки, в которые я попал</string>
     <string name="simp_footguns_promo_message">Я потратил много ночей, борясь с проблемами Kotlin и Compose, о которых не было написано нигде в документации, ради SimpMusic. Я задокументировал каждую из них в kotlin-footguns, чтобы вам не пришлось тратить на эти проблемы столько же. Если это помогло сохранить хотя бы одну из ваших ночей, поставьте, пожалуйста, звезду. Я буду очень признателен.</string>
@@ -500,7 +500,7 @@
     <string name="simp_fade_audio_effect_duration">Продолжительность эффекта затухания звука (мс) (Установите 0 для отключения)</string>
     <string name="simp_duration">Продолжительность</string>
     <string name="simp_invalid_number">Некорректное число</string>
-    <string name="simp_shuffle_not_available">Точка подключения "Играть в случайном порядке" недоступна</string>
+    <string name="simp_shuffle_not_available">Точка подключения \"Играть в случайном порядке\" недоступна</string>
     <string name="simp_radio_not_available">Точка подключения к радио недоступна</string>
     <string name="simp_visitor_data_retrieved">Данные посетителя получены</string>
     <string name="simp_data_sync_id_retrieved">DataSyncId получен</string>
@@ -514,7 +514,7 @@
     <string name="simp_ai_api_key">Ваш ключ API</string>
     <string name="simp_invalid_api_key">Неверный ключ API</string>
     <string name="simp_custom_ai_model_id">Пользовательский идентификатор ИИ модели</string>
-    <string name="simp_default_models">Стандартные модели - это "gemini-2.0-flash" и "gpt-4o"</string>
+    <string name="simp_default_models">Стандартные модели - это \"gemini-2.0-flash\" и \"gpt-4o\"</string>
     <string name="simp_invalid">Некорректный</string>
     <string name="simp_custom_model_id_messages">Введите идентификатор модели вашего провайдера ИИ.</string>
     <string name="simp_favorite_podcasts">Любимые подкасты</string>
@@ -732,7 +732,7 @@
     <string name="simp_lt_just_asked">только что попросил присоединиться</string>
     <string name="simp_lt_suggestions">Предложенные треки</string>
     <string name="simp_lt_leave_room">Покинуть комнату</string>
-    <string name="simp_lt_credit_protocol">Протокол "Listen Together" от Metrolist</string>
+    <string name="simp_lt_credit_protocol">Протокол \"Listen Together\" от Metrolist</string>
     <string name="simp_lt_credit_compatible">Комнаты совместимы с клиентами Metrolist</string>
     <string name="simp_lt_server">Сервер</string>
     <string name="simp_lt_custom_server">Пользовательский сервер</string>

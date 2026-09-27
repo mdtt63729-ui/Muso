@@ -238,7 +238,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Влезте за да получите YouTube Playlist</string>
     <string name="simp_sync_playlist_warning">SimpMusic ще създаде YouTube Music Playlist автоматично. Сигурни ли сте?</string>
     <string name="simp_syncing">Синхронизиране</string>
-    <string name="simp_unsync_playlist_warning">"Разсинхронизиране на този плейлист? Този плейлист ще бъде премахнат от YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"Разсинхронизиране на този плейлист? Този плейлист ще бъде премахнат от YouTube Music \"</string>
     <string name="simp_unsyncing">Разсинхронизиране</string>
     <string name="simp_added_to_youtube_playlist">Добавен към YouTube Playlist</string>
     <string name="simp_removed_from_YouTube_playlist">Премахнат от YouTube Playlist</string>
@@ -388,7 +388,7 @@
     <string name="simp_downloading_audio">Сваляне на аудио: %1$s </string>
     <string name="simp_downloading_video">Сваляне на видео: %1$s </string>
     <string name="simp_ok">ОК</string>
-    <string name="simp_to_download_folder">" в Свалени"</string>
+    <string name="simp_to_download_folder">\" в Свалени\"</string>
     <string name="simp_download_speed">Скорост на сваляне: %1$s </string>
     <string name="simp_shuffle">Разбъркване</string>
     <string name="simp_other_version">Друга версия</string>
@@ -396,7 +396,7 @@
     <string name="simp_give_a_star">Оцени</string>
     <string name="simp_enjoying_simpmusic">Доволни от SimpMusic</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">Оценете SimpMusic в GitHub или оставете ревю ако сте доволни</string>
-    <string name="simp_if_you_love_my_work_consider">"Ако сте доволни от работата ми, моля помислете да "</string>
+    <string name="simp_if_you_love_my_work_consider">\"Ако сте доволни от работата ми, моля помислете да \"</string>
     <string name="simp_buying_me_a_coffee">ме почерпите кафе.</string>
     <string name="simp_fade_audio_effect">Постепенно намаляване на звука</string>
     <string name="simp_disabled">Деактивиране</string>

@@ -18,7 +18,7 @@
     <string name="simp_hide">הסתר</string>
     <string name="simp_show">הצג</string>
     <string name="simp_na_na">זה:זה</string>
-    <string name="simp_cache_size">%1$s מ"ב</string>
+    <string name="simp_cache_size">%1$s מ\"ב</string>
     <string name="simp_favorite">מועדף</string>
     <string name="simp_followed">עוקב</string>
     <string name="simp_most_played">הכי מושמעים</string>
@@ -93,7 +93,7 @@
     <string name="simp_let_s_start_with_a_radio">בואו נתחיל עם רדיו</string>
     <string name="simp_let_s_pick_a_playlist_for_you">בוא נבחר עבורך רשימת השמעה</string>
     <string name="simp_moods_amp_moment"><![CDATA[מצבי רוח ורגע]]></string>
-    <string name="simp_genre">ז'אנר</string>
+    <string name="simp_genre">ז\'אנר</string>
     <string name="simp_what_is_best_choice_today">מהי הבחירה הטובה ביותר היום</string>
     <string name="simp_chart">תרשים</string>
     <string name="simp_global">גלובלי</string>
@@ -172,7 +172,7 @@
     <string name="simp_save_last_played">שמור הושמע לאחרונה</string>
     <string name="simp_save_last_played_track_and_queue">שמור את הרצועה האחרונה שהושמעה ואת התור</string>
     <string name="simp_update_available">עדכון חדש זמין</string>
-    <string name="simp_update_message">"גרסה %1$s זמין\nלשחרר:%2$s\nיומני שינוי:\n%3$s "</string>
+    <string name="simp_update_message">\"גרסה %1$s זמין\nלשחרר:%2$s\nיומני שינוי:\n%3$s \"</string>
     <string name="simp_check_for_update">בדוק עדכונים</string>
     <string name="simp_last_checked_at">נבדק לאחרונה ב %1$s</string>
     <string name="simp_checking">בודק</string>
@@ -232,7 +232,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">התחבר כדי לקבל רשימת השמעה של יוטיוב</string>
     <string name="simp_sync_playlist_warning">SimpMusic תיצור רשימת השמעה של יוטיוב מיוזיק באופן אוטומטי. האם אתה בטוח?</string>
     <string name="simp_syncing">מסנכרן</string>
-    <string name="simp_unsync_playlist_warning">"לבטל את הסנכרון של הפלייליסט הזה? הפלייליסט הזה לא יוסר מיוטיוב מיוזיק "</string>
+    <string name="simp_unsync_playlist_warning">\"לבטל את הסנכרון של הפלייליסט הזה? הפלייליסט הזה לא יוסר מיוטיוב מיוזיק \"</string>
     <string name="simp_unsyncing">מבטל סנכרון</string>
     <string name="simp_added_to_youtube_playlist">נוסף לרשימת ההשמעה של יוטיוב</string>
     <string name="simp_removed_from_YouTube_playlist">הוסר מרשימת ההשמעה של יוטיוב</string>
@@ -306,14 +306,14 @@ SimpMusic תמיד בחינם וללא פרסומות\n\nבונה מ ❤️מ-Tu
     <string name="simp_canvas_info">הצג את ספוטיפיי קנבס ב-SimpMusic</string>
     <string name="simp_spotify_lyrics_provider">מילים מסופקות על ידי ספוטיפיי</string>
     <string name="simp_offline_mode">מצב לא מקוון</string>
-    <string name="simp_added_to_youtube_liked">נוסף ליוטיוב 'אהבתי'</string>
-    <string name="simp_removed_from_youtube_liked">הוסר מיוטיוב 'אהבתי'</string>
+    <string name="simp_added_to_youtube_liked">נוסף ליוטיוב \'אהבתי\'</string>
+    <string name="simp_removed_from_youtube_liked">הוסר מיוטיוב \'אהבתי\'</string>
     <string name="simp_home_limit">אחזר מגבלת נתונים מהבית</string>
     <string name="simp_no_album">אין אלבום</string>
-    <string name="simp_app_widget_description">ווידג'ט לנגן</string>
+    <string name="simp_app_widget_description">ווידג\'ט לנגן</string>
     <string name="simp_guide_miniplayer_content">החלק כדי להציג את לחצן דילוג וסגירה</string>
     <string name="simp_guide_suggest_content">הצג שירים מוצעים מאת AI בהתבסס על רשימת ההשמעה שלך</string>
-    <string name="simp_guide_liked_title">הוסף לרשימת השמעה 'אהבתי' של יוטיוב</string>
+    <string name="simp_guide_liked_title">הוסף לרשימת השמעה \'אהבתי\' של יוטיוב</string>
     <string name="simp_log_out_from_spotify">התנתק מספוטיפיי</string>
     <string name="simp_delete">מחק</string>
     <string name="simp_top_videos">סרטונים מובילים</string>

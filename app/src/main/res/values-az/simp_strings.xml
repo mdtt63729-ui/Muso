@@ -227,7 +227,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">YouTube Pleylisti əldə etmək üçün daxil ol</string>
     <string name="simp_sync_playlist_warning">SimpMusic birbaşa YouTube Musiqi Pleylistini yaradacaq. Əminsiniz?</string>
     <string name="simp_syncing">Sinxronlaşdırılır</string>
-    <string name="simp_unsync_playlist_warning">"Bu pleylist sinxronizasiya edilsin? Bu pleylist YouTube Music-dən silinməyəcək "</string>
+    <string name="simp_unsync_playlist_warning">\"Bu pleylist sinxronizasiya edilsin? Bu pleylist YouTube Music-dən silinməyəcək \"</string>
     <string name="simp_unsyncing">Sinxronizasiyasız</string>
     <string name="simp_added_to_youtube_playlist">YouTube Pleylistinə Əlavə Edildi</string>
     <string name="simp_removed_from_YouTube_playlist">YouTube Pleylistindən Silindi</string>
@@ -369,7 +369,7 @@
     <string name="simp_downloading_audio">Səs endirilir: %1$s </string>
     <string name="simp_downloading_video">Video endirilir: %1$s </string>
     <string name="simp_ok">Oldu</string>
-    <string name="simp_to_download_folder">" bu endirmə qovluğuna"</string>
+    <string name="simp_to_download_folder">\" bu endirmə qovluğuna\"</string>
     <string name="simp_download_speed">Yüklənmə sürəti: %1$s </string>
     <string name="simp_upvote">Müsbət səs</string>
     <string name="simp_downvote">Mənfi səs</string>

@@ -172,7 +172,7 @@
     <string name="simp_save_last_played">Simpan Terakhir Diputar</string>
     <string name="simp_save_last_played_track_and_queue">Menyimpan lagu yang terakhir diputar dan antrean</string>
     <string name="simp_update_available">Pembaruan baru tersedia</string>
-    <string name="simp_update_message">"Versi %1$s tersedia\nRilis: %2$s\nLog diubah: \n%3$s "</string>
+    <string name="simp_update_message">\"Versi %1$s tersedia\nRilis: %2$s\nLog diubah: \n%3$s \"</string>
     <string name="simp_check_for_update">Cek versi terbaru</string>
     <string name="simp_last_checked_at">Terakhir diperiksa pada %1$s</string>
     <string name="simp_checking">Memeriksa</string>
@@ -232,7 +232,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Masuk untuk mendapatkan Playlist YouTube</string>
     <string name="simp_sync_playlist_warning">SimpMusic akan membuat Playlist YouTube Musik secara otomatis. Apakah Anda yakin?</string>
     <string name="simp_syncing">Sinkronisasi</string>
-    <string name="simp_unsync_playlist_warning">"Membatalkan sinkronisasi playlist ini? Playlist ini tidak akan dihapus dari YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"Membatalkan sinkronisasi playlist ini? Playlist ini tidak akan dihapus dari YouTube Music \"</string>
     <string name="simp_unsyncing">Tidak Disinkronkan</string>
     <string name="simp_added_to_youtube_playlist">Ditambahkan ke Playlist YouTube</string>
     <string name="simp_removed_from_YouTube_playlist">Dihapus dari Playlist YouTube</string>

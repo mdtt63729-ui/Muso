@@ -232,7 +232,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">تسجيل الدخول للحصول على قائمة تشغيل YouTube</string>
     <string name="simp_sync_playlist_warning">SimpMusic سينشئ قائمة تشغيل YouTube Music تلقائيًّا. هل أنت متأكد؟</string>
     <string name="simp_syncing">المزامنة جارية</string>
-    <string name="simp_unsync_playlist_warning">"إلغاء مزامنة قائمة التشغيل هذه؟ لن تتم إزالة قائمة التشغيل هذه من YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"إلغاء مزامنة قائمة التشغيل هذه؟ لن تتم إزالة قائمة التشغيل هذه من YouTube Music \"</string>
     <string name="simp_unsyncing">إلغاء المزامنة</string>
     <string name="simp_added_to_youtube_playlist">تمت الإضافة إلى قائمة تشغيل YouTube</string>
     <string name="simp_removed_from_YouTube_playlist">تمت إزالته من قائمة تشغيل يوتيوب</string>

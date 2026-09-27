@@ -243,7 +243,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Zaloguj się, aby pobrać playlistę YouTube</string>
     <string name="simp_sync_playlist_warning">SimpMusic automatycznie utworzy listę odtwarzania muzyki YouTube. Jesteś pewny?</string>
     <string name="simp_syncing">Synchronizuję</string>
-    <string name="simp_unsync_playlist_warning">"Odsynchronizować tą playlistę? Ta playlista nie zostanie usunięta z YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"Odsynchronizować tą playlistę? Ta playlista nie zostanie usunięta z YouTube Music \"</string>
     <string name="simp_unsyncing">Odsynchronizowanie</string>
     <string name="simp_added_to_youtube_playlist">Dodano do playlisty YouTube</string>
     <string name="simp_removed_from_YouTube_playlist">Usunięto z playlisty YouTube</string>
@@ -407,7 +407,7 @@
     <string name="simp_downloading_audio">Pobieranie audio: %1$s </string>
     <string name="simp_downloading_video">Pobieranie wideo: %1$s </string>
     <string name="simp_ok">Ok</string>
-    <string name="simp_to_download_folder">" do folderu Pobrane"</string>
+    <string name="simp_to_download_folder">\" do folderu Pobrane\"</string>
     <string name="simp_download_speed">Prędkość pobierania:  %1$s </string>
     <string name="simp_shuffle">Losuj</string>
     <string name="simp_other_version">Inne wersje</string>
@@ -415,7 +415,7 @@
     <string name="simp_give_a_star">Daj gwiazdkę</string>
     <string name="simp_enjoying_simpmusic">Ciesz się SimpMusic</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">Jeśli lubisz używać SimpMusic, zostaw gwiazdkę na GitHub lub zostaw recenzję na</string>
-    <string name="simp_if_you_love_my_work_consider">"Jeśli kochasz moją pracę, rozważ "</string>
+    <string name="simp_if_you_love_my_work_consider">\"Jeśli kochasz moją pracę, rozważ \"</string>
     <string name="simp_buying_me_a_coffee">postawienie mi kawy.</string>
     <string name="simp_fade_audio_effect">Efekt zanikania dźwięku</string>
     <string name="simp_disabled">Wyłącz</string>
@@ -435,7 +435,7 @@
     <string name="simp_ai_api_key">Twój klucz API AI</string>
     <string name="simp_invalid_api_key">Nieprawidłowy klucz</string>
     <string name="simp_custom_ai_model_id">ID niestandardowego modelu AI</string>
-    <string name="simp_default_models">Domyślne modele to "gemini-2.0-flash" i "gpt-4o"</string>
+    <string name="simp_default_models">Domyślne modele to \"gemini-2.0-flash\" i \"gpt-4o\"</string>
     <string name="simp_invalid">Niepoprawne</string>
     <string name="simp_custom_model_id_messages">Wprowadź dokładny identyfikator modelu od dostawcy AI.</string>
     <string name="simp_favorite_podcasts">Ulubione podcasty</string>

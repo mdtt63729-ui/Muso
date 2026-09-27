@@ -246,7 +246,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">เข้าสู่ระบบเพื่อรับเพลย์ลิสต์ YouTube</string>
     <string name="simp_sync_playlist_warning">SimpMusic จะสร้างเพลย์ลิสต์ของ YouTube Music โดยอัตโนมัติ คุณแน่ใจเหรอ?</string>
     <string name="simp_syncing">กำลังซิงค์</string>
-    <string name="simp_unsync_playlist_warning">"ยกเลิกการซิงค์เพลย์ลิสต์นี้ใช่ไหม เพลย์ลิสต์นี้จะไม่ถูกลบออกจาก YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"ยกเลิกการซิงค์เพลย์ลิสต์นี้ใช่ไหม เพลย์ลิสต์นี้จะไม่ถูกลบออกจาก YouTube Music \"</string>
     <string name="simp_unsyncing">กำลังยกเลิกการซิงค์</string>
     <string name="simp_added_to_youtube_playlist">เพิ่มเพลย์ลิสต์ลงใน YouTube แล้ว</string>
     <string name="simp_removed_from_YouTube_playlist">ลบเพลย์ลิสต์ออกจาก YouTube แล้ว</string>
@@ -427,7 +427,7 @@
     <string name="simp_downloading_audio">กำลังดาวน์โหลดเสียง:%1$s </string>
     <string name="simp_downloading_video">กำลังดาวน์โหลดวิดีโอ:%1$s </string>
     <string name="simp_ok">ตกลง</string>
-    <string name="simp_to_download_folder">" ไปที่โฟลเดอร์ดาวน์โหลด"</string>
+    <string name="simp_to_download_folder">\" ไปที่โฟลเดอร์ดาวน์โหลด\"</string>
     <string name="simp_download_speed">ความเร็วในการดาวน์โหลด: %1$s </string>
     <string name="simp_shuffle">สลับ</string>
     <string name="simp_other_version">เวอร์ชั่นอื่นๆ</string>
@@ -435,7 +435,7 @@
     <string name="simp_give_a_star">ให้ดาว</string>
     <string name="simp_enjoying_simpmusic">กำลังเพลิดเพลินกับ SimpMusic</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">หากสนุกกับการใช้ SimpMusic กรุณากดดาวที่ SimpMusic บน GitHub หรือเขียนรีวิวให้ด้วยนะ</string>
-    <string name="simp_if_you_love_my_work_consider">"ถ้าคุณชอบผลงานของฉัน ลองพิจารณา "</string>
+    <string name="simp_if_you_love_my_work_consider">\"ถ้าคุณชอบผลงานของฉัน ลองพิจารณา \"</string>
     <string name="simp_buying_me_a_coffee">เลี้ยงกาแฟฉัน</string>
     <string name="simp_fade_audio_effect">เอฟเฟกต์การจางเสียง</string>
     <string name="simp_disabled">ปิดการใช้งาน</string>
@@ -456,7 +456,7 @@
     <string name="simp_ai_api_key">คีย์ API สำหรับ AI ของคุณ</string>
     <string name="simp_invalid_api_key">คีย์ API ไม่ถูกต้อง</string>
     <string name="simp_custom_ai_model_id">รหัสโมเดล AI ที่ปรับแต่งเอง</string>
-    <string name="simp_default_models">โมเดลเริ่มต้นคือ "gemini-2.0-flash" และ "gpt-4o"</string>
+    <string name="simp_default_models">โมเดลเริ่มต้นคือ \"gemini-2.0-flash\" และ \"gpt-4o\"</string>
     <string name="simp_invalid">ไม่ถูกต้อง</string>
     <string name="simp_custom_model_id_messages">กรุณากรอกรหัสโมเดลที่ถูกต้องจากผู้ให้บริการ AI ของคุณ</string>
     <string name="simp_favorite_podcasts">พอดแคสต์ที่ชื่นชอบ</string>

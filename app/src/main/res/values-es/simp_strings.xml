@@ -246,7 +246,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Inicia sesión para obtener la lista de reproducción de YouTube</string>
     <string name="simp_sync_playlist_warning">SimpMusic creará automáticamente una lista de reproducción de música de YouTube. ¿Estás seguro?</string>
     <string name="simp_syncing">Sincronizando</string>
-    <string name="simp_unsync_playlist_warning">"¿Dessincronizar esta lista? Esta lista de reproducción no se eliminará de YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"¿Dessincronizar esta lista? Esta lista de reproducción no se eliminará de YouTube Music \"</string>
     <string name="simp_unsyncing">Dessincronizando</string>
     <string name="simp_added_to_youtube_playlist">Añadido a la lista de reproducción de YouTube</string>
     <string name="simp_removed_from_YouTube_playlist">Eliminado de la lista de reproducción de YouTube</string>
@@ -459,7 +459,7 @@
     <string name="simp_downloading_audio">Descargando audio: %1$s </string>
     <string name="simp_downloading_video">Descargando video: %1$s </string>
     <string name="simp_ok">OK</string>
-    <string name="simp_to_download_folder">" a la carpeta de Descargas"</string>
+    <string name="simp_to_download_folder">\" a la carpeta de Descargas\"</string>
     <string name="simp_download_speed">Velocidad de descarga:  %1$s </string>
     <string name="simp_shuffle">Aleatorio</string>
     <string name="simp_other_version">Otras versiones</string>
@@ -467,7 +467,7 @@
     <string name="simp_give_a_star">Dar una estrella</string>
     <string name="simp_enjoying_simpmusic">Disfrutando SimpMusic</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">Si te gusta usar SimpMusic, da una estrella a SimpMusic en gituhb o deja una reseña</string>
-    <string name="simp_if_you_love_my_work_consider">"Si amas mi trabajo, considera "</string>
+    <string name="simp_if_you_love_my_work_consider">\"Si amas mi trabajo, considera \"</string>
     <string name="simp_buying_me_a_coffee">comprame un café.</string>
     <string name="simp_fade_audio_effect">Efecto de desvanecimiento de audio</string>
     <string name="simp_disabled">Desactivar</string>
@@ -488,7 +488,7 @@
     <string name="simp_ai_api_key">Tu clave API de IA</string>
     <string name="simp_invalid_api_key">Clave de API inválida</string>
     <string name="simp_custom_ai_model_id">ID de modelo de IA personalizado</string>
-    <string name="simp_default_models">Los modelos por defecto son "gemini-2.0-flash" y "gpt-4o"</string>
+    <string name="simp_default_models">Los modelos por defecto son \"gemini-2.0-flash\" y \"gpt-4o\"</string>
     <string name="simp_invalid">Inválido</string>
     <string name="simp_custom_model_id_messages">Por favor, introduce el ID del modelo exacto de tu proveedor de IA.</string>
     <string name="simp_favorite_podcasts">Podcasts favoritos</string>
@@ -583,7 +583,7 @@
     <string name="simp_keep_your_youtube_playlist_offline">Seguir mostrando tu lista de reproducción de YouTube sin conexión</string>
     <string name="simp_keep_your_youtube_playlist_offline_description">Guardar tu lista de reproducción de YT y mantener para mostrar sin conexión</string>
     <string name="simp_combine_local_and_youtube_liked_songs">Reemplazar Favorito por Me Gusta de YouTube al iniciar sesión</string>
-    <string name="simp_combine_local_and_youtube_liked_songs_description">Solo usar "Me gusta" de YouTube (no es compatible con una canción sin conexión)</string>
+    <string name="simp_combine_local_and_youtube_liked_songs_description">Solo usar \"Me gusta\" de YouTube (no es compatible con una canción sin conexión)</string>
     <string name="simp_this_year">Este año</string>
     <string name="simp_last_90_days">Últimos 90 días</string>
     <string name="simp_last_30_days">Últimos 30 días</string>

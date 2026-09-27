@@ -1,4 +1,26 @@
-## Round 115 (v0.5.130, code 137)
+## Round 116 (v0.5.131, code 138)
+
+## CI fix #8 — resource escaping in the ported SimpMusic strings
+The strings fix from last round landed; resource merging now runs and
+failed flattening simp_strings entries with "Invalid unicode escape
+sequence" / "does not contain a valid string resource" across the base
+and several language folders (ca, hr, pt, ...).
+
+Root cause: Android string resources must escape apostrophes and double
+quotes with a backslash (doesn't -> doesn\'t). The ported SimpMusic
+catalog carried them raw - 458 strings across 27 files (English plus
+every language file, e.g. Catalan "M'agrada", "LET'S START WITH A
+RADIO", "l'historial"). The original SimpMusic sources rely on
+strings.xml escaping that aapt2 enforces; every occurrence is now
+escaped (\\' and \\") while leaving valid existing escapes (\\n,
+\\uXXXX, already-escaped quotes) untouched.
+
+Verified after the pass: zero unescaped quotes/apostrophes remain in
+any string/item body, no duplicate names introduced, plurals included.
+The styles.xml hits in the verification scan are style-item references
+(@android:color/...), not strings - untouched by design.
+
+# Round 115 (v0.5.130, code 137)
 
 ## CI fix #7 — resource merger: duplicate strings
 The whole toolchain now works end to end - Gradle 9.5.1, AGP 9.2.1 with

@@ -256,7 +256,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Logga in för att hämta YouTube-spellistor</string>
     <string name="simp_sync_playlist_warning">SimpMusic skapar automatiskt en spellista i YouTube Music. Är du säker?</string>
     <string name="simp_syncing">Synkroniserar</string>
-    <string name="simp_unsync_playlist_warning">"Ta bort synkroniseringen av den här spellistan? Spellistan tas inte bort från YouTube Music "</string>
+    <string name="simp_unsync_playlist_warning">\"Ta bort synkroniseringen av den här spellistan? Spellistan tas inte bort från YouTube Music \"</string>
     <string name="simp_unsyncing">Tar bort synkroniseringen</string>
     <string name="simp_added_to_youtube_playlist">Har lagts till i YouTube-spellistan</string>
     <string name="simp_removed_from_YouTube_playlist">Har tagits bort från YouTube-spellistan</string>
@@ -492,7 +492,7 @@
     <string name="simp_downloading_audio">Hämtar ljud: %1$s </string>
     <string name="simp_downloading_video">Hämtar video: %1$s </string>
     <string name="simp_ok">OK</string>
-    <string name="simp_to_download_folder">" till mappen Hämtningar"</string>
+    <string name="simp_to_download_folder">\" till mappen Hämtningar\"</string>
     <string name="simp_download_speed">Hämtningshastighet:  %1$s </string>
     <string name="simp_shuffle">Blanda</string>
     <string name="simp_other_version">Annan version</string>
@@ -500,7 +500,7 @@
     <string name="simp_give_a_star">Ge en stjärna</string>
     <string name="simp_enjoying_simpmusic">Gillar du SimpMusic?</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">Om du gillar SimpMusic kan du ge projektet en stjärna på GitHub eller lämna en recension på</string>
-    <string name="simp_if_you_love_my_work_consider">"Om du uppskattar mitt arbete kan du överväga att "</string>
+    <string name="simp_if_you_love_my_work_consider">\"Om du uppskattar mitt arbete kan du överväga att \"</string>
     <string name="simp_buying_me_a_coffee">bjuda mig på en kaffe.</string>
     <string name="simp_footguns_promo_title">Alla fallgropar jag hamnade i</string>
     <string name="simp_footguns_promo_message">SimpMusic kostade mig många nätter på grund av fallgropar i Kotlin och Compose som ingen dokumentation varnade för. Jag skrev ned dem alla i kotlin-footguns, så att du slipper förlora lika många nätter. Om det sparar dig ens en enda natt skulle en stjärna betyda mycket för mig.</string>
@@ -523,7 +523,7 @@
     <string name="simp_ai_api_key">Din API-nyckel för AI</string>
     <string name="simp_invalid_api_key">Ogiltig API-nyckel</string>
     <string name="simp_custom_ai_model_id">Anpassat AI-modell-ID</string>
-    <string name="simp_default_models">Standardmodellerna är "gemini-2.0-flash" och "gpt-4o"</string>
+    <string name="simp_default_models">Standardmodellerna är \"gemini-2.0-flash\" och \"gpt-4o\"</string>
     <string name="simp_invalid">Ogiltig</string>
     <string name="simp_custom_model_id_messages">Ange det exakta modell-ID:t från din AI-leverantör.</string>
     <string name="simp_favorite_podcasts">Favoritpoddar</string>

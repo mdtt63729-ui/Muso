@@ -244,7 +244,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">로그인하여 YouTube 재생목록 불러오기</string>
     <string name="simp_sync_playlist_warning">SimpMusic이 YouTube Music 재생목록을 자동으로 생성합니다. 확실하십니까?</string>
     <string name="simp_syncing">동기화 중</string>
-    <string name="simp_unsync_playlist_warning">"이 재생목록의 동기화를 해제합니까? YouTube Music에서 이 재생목록이 제거되지 않습니다 "</string>
+    <string name="simp_unsync_playlist_warning">\"이 재생목록의 동기화를 해제합니까? YouTube Music에서 이 재생목록이 제거되지 않습니다 \"</string>
     <string name="simp_unsyncing">동기화 해제 중</string>
     <string name="simp_added_to_youtube_playlist">YouTube 재생목록에 추가 완료</string>
     <string name="simp_removed_from_YouTube_playlist">YouTube 재생목록에서 제거 완료</string>
@@ -416,7 +416,7 @@
     <string name="simp_downloading_audio">오디오 다운로드 중: %1$s </string>
     <string name="simp_downloading_video">동영상 다운로드 중: %1$s </string>
     <string name="simp_ok">확인</string>
-    <string name="simp_to_download_folder">" 다운로드 폴더로"</string>
+    <string name="simp_to_download_folder">\" 다운로드 폴더로\"</string>
     <string name="simp_download_speed">다운로드 속도:  %1$s </string>
     <string name="simp_shuffle">셔플</string>
     <string name="simp_other_version">다른 버전</string>
@@ -424,7 +424,7 @@
     <string name="simp_give_a_star">별 주기</string>
     <string name="simp_enjoying_simpmusic">SimpMusic을 즐기고 계신가요</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">SimpMusic을 잘 이용하고 계신다면, GitHub에서 SimpMusic에 별을 주거나 리뷰를 남겨주세요</string>
-    <string name="simp_if_you_love_my_work_consider">"앱이 마음에 드시면, "</string>
+    <string name="simp_if_you_love_my_work_consider">\"앱이 마음에 드시면, \"</string>
     <string name="simp_buying_me_a_coffee">커피 한 잔으로 응원해주세요.</string>
     <string name="simp_fade_audio_effect">음향 페이드 효과</string>
     <string name="simp_disabled">사용 안 함</string>
@@ -445,7 +445,7 @@
     <string name="simp_ai_api_key">내 AI API 키</string>
     <string name="simp_invalid_api_key">잘못된 API 키</string>
     <string name="simp_custom_ai_model_id">사용자 AI 모델 ID</string>
-    <string name="simp_default_models">기본 모델은 "gemini-2.0-flash" 및 "gpt-4o"입니다</string>
+    <string name="simp_default_models">기본 모델은 \"gemini-2.0-flash\" 및 \"gpt-4o\"입니다</string>
     <string name="simp_invalid">잘못됨</string>
     <string name="simp_custom_model_id_messages">AI 제공자의 정확한 모델 ID를 입력해 주십시오.</string>
     <string name="simp_favorite_podcasts">즐겨 찾는 팟캐스트</string>

@@ -248,7 +248,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Melde dich an, um die YouTube-Playlist zu erhalten</string>
     <string name="simp_sync_playlist_warning">SimpMusic erstellt automatisch eine YouTube Music-Playlist. Bist du dir sicher?</string>
     <string name="simp_syncing">Synchronisierung</string>
-    <string name="simp_unsync_playlist_warning">"Synchronisierung dieser Playlist aufheben? Diese Playlist wird nicht aus YouTube Music entfernt"</string>
+    <string name="simp_unsync_playlist_warning">\"Synchronisierung dieser Playlist aufheben? Diese Playlist wird nicht aus YouTube Music entfernt\"</string>
     <string name="simp_unsyncing">Synchronisierung wird aufgehoben</string>
     <string name="simp_added_to_youtube_playlist">Zur YouTube/YTM-Playlist hinzugefügt</string>
     <string name="simp_removed_from_YouTube_playlist">Aus der YouTube-Playlist entfernt</string>
@@ -469,7 +469,7 @@
     <string name="simp_sync_first">Diese Playlist erst mit Youtube Musik synchronisieren</string>
     <string name="simp_endless_queue">Endlose Warteschlange</string>
     <string name="simp_continue_playing">Continuer à jouer</string>
-    <string name="simp_continue_playing_endless_subtitle">Ajoute automatiquement des titres similaires à la fin de la file d'attente</string>
+    <string name="simp_continue_playing_endless_subtitle">Ajoute automatiquement des titres similaires à la fin de la file d\'attente</string>
     <string name="simp_do_not_show_again">Nicht erneut anzeigen</string>
     <string name="simp_auto_check_for_update">Automatisches Überprüfen auf Updates</string>
     <string name="simp_auto_check_for_update_description">Überprüfung auf Updates beim App Start</string>
@@ -482,7 +482,7 @@
     <string name="simp_downloading_audio">Audio wird heruntergeladen: %1$s </string>
     <string name="simp_downloading_video">Video wird heruntergeladen: %1$s </string>
     <string name="simp_ok">Okay</string>
-    <string name="simp_to_download_folder">" Zum Download Ordner"</string>
+    <string name="simp_to_download_folder">\" Zum Download Ordner\"</string>
     <string name="simp_download_speed">Downloadgeschwindigkeit:  %1$s </string>
     <string name="simp_shuffle">Zufällig</string>
     <string name="simp_other_version">Andere Version</string>
@@ -490,7 +490,7 @@
     <string name="simp_give_a_star">Gebe einen Stern</string>
     <string name="simp_enjoying_simpmusic">Spaß an SimpMusic</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">Wenn dir SimpMusic gefällt, gib SimpMusic einen Stern auf Github oder lasse eine Rezension da</string>
-    <string name="simp_if_you_love_my_work_consider">"Wenn Dumeine Arbeit liebst, denk darüber nach "</string>
+    <string name="simp_if_you_love_my_work_consider">\"Wenn Dumeine Arbeit liebst, denk darüber nach \"</string>
     <string name="simp_buying_me_a_coffee">Mir einen Kaffee zu kaufen.</string>
     <string name="simp_footguns_promo_title">Jede Falle, in die ich getappt bin</string>
     <string name="simp_footguns_promo_message">SimpMusic hat mich viele schlaflose Nächte gekostet, in denen ich mich mit Kotlin- und Compose-Fallstricken herumgeschlagen habe, vor denen mich keine Dokumentation jemals gewarnt hatte. Ich habe jeden einzelnen davon in „kotlin-footguns“ festgehalten, damit ihr nicht dieselben schlaflosen Nächte durchmachen müsst. Wenn ich euch damit auch nur eine Nacht ersparen kann, würde mir ein Stern sehr viel bedeuten.</string>
@@ -513,7 +513,7 @@
     <string name="simp_ai_api_key">Dein KI API Key</string>
     <string name="simp_invalid_api_key">Ungültiger API-Schlüssel</string>
     <string name="simp_custom_ai_model_id">Benutzerdefinierte KI-Model-ID</string>
-    <string name="simp_default_models">Standardmodelle sind "gemini-2.0-flash-lite" und "gpt-4o"</string>
+    <string name="simp_default_models">Standardmodelle sind \"gemini-2.0-flash-lite\" und \"gpt-4o\"</string>
     <string name="simp_invalid">Ungültig</string>
     <string name="simp_custom_model_id_messages">Bitte gib die genaue Modell-ID deines KI-Providers ein.</string>
     <string name="simp_favorite_podcasts">Lieblings-Podcasts</string>

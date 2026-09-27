@@ -255,7 +255,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">Đăng nhập để tải danh sách phát YouTube của bạn</string>
     <string name="simp_sync_playlist_warning">SimpMusic sẽ tự động tạo một danh sách phát trên YouTube Music. Bạn có chắc chắn?</string>
     <string name="simp_syncing">Đang đồng bộ</string>
-    <string name="simp_unsync_playlist_warning">"Huỷ đồng bộ danh sách phát này? Điều này sẽ không xoá danh sách phát này trên YouTube Music"</string>
+    <string name="simp_unsync_playlist_warning">\"Huỷ đồng bộ danh sách phát này? Điều này sẽ không xoá danh sách phát này trên YouTube Music\"</string>
     <string name="simp_unsyncing">Đang huỷ đồng bộ</string>
     <string name="simp_added_to_youtube_playlist">Đã thêm vào danh sách phát YouTube</string>
     <string name="simp_removed_from_YouTube_playlist">Đã xoá khỏi danh sách phát YouTube</string>
@@ -490,7 +490,7 @@
     <string name="simp_downloading_audio">Đang tải xuống âm thanh: %1$s </string>
     <string name="simp_downloading_video">Đang tải xuống video: %1$s </string>
     <string name="simp_ok">OK</string>
-    <string name="simp_to_download_folder">" vào thư mục Tải xuống"</string>
+    <string name="simp_to_download_folder">\" vào thư mục Tải xuống\"</string>
     <string name="simp_download_speed">Tốc độ tải xuống: %1$s </string>
     <string name="simp_shuffle">Trộn bài</string>
     <string name="simp_other_version">Phiên bản khác</string>
@@ -498,7 +498,7 @@
     <string name="simp_give_a_star">Tặng một sao</string>
     <string name="simp_enjoying_simpmusic">Yêu thích SimpMusic</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">Nếu bạn yêu thích SimpMusic, sao SimpMusic trên GitHub hoặc để lại một đánh giá trên</string>
-    <string name="simp_if_you_love_my_work_consider">"Nếu bạn cảm thấy yêu thích những gì tôi làm, có thể "</string>
+    <string name="simp_if_you_love_my_work_consider">\"Nếu bạn cảm thấy yêu thích những gì tôi làm, có thể \"</string>
     <string name="simp_buying_me_a_coffee">mua cho tôi một ly cà phê.</string>
     <string name="simp_footguns_promo_title">Mỗi cái bẫy tôi rơi vào</string>
     <string name="simp_footguns_promo_message">SimpMusic đã khiến tôi mất rất nhiều đêm sử dụng bẫy Kotlin và Compose mà chưa có tài liệu nào cảnh báo tôi. Tôi đã viết từng điều trong số đó bằng kotlin-footguns, để bạn không bị thua trong những đêm tương tự. Nếu nó cứu được dù chỉ một người trong số các bạn, một ngôi sao sẽ có ý nghĩa rất lớn đối với tôi.</string>

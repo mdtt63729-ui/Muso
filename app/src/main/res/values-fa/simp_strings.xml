@@ -246,8 +246,8 @@
     <string name="simp_sync_playlist_warning">SimpMusic به‌طور خودکار یک فهرست پخش یوتیوب موزیک ایجاد خواهد
     کرد. آیا مطمئن هستید؟</string>
     <string name="simp_syncing">در حال همگام‌سازی</string>
-    <string name="simp_unsync_playlist_warning">"آیا این فهرست پخش را از همگام‌سازی خارج کنید؟ این فهرست پخش
-    از یوتیوب موزیک پاک نخواهد شد "</string>
+    <string name="simp_unsync_playlist_warning">\"آیا این فهرست پخش را از همگام‌سازی خارج کنید؟ این فهرست پخش
+    از یوتیوب موزیک پاک نخواهد شد \"</string>
     <string name="simp_unsyncing">در حال خارج کردن از همگام‌سازی</string>
     <string name="simp_added_to_youtube_playlist">به فهرست پخش یوتیوب افزوده شد</string>
     <string name="simp_removed_from_YouTube_playlist">از فهرست پخش یوتیوب پاک شد</string>
@@ -399,7 +399,7 @@
     <string name="simp_downloading_audio">در حال دانلود صدا: %1$s </string>
     <string name="simp_downloading_video">در حال دانلود ویدیو: %1$s </string>
     <string name="simp_ok">تایید</string>
-    <string name="simp_to_download_folder">" در پوشه دانلود"</string>
+    <string name="simp_to_download_folder">\" در پوشه دانلود\"</string>
     <string name="simp_download_speed">سرعت دانلود: %1$s </string>
     <string name="simp_shuffle">پخش تصادفی</string>
     <string name="simp_other_version">نسخه دیگر</string>
@@ -407,7 +407,7 @@
     <string name="simp_give_a_star">ستاره بدید</string>
     <string name="simp_enjoying_simpmusic">از SimpMusic لذت می‌بری</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">اگر از استفاده از SimpMusic لذت می‌برید، به SimpMusic در GitHub ستاره دهید یا نظر خود را درباره آن بنویسید</string>
-    <string name="simp_if_you_love_my_work_consider">"اگر از کار من خوشتان می‌آید، لطفاً "</string>
+    <string name="simp_if_you_love_my_work_consider">\"اگر از کار من خوشتان می‌آید، لطفاً \"</string>
     <string name="simp_buying_me_a_coffee">یک قهوه برایم بخرید.</string>
     <string name="simp_fade_audio_effect">افکت محو صدا</string>
     <string name="simp_disabled">غیرفعال</string>

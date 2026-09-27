@@ -238,7 +238,7 @@
     <string name="simp_log_in_to_get_YouTube_playlist">यूट्यूब प्लेलिस्ट पाने के लिए लॉग इन करें</string>
     <string name="simp_sync_playlist_warning">सिम्पम्यूजिक स्वचालित रूप से एक यूट्यूब म्यूजिक प्लेलिस्ट बनाएगा। क्या आप सुनिश्चित हैं?</string>
     <string name="simp_syncing">सिंक हो रहा है</string>
-    <string name="simp_unsync_playlist_warning">"इस प्लेलिस्ट को असिंक करें? यह प्लेलिस्ट यूट्यूब म्यूजिक से नहीं हटाई जाएगी"</string>
+    <string name="simp_unsync_playlist_warning">\"इस प्लेलिस्ट को असिंक करें? यह प्लेलिस्ट यूट्यूब म्यूजिक से नहीं हटाई जाएगी\"</string>
     <string name="simp_unsyncing">असिंक हो रहा है</string>
     <string name="simp_added_to_youtube_playlist">यूट्यूब प्लेलिस्ट में जोड़ा गया</string>
     <string name="simp_removed_from_YouTube_playlist">यूट्यूब प्लेलिस्ट से हटाया गया</string>
@@ -387,7 +387,7 @@
     <string name="simp_downloading_audio">ऑडियो डाउनलोड हो रहा है: %1$s </string>
     <string name="simp_downloading_video">वीडियो डाउनलोड हो रहा है: %1$s </string>
     <string name="simp_ok">ओके</string>
-    <string name="simp_to_download_folder">" फ़ोल्डर डाउनलोड करने के लिए"</string>
+    <string name="simp_to_download_folder">\" फ़ोल्डर डाउनलोड करने के लिए\"</string>
     <string name="simp_download_speed">डाउनलोड गति: %1$s </string>
     <string name="simp_shuffle">शफ़ल</string>
     <string name="simp_other_version">अन्य वर्ज़न</string>
@@ -395,7 +395,7 @@
     <string name="simp_give_a_star">एक सितारा दें</string>
     <string name="simp_enjoying_simpmusic">सिम्पम्यूजिक का आनंद ले रहे हैं</string>
     <string name="simp_if_you_enjoy_using_simpmusic_star_simpmusic_on_github_or_leave_a_review_on">यदि आपको सिम्पम्यूजिक का उपयोग करना अच्छा लगता है, तो गिटहब पर सिम्पम्यूजिक को स्टार करें या समीक्षा लिखें</string>
-    <string name="simp_if_you_love_my_work_consider">"अगर आपको मेरा काम पसंद आए, तो "</string>
+    <string name="simp_if_you_love_my_work_consider">\"अगर आपको मेरा काम पसंद आए, तो \"</string>
     <string name="simp_buying_me_a_coffee">मुझे एक कॉफ़ी देकर समर्थन करें।</string>
     <string name="simp_fade_audio_effect">ऑडियो प्रभाव फीका करें</string>
     <string name="simp_disabled">अक्षम करें</string>
@@ -415,7 +415,7 @@
     <string name="simp_ai_api_key">आपकी एआई एपीआई कुंजी</string>
     <string name="simp_invalid_api_key">अमान्य एपीआई कुंजी</string>
     <string name="simp_custom_ai_model_id">कस्टम एआई मॉडल आईडी</string>
-    <string name="simp_default_models">डिफ़ॉल्ट मॉडल "gemini-2.0-flash" और "gpt-4o" हैं</string>
+    <string name="simp_default_models">डिफ़ॉल्ट मॉडल \"gemini-2.0-flash\" और \"gpt-4o\" हैं</string>
     <string name="simp_invalid">अमान्य</string>
     <string name="simp_custom_model_id_messages">कृपया अपने एआई प्रदाता से सटीक मॉडल आईडी दर्ज करें।</string>
     <string name="simp_favorite_podcasts">पसंदीदा पॉडकास्ट</string>
