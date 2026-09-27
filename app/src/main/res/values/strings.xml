@@ -549,7 +549,6 @@
     <string name="video_quality_1080">1080p (high)</string>
     <string name="show">Show</string>
     <string name="song_views">%1$s views</string>
-    <string name="lyrics">Lyrics</string>
     <string name="lyrics_offset">Lyrics timing offset</string>
     <string name="lyrics_offset_desc">Sync lyrics earlier or later to match what you hear</string>
     <string name="open_system_equalizer">Open system equalizer</string>

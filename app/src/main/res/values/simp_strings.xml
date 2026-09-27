@@ -305,7 +305,7 @@
     <string name="simp_radio_audio_only">Play audio version instead of MV in radio</string>
     <string name="simp_radio_audio_only_description">Play the audio version instead of the music video when there is one, and skip remixes and mashups that only exist as videos. Playlists and albums are not affected</string>
     <string name="simp_video_quality">Video Quality</string>
-    <plurals name="n_song">
+    <plurals name="simp_n_song">
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>
     </plurals>

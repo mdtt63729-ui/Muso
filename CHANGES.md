@@ -1,4 +1,27 @@
-## Round 114 (v0.5.129, code 136)
+## Round 115 (v0.5.130, code 137)
+
+## CI fix #7 — resource merger: duplicate strings
+The whole toolchain now works end to end - Gradle 9.5.1, AGP 9.2.1 with
+built-in Kotlin, every module (innertube, simpmusic, kugou, lrclib,
+kizzy, betterlyrics, paxsenixlyrics, youlyplus, unison) compiled clean -
+and the build reached resource merging, which failed with:
+"Found item String/lyrics more than one time".
+
+- values/strings.xml carried <string name="lyrics"> twice: once in the
+  original block and once in the v2.2.0-round additions (line 552). The
+  redundant one is removed.
+- Proactive catch: values/simp_strings.xml still had one unprefixed
+  entry (n_song) overlapping Muso's own strings.xml - the exact same
+  merger error waiting one step later. Renamed to simp_n_song (no code
+  references either name; the 26 language files were already clean).
+- Full duplicate/overlap scan re-run across all 50 res/values* folders:
+  zero duplicates, zero cross-file overlaps.
+- Cleanup from this round's log: dropped buildToolsVersion 35.0.0 (AGP
+  9.2.1 defaults to 36 and warned), and scoped the
+  ExperimentalComposeUiApi opt-in to the :app module so the pure-JVM
+  modules stop warning about an unresolved opt-in marker.
+
+# Round 114 (v0.5.129, code 136)
 
 ## CI fix #6 — AGP 9 built-in Kotlin adoption
 The wrapper fix worked (Gradle 9.5.1 booted, AGP 9.2.1 configured :app)

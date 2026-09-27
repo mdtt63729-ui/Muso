@@ -37,7 +37,11 @@ subprojects {
         // rejects the org.jetbrains.kotlin.android plugin id.
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-            freeCompilerArgs.add("-opt-in=androidx.compose.ui.ExperimentalComposeUiApi")
+            if (project.name == "app") {
+                // Compose-ui is only on :app's classpath; a global opt-in
+                // makes every JVM module warn about an unresolved marker.
+                freeCompilerArgs.add("-opt-in=androidx.compose.ui.ExperimentalComposeUiApi")
+            }
             if (project.findProperty("enableComposeCompilerReports") == "true") {
                 arrayOf("reports", "metrics").forEach {
                     freeCompilerArgs.add("-P")

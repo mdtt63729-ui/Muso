@@ -19,13 +19,12 @@ if (isFullBuild && System.getenv("PULL_REQUEST") == null) {
 android {
     namespace = "com.muso.music"
     compileSdk = 37
-    buildToolsVersion = "35.0.0"
     defaultConfig {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 136
-        versionName = "0.5.129"
+        versionCode = 137
+        versionName = "0.5.130"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
