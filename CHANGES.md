@@ -1,4 +1,25 @@
-## Round 108 (v0.5.123, code 130)
+## Round 109 (v0.5.124, code 131)
+
+## CI fix — first real build error resolved
+The CI run failed at Gradle configuration:
+"On plugin declaration 'koin-bom' expected to find any of 'id' or
+'version' but found unexpected keys 'group' and 'name'."
+
+Root cause: all 16 SimpMusic-suite dependency entries (coil3, kmpalette,
+materialkolor, koin BOM + artifacts, kyant0 backdrop/shapes, and the
+phase-2 additions) had been appended under the wrong TOML table — they
+sat under [plugins] instead of [libraries], so every suite build since
+the player port died at configuration time before compiling a single
+file. The app's build.gradle.kts always referenced them as libraries
+(libs.coil3.compose, libs.koin.bom, ...), which is what surfaced the
+mismatch now that CI finally ran.
+
+Fix: the whole block moved verbatim into [libraries]; [plugins] again
+contains only the four real plugins (kotlin-serialization,
+compose-compiler, hilt, kotlin-ksp). TOML re-validated with a strict
+parser — no other structural issues found.
+
+# Round 108 (v0.5.123, code 130)
 
 ## What's new — iOS-style page transitions + 120Hz smoothness work
 (Transitions & performance PRD — phases 2/3 core + phase-1 playlist fixes.)

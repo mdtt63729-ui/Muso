@@ -26,8 +26,8 @@ android {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 130
-        versionName = "0.5.123"
+        versionCode = 131
+        versionName = "0.5.124"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
