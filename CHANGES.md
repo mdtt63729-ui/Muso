@@ -1,4 +1,29 @@
-## Round 112 (v0.5.127, code 134)
+## Round 113 (v0.5.128, code 135)
+
+## CI fix #5 — wrapper version verified against reality + risk cleanup
+The Gradle wrapper URL was the failure this time: gradle-9.2-bin.zip
+does not exist on services.gradle.org (bare "9.2" is not a published
+version - the published ones are 9.2.0, 9.2.1, ...). Instead of guessing
+again, this round verifies every toolchain coordinate against the live
+repositories:
+
+- Wrapper now points at gradle-9.5.1-bin.zip with the official sha256
+  (bafc141b...). 9.5.1 is the exact Gradle SimpMusic v2.2.0's own wrapper
+  uses with AGP 9.2.1 - the proven pairing for our stack. Confirmed
+  present on services.gradle.org's version list.
+- AGP 9.2.1 confirmed on Google Maven (200).
+- Kotlin 2.4.20 confirmed on Maven Central (200).
+- KSP 2.3.9 confirmed on Maven Central (in SimpMusic's catalog and live).
+- compose ui 1.12.0 confirmed on Google Maven (200).
+- Hilt 2.56.2 -> 2.60.1 (latest, fetched from the live metadata): 2.56
+  predates the Kotlin 2.4 metadata format its processor would have to
+  read - the proactive bump removes the most likely next failure.
+- Dropped the -Xcontext-receivers compiler flag: a repo-wide scan shows
+  no context receivers are used anywhere, so the flag was pure risk on
+  the Kotlin 2.4 line (experimental features can move). The
+  ExperimentalComposeUiApi opt-in stays.
+
+# Round 112 (v0.5.127, code 134)
 
 ## CI fix #4 — toolchain brought up to the SimpMusic v2.2.0 stack
 Progress: :innertube now compiles (only a redundant-else warning left, kept

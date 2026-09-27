@@ -9,7 +9,7 @@ material3 = "1.5.0-alpha22"
 media3 = "1.11.1"
 room = "2.8.5"
 work = "2.9.1"
-hilt = "2.56.2"
+hilt = "2.60.1"
 ktor = "2.3.12"
 ksp = "2.3.9"
 

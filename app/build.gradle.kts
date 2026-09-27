@@ -25,8 +25,8 @@ android {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 134
-        versionName = "0.5.127"
+        versionCode = 135
+        versionName = "0.5.128"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -86,10 +86,7 @@ android {
     // it (same args, same target).
     kotlin {
         compilerOptions {
-            freeCompilerArgs.addAll(
-                "-Xcontext-receivers",
-                "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
-            )
+            freeCompilerArgs.add("-opt-in=androidx.compose.ui.ExperimentalComposeUiApi")
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
