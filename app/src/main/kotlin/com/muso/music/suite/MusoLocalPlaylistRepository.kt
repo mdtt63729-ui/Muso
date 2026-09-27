@@ -5,7 +5,7 @@ import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.browse.playlist.PlaylistState
 import com.maxrave.domain.repository.LocalPlaylistRepository
-import com.maxrave.domain.utils.Resource
+import com.maxrave.domain.utils.LocalResource
 import com.muso.music.db.MusicDatabase
 import com.muso.music.db.entities.ArtistEntity
 import com.muso.music.db.entities.SongArtistMap
@@ -83,14 +83,14 @@ class MusoLocalPlaylistRepository(
     ): Flow<Resource<String>> = flow {
         val playlist = musoPlaylist(id)
         if (playlist == null) {
-            emit(Resource.Error(errorMessage))
+            emit(LocalResource.Error(errorMessage))
             return@flow
         }
         ensureSong(song)
         val result = runCatching {
             db.transaction { db.addSongToPlaylist(playlist, listOf(song.videoId)) }
         }
-        if (result.isSuccess) emit(Resource.Success(successMessage)) else emit(Resource.Error(errorMessage))
+        if (result.isSuccess) emit(LocalResource.Success(successMessage)) else emit(LocalResource.Error(errorMessage))
     }.flowOn(Dispatchers.IO)
 
     override fun removeTrackFromLocalPlaylist(
@@ -102,7 +102,7 @@ class MusoLocalPlaylistRepository(
     ): Flow<Resource<String>> = flow {
         val playlist = musoPlaylist(id)
         if (playlist == null) {
-            emit(Resource.Error(errorMessage))
+            emit(LocalResource.Error(errorMessage))
             return@flow
         }
         val result = runCatching {
@@ -114,7 +114,7 @@ class MusoLocalPlaylistRepository(
                 }
             }
         }
-        if (result.isSuccess) emit(Resource.Success(successMessage)) else emit(Resource.Error(errorMessage))
+        if (result.isSuccess) emit(LocalResource.Success(successMessage)) else emit(LocalResource.Error(errorMessage))
     }.flowOn(Dispatchers.IO)
 
     override fun syncYouTubePlaylistToLocalPlaylist(
@@ -150,7 +150,7 @@ class MusoLocalPlaylistRepository(
                 }
             }
         }
-        if (result.isSuccess) emit(Resource.Success(syncedString)) else emit(Resource.Error(errorString))
+        if (result.isSuccess) emit(LocalResource.Success(syncedString)) else emit(LocalResource.Error(errorString))
     }.flowOn(Dispatchers.IO)
 
     private fun toSuiteIdForPersisted(musoId: String): Long = suiteIdFor(musoId)

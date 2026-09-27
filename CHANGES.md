@@ -1,4 +1,38 @@
-## Round 117 (v0.5.132, code 139)
+## Round 118 (v0.5.133, code 140)
+
+## CI fix #10 — the tail of the :app compile: 250 -> 47 -> 0 targeted
+Last round cleared ~80% of the compile errors; this one takes the remaining
+47 error lines (all in :app), which were almost entirely small residue:
+
+- IconButton: the 40.dp literal needed the missing `dp` import
+- MusoSuiteHost: ArrowForwardIos is an extension property on SimpIcons —
+  extensions must be imported by name, not via the object's import
+- Cookies.kt: the AndroidView import was lost in the previous edit; restored
+- OpenEq / PhotoPicker / SaveImagePermission: the launcher interfaces were
+  inserted mid-import-block (Kotlin requires imports first); moved below the
+  import list
+- Scrollbar: the stripped expect declarations had no bodies — empty bodies
+  added (exactly what upstream's androidActual ships)
+- AppBottomNavigationBar: TextStyle.greyScale() extension was missing from
+  UIExt (upstream tints the label grey for unselected tabs); ported verbatim
+- Theme.kt: THEME_MODE_* / THEME_COLOR_* / DEFAULT_THEME_COLOR_HEX constants
+  added to the DataStoreManager shim (upstream values)
+- ComposeResUtils: the CMP `org.jetbrains.compose.resources.getString` import
+  swapped for the suite resource accessor
+- SharedViewModel.getLyricsOffsetMs now returns the flow (FullscreenLyrics
+  collects it; it previously returned a bare Long)
+- LocalPlaylistRepository: our port had drifted to Resource<String> while the
+  viewModels collect with the LocalResource extensions — interface, Noop
+  repository and the Muso adapter all realigned to LocalResource
+- BaseViewModel: SuiteRes.context is nullable — safe call added
+- MusoDownloadHandler: the override signature itself still used the bare
+  Download name; fully qualified now
+- MusoSongRepository.insertSong: the runCatching block's last statement was
+  the artist forEach (Unit), so the flow degenerated to Flow<Any> — now
+  returns the insert row id
+- ModalBottomSheet: koinViewModel() given its explicit type argument
+
+# Round 117 (v0.5.132, code 139)
 
 ## CI fix #9 — the :app Kotlin compile: ~250 errors across 35 files
 The resource fixes landed; the build now reaches :app:compileFossReleaseKotlin,

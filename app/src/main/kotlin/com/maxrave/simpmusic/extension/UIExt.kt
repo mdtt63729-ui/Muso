@@ -137,6 +137,11 @@ fun LazyListState.visibilityPercent(info: LazyListItemInfo): Float {
 
 fun Modifier.greyScale() = this.then(GreyScaleModifier())
 
+fun TextStyle.greyScale(): TextStyle =
+    this.copy(
+        color = Color.Gray,
+    )
+
 fun Modifier.angledGradientBackground(
     colors: List<Color>,
     degrees: Float,

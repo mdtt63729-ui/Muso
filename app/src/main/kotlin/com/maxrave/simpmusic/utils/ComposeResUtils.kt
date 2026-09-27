@@ -2,7 +2,7 @@ package com.maxrave.simpmusic.utils
 
 import com.maxrave.common.SponsorBlockType
 import com.maxrave.simpmusic.extension.displayRes
-import org.jetbrains.compose.resources.getString
+import com.maxrave.simpmusic.ui.component.getString
 import com.muso.music.R
 
 object ComposeResUtils {

@@ -27,7 +27,7 @@ class MusoDownloadHandler(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    override val downloads: StateFlow<Map<String, Pair<Download?, Download?>>> =
+    override val downloads: StateFlow<Map<String, Pair<DownloadHandler.Download?, DownloadHandler.Download?>>> =
         downloadUtil.downloads
             .let { flow ->
                 kotlinx.coroutines.flow.flow {
@@ -39,7 +39,7 @@ class MusoDownloadHandler(
             .stateIn(
                 scope = scope,
                 started = kotlinx.coroutines.flow.SharingStarted.Eagerly,
-                initialValue = emptyMap<String, Pair<Download?, Download?>>(),
+                initialValue = emptyMap<String, Pair<DownloadHandler.Download?, DownloadHandler.Download?>>(),
             )
 
     override val downloadTask: StateFlow<Map<String, Int>> = MutableStateFlow(emptyMap())

@@ -24,6 +24,14 @@ class DataStoreManager {
         const val NOW_PLAYING_STYLE_APPLE_MUSIC = "APPLE_MUSIC"
         const val PROXY_TYPE_HTTP = "PROXY_TYPE_HTTP"
         const val PROXY_TYPE_SOCKS = "PROXY_TYPE_SOCKS"
+        // Theme (values match upstream)
+        const val THEME_MODE_SYSTEM = "SYSTEM"
+        const val THEME_MODE_DARK = "DARK"
+        const val THEME_MODE_LIGHT = "LIGHT"
+        const val THEME_COLOR_DEFAULT = "DEFAULT"
+        const val THEME_COLOR_WALLPAPER = "WALLPAPER"
+        const val THEME_COLOR_CUSTOM = "CUSTOM"
+        const val DEFAULT_THEME_COLOR_HEX = "FF8ECAE6"
         // Lyrics providers (ModalBottomSheet comparisons) — values match SimpMusic upstream
         const val SIMPMUSIC = "simpmusic"
         const val YOUTUBE = "youtube"

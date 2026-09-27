@@ -72,7 +72,7 @@ abstract class BaseViewModel :
     }
 
     protected fun getString(resId: Int): String =
-        com.muso.music.ui.component.SuiteRes.context.getString(resId)
+        com.muso.music.ui.component.SuiteRes.context?.getString(resId) ?: ""
 
     // Loading dialog
     private val _showLoadingDialog: MutableStateFlow<Pair<Boolean, String>> = MutableStateFlow(false to getString(R.string.simp_loading))

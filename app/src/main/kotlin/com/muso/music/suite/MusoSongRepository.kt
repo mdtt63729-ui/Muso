@@ -93,7 +93,7 @@ class MusoSongRepository(
 
     override fun insertSong(songEntity: SongEntity): Flow<Long> = flow {
         val inserted = runCatching {
-            db.insert(
+            val rows = db.insert(
                 com.muso.music.db.entities.SongEntity(
                     id = songEntity.videoId,
                     title = songEntity.title,
@@ -108,6 +108,7 @@ class MusoSongRepository(
                 db.insert(ArtistEntity(id = artistId, name = artistName))
                 db.insert(SongArtistMap(songId = songEntity.videoId, artistId = artistId, position = index))
             }
+            rows.firstOrNull() ?: 1L
         }
         emit(inserted.getOrDefault(1L))
     }.flowOn(Dispatchers.IO)

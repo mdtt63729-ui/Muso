@@ -53,6 +53,7 @@ import com.maxrave.domain.data.model.metadata.Lyrics
 import com.maxrave.simpmusic.extension.getColorFromPalette
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
+import com.maxrave.simpmusic.ui.icon.ArrowForwardIos
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.viewModel.UIEvent
 import com.muso.music.db.entities.LyricsEntity

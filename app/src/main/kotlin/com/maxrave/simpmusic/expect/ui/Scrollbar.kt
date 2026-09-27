@@ -12,7 +12,8 @@ fun HorizontalScrollBar(
     modifier: Modifier,
     scrollState: LazyListState,
     flingBehavior: FlingBehavior? = null,
-)
+) {
+}
 
 /** [flingBehavior]: the grid's own snap fling, run once the thumb is let go so a drag ends on a column. */
 @Composable
@@ -20,4 +21,5 @@ fun HorizontalScrollBar(
     modifier: Modifier,
     scrollState: LazyGridState,
     flingBehavior: FlingBehavior? = null,
-)
+) {
+}

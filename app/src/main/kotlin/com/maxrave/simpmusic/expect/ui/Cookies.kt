@@ -14,6 +14,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.viewinterop.AndroidView
 
 interface WebViewCookieManager {
     fun getCookie(url: String): String

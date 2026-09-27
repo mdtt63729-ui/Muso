@@ -64,7 +64,7 @@ class SharedViewModel(
     var isServiceRunning = false
 
     fun getEnableLiquidGlass() = dataStoreManager?.enableLiquidGlass ?: MutableStateFlow(DataStoreManager.FALSE)
-    fun getLyricsOffsetMs(): Long = (dataStoreManager?.lyricsOffsetMs?.value ?: 0).toLong()
+    fun getLyricsOffsetMs() = dataStoreManager?.lyricsOffsetMs ?: MutableStateFlow(0)
     fun getLyricsStyle() = dataStoreManager?.lyricsStyle ?: MutableStateFlow(DataStoreManager.LYRICS_STYLE_CLASSIC)
     fun onUIEvent(uiEvent: UIEvent) { eventSink?.invoke(uiEvent) }
     fun stopPlayer() { stopSink?.invoke() }

@@ -1355,7 +1355,7 @@ fun NowPlayingBottomSheet(
     onDismiss: () -> Unit,
     navController: NavController,
     song: SongEntity?,
-    viewModel: NowPlayingBottomSheetViewModel = koinViewModel(),
+    viewModel: NowPlayingBottomSheetViewModel = koinViewModel<NowPlayingBottomSheetViewModel>(),
     setSleepTimerEnable: Boolean = false,
     changeMainLyricsProviderEnable: Boolean = false,
     onNavigateToOtherScreen: () -> Unit = {},

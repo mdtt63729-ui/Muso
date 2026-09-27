@@ -7,10 +7,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 
+import androidx.compose.ui.platform.LocalContext
+import com.maxrave.logger.Logger
+
 interface PhotoPickerLauncher {
     fun launch()
-}import androidx.compose.ui.platform.LocalContext
-import com.maxrave.logger.Logger
+}
+
 
 @Composable
 fun photoPickerResult(onResultUri: (String?) -> Unit): PhotoPickerLauncher {

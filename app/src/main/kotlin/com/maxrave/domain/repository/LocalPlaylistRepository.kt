@@ -4,7 +4,7 @@ import com.maxrave.domain.data.entities.LocalPlaylistEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.browse.playlist.PlaylistState
-import com.maxrave.domain.utils.Resource
+import com.maxrave.domain.utils.LocalResource
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -23,7 +23,7 @@ interface LocalPlaylistRepository {
         successMessage: String,
         updatedYtMessage: String,
         errorMessage: String,
-    ): Flow<Resource<String>>
+    ): Flow<LocalResource<String>>
 
     fun removeTrackFromLocalPlaylist(
         id: Long,
@@ -31,14 +31,14 @@ interface LocalPlaylistRepository {
         successMessage: String,
         updatedYtMessage: String,
         errorMessage: String,
-    ): Flow<Resource<String>>
+    ): Flow<LocalResource<String>>
 
     fun syncYouTubePlaylistToLocalPlaylist(
         data: PlaylistState,
         tracks: List<Track>,
         syncedString: String,
         errorString: String,
-    ): Flow<Resource<String>>
+    ): Flow<LocalResource<String>>
 }
 
 class NoopLocalPlaylistRepository : LocalPlaylistRepository {
@@ -51,7 +51,7 @@ class NoopLocalPlaylistRepository : LocalPlaylistRepository {
         successMessage: String,
         updatedYtMessage: String,
         errorMessage: String,
-    ): Flow<Resource<String>> = kotlinx.coroutines.flow.flowOf(Resource.Error(errorMessage))
+    ): Flow<LocalResource<String>> = kotlinx.coroutines.flow.flowOf(LocalResource.Error(errorMessage))
 
     override fun removeTrackFromLocalPlaylist(
         id: Long,
@@ -59,12 +59,12 @@ class NoopLocalPlaylistRepository : LocalPlaylistRepository {
         successMessage: String,
         updatedYtMessage: String,
         errorMessage: String,
-    ): Flow<Resource<String>> = kotlinx.coroutines.flow.flowOf(Resource.Error(errorMessage))
+    ): Flow<LocalResource<String>> = kotlinx.coroutines.flow.flowOf(LocalResource.Error(errorMessage))
 
     override fun syncYouTubePlaylistToLocalPlaylist(
         data: PlaylistState,
         tracks: List<Track>,
         syncedString: String,
         errorString: String,
-    ): Flow<Resource<String>> = kotlinx.coroutines.flow.flowOf(Resource.Error(errorString))
+    ): Flow<LocalResource<String>> = kotlinx.coroutines.flow.flowOf(LocalResource.Error(errorString))
 }
