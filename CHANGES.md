@@ -1,4 +1,14 @@
-## Round 125 (v0.5.140, code 147)
+## Round 126 (v0.5.141, code 148)
+
+## One-word CI fix
+The v0.5.140 canvas cache registration used the wrong package for the
+database provider: androidx.media3.datasource.database (does not exist)
+instead of androidx.media3.database (what Muso's own AppModule uses) -
+"Unresolved reference 'database'" in the CI Kotlin compile. Fixed; everything
+else from v0.5.140 (canvasCache registration, androidContext, OpenUrl
+Context) is unchanged.
+
+# Round 125 (v0.5.140, code 147)
 
 ## The canvas crash (Koin: no definition for 'canvasCache')
 The v0.5.137 video/canvas fix works - a song with a video now reaches the

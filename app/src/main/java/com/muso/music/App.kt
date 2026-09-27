@@ -83,7 +83,7 @@ class App : Application(), ImageLoaderFactory {
                         androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(
                             256L * 1024 * 1024,
                         ),
-                        androidx.media3.datasource.database.StandaloneDatabaseProvider(this@App),
+                        androidx.media3.database.StandaloneDatabaseProvider(this@App),
                     )
                 }
                 single<com.maxrave.domain.repository.SongRepository> { com.muso.music.suite.MusoSongRepository(get()) }
