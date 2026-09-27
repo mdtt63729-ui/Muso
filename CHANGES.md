@@ -1,4 +1,16 @@
-## Round 126 (v0.5.141, code 148)
+## Round 127 (v0.5.142, code 149)
+
+## The next Koin step: 'mainPlayer'
+v0.5.141's canvas cache fix moved the video path one step further - now the
+suite's video surface resolves the MAIN playback player from Koin under the
+'mainPlayer' qualifier (No definition found crash). Registered: the playback
+service publishes its real ExoPlayer to a new SuitePlayerRegistry as it is
+created (and clears it on destroy), and the Koin definition hands that player
+to the suite - so the video surface and subtitle views attach to the very
+player that is playing the music. Lazily resolved, so nothing asks for it
+before the service exists.
+
+# Round 126 (v0.5.141, code 148)
 
 ## One-word CI fix
 The v0.5.140 canvas cache registration used the wrong package for the

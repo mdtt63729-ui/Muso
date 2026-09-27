@@ -86,6 +86,19 @@ class App : Application(), ImageLoaderFactory {
                         androidx.media3.database.StandaloneDatabaseProvider(this@App),
                     )
                 }
+                // The suite's video surface / subtitle view resolves the main
+                // playback player through Koin under the 'mainPlayer'
+                // qualifier. Registered lazily: by the time a video surface
+                // composes, playback is running and the service has published
+                // its ExoPlayer to SuitePlayerRegistry.
+                single<androidx.media3.common.Player>(
+                    qualifier = org.koin.core.qualifier.named(com.maxrave.common.Config.MAIN_PLAYER),
+                ) {
+                    com.muso.music.suite.SuitePlayerRegistry.player
+                        ?: throw IllegalStateException(
+                            "mainPlayer requested before the playback service started",
+                        )
+                }
                 single<com.maxrave.domain.repository.SongRepository> { com.muso.music.suite.MusoSongRepository(get()) }
                 single<com.maxrave.domain.mediaservice.handler.DownloadHandler> {
                     com.muso.music.suite.MusoDownloadHandler(this@App, get())

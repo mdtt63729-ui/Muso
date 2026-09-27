@@ -298,6 +298,9 @@ class MusicService : MediaLibraryService(),
                 addListener(sleepTimer)
                 addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
             }
+        // Publish the real player to the suite: its video surface and
+        // subtitle view resolve the "mainPlayer" qualifier from Koin.
+        com.muso.music.suite.SuitePlayerRegistry.player = player
 
         audioEffectsManager = AudioEffectsManager(this, player).also { it.start() }
         mediaLibrarySessionCallback.apply {
@@ -1095,6 +1098,7 @@ class MusicService : MediaLibraryService(),
     }
 
     override fun onDestroy() {
+        com.muso.music.suite.SuitePlayerRegistry.player = null
         volumeObserver?.let { contentResolver.unregisterContentObserver(it) }
         volumeObserver = null
         if (dataStore.get(PersistentQueueKey, true)) {
