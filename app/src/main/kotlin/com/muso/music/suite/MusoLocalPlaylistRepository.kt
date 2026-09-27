@@ -41,7 +41,7 @@ class MusoLocalPlaylistRepository(
 
     private fun ensureSong(song: SongEntity) {
         runCatching {
-            db.dao.insert(
+            db.insert(
                 com.muso.music.db.entities.SongEntity(
                     id = song.videoId,
                     title = song.title,
@@ -53,17 +53,17 @@ class MusoLocalPlaylistRepository(
             )
             song.artistId.orEmpty().forEachIndexed { index, artistId ->
                 val artistName = song.artistName?.getOrNull(index) ?: return@forEachIndexed
-                db.dao.insert(ArtistEntity(id = artistId, name = artistName))
-                db.dao.insert(SongArtistMap(songId = song.videoId, artistId = artistId, position = index))
+                db.insert(ArtistEntity(id = artistId, name = artistName))
+                db.insert(SongArtistMap(songId = song.videoId, artistId = artistId, position = index))
             }
         }
     }
 
     private suspend fun musoPlaylist(suiteId: Long): com.muso.music.db.entities.Playlist? =
-        toMusoId[suiteId]?.let { db.dao.playlist(it).firstOrNull() }
+        toMusoId[suiteId]?.let { db.playlist(it).firstOrNull() }
 
     override fun getAllLocalPlaylists(): Flow<List<LocalPlaylistEntity>> =
-        db.dao.playlistsByCreateDateAsc().map { playlists ->
+        db.playlistsByCreateDateAsc().map { playlists ->
             playlists.map { playlist ->
                 LocalPlaylistEntity(
                     id = suiteIdFor(playlist.playlist.id),
@@ -88,7 +88,7 @@ class MusoLocalPlaylistRepository(
         }
         ensureSong(song)
         val result = runCatching {
-            db.transaction { db.dao.addSongToPlaylist(playlist, listOf(song.videoId)) }
+            db.transaction { db.addSongToPlaylist(playlist, listOf(song.videoId)) }
         }
         if (result.isSuccess) emit(Resource.Success(successMessage)) else emit(Resource.Error(errorMessage))
     }.flowOn(Dispatchers.IO)
@@ -107,10 +107,10 @@ class MusoLocalPlaylistRepository(
         }
         val result = runCatching {
             db.transaction {
-                val map = db.dao.playlistSongMaps(song.videoId).firstOrNull { it.playlistId == playlist.playlist.id }
+                val map = db.playlistSongMaps(song.videoId).firstOrNull { it.playlistId == playlist.playlist.id }
                 if (map != null) {
-                    db.dao.move(playlist.playlist.id, map.position, Int.MAX_VALUE)
-                    db.dao.delete(map.copy(position = Int.MAX_VALUE))
+                    db.move(playlist.playlist.id, map.position, Int.MAX_VALUE)
+                    db.delete(map.copy(position = Int.MAX_VALUE))
                 }
             }
         }
@@ -125,12 +125,12 @@ class MusoLocalPlaylistRepository(
     ): Flow<Resource<String>> = flow {
         val result = runCatching {
             val entity = com.muso.music.db.entities.PlaylistEntity(name = data.title)
-            db.dao.insert(entity)
+            db.insert(entity)
             toSuiteIdForPersisted(entity.id)
             db.transaction {
                 tracks.forEach { track ->
                     runCatching {
-                        db.dao.insert(
+                        db.insert(
                             com.muso.music.db.entities.SongEntity(
                                 id = track.videoId,
                                 title = track.title,
@@ -142,11 +142,11 @@ class MusoLocalPlaylistRepository(
                         )
                         track.artists.orEmpty().forEachIndexed { index, artist ->
                             val artistId = artist.id ?: return@forEachIndexed
-                            db.dao.insert(ArtistEntity(id = artistId, name = artist.name))
-                            db.dao.insert(SongArtistMap(songId = track.videoId, artistId = artistId, position = index))
+                            db.insert(ArtistEntity(id = artistId, name = artist.name))
+                            db.insert(SongArtistMap(songId = track.videoId, artistId = artistId, position = index))
                         }
                     }
-                    db.dao.insert(com.muso.music.db.entities.PlaylistSongMap(songId = track.videoId, playlistId = entity.id))
+                    db.insert(com.muso.music.db.entities.PlaylistSongMap(songId = track.videoId, playlistId = entity.id))
                 }
             }
         }

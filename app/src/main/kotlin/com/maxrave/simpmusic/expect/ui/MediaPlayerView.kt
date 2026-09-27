@@ -19,7 +19,7 @@ import com.maxrave.simpmusic.ui.theme.typo
 fun MediaPlayerView(
     url: String,
     modifier: Modifier,
-    cropToBounds: Boolean,
+    cropToBounds: Boolean = false,
 ) {
     MediaPlayerView(
         modifier = modifier,
@@ -59,7 +59,9 @@ fun MediaPlayerViewWithSubtitle(
         lyricsData = lyricsData,
         translatedLyricsData = translatedLyricsData,
         context = LocalContext.current,
-        activity = LocalActivity.current as? ComponentActivity ?: LocalContext.current.findActivity(),
+        activity = (LocalActivity.current as? ComponentActivity)
+            ?: (LocalContext.current.findActivity() as? ComponentActivity)
+            ?: error("MediaPlayerView requires a ComponentActivity"),
         isInPipMode = isInPipMode,
         mainTextStyle = typo().bodyLarge,
         translatedTextStyle = typo().bodyMedium,

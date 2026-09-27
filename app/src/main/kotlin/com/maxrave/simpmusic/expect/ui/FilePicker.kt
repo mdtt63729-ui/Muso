@@ -4,6 +4,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 
+interface FilePickerLauncher {
+    fun launch()
+}
 @Composable
 fun filePickerResult(
     mimeType: String,

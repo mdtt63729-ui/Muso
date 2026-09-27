@@ -16,6 +16,10 @@
         <item quantity="one">%1$d song</item>
         <item quantity="other">%1$d songs</item>
     </plurals>
+    <plurals name="simp_liked_songs_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
     <string name="simp_like">Like</string>
     <string name="simp_hello_blank_fragment">Hello blank fragment</string>
     <string name="simp_download">Download</string>

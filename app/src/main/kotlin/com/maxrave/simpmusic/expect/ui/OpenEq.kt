@@ -1,13 +1,17 @@
 package com.maxrave.simpmusic.expect.ui
 
 import com.muso.music.R
+import com.maxrave.simpmusic.ui.component.getString
 
 import android.content.Intent
 import android.media.audiofx.AudioEffect
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+
+interface OpenEqLauncher {
+    fun launch()
+}import androidx.compose.ui.platform.LocalContext
 import com.maxrave.logger.Logger
 import kotlinx.coroutines.runBlocking
 import multiplatform.network.cmptoast.ToastGravity

@@ -1,6 +1,8 @@
 package com.maxrave.domain.mediaservice.handler
 
 import com.maxrave.domain.data.model.browse.album.Track
+import com.maxrave.domain.data.entities.SongEntity
+import com.maxrave.domain.data.player.GenericMediaItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,8 +56,8 @@ class MediaPlayerHandler {
 
     fun reset() { commandSink?.invoke(Command.Reset) }
 
-    fun setQueueData(queueData: QueueData) {
-        if (queueData is QueueData.Data) _queueData.value = queueData
+    fun setQueueData(queueData: QueueData.Data) {
+        _queueData.value = QueueData(data = queueData)
         commandSink?.invoke(Command.SetQueueData(queueData))
     }
 
@@ -86,7 +88,7 @@ class MediaPlayerHandler {
     /** Playback commands the MusoSuiteBridge executes against Muso's player. */
     sealed class Command {
         data object Reset : Command()
-        data class SetQueueData(val queueData: QueueData) : Command()
+        data class SetQueueData(val queueData: QueueData.Data) : Command()
         data class LoadItem(val track: Any, val type: String, val index: Int?) : Command()
         data class ShufflePlaylist(val firstPlayIndex: Int) : Command()
         data class PlayNext(val track: com.maxrave.domain.data.model.browse.album.Track) : Command()

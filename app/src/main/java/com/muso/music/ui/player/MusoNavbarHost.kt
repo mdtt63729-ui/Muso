@@ -83,6 +83,7 @@ fun BoxScope.MusoNavbarHost(
     ) {
         if (liquidGlass) {
             LiquidGlassAppBottomNavigationBar(
+                startDestination = com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination,
                 navController = navController,
                 backdrop = backdrop,
                 viewModel = sharedViewModel,

@@ -722,7 +722,16 @@ class MainActivity : ComponentActivity() {
                             // its MiniPlayer stay SIBLINGS of this NavHost (never inside
                             // it — nesting a glass surface in its own source crashes the
                             // RuntimeShader with a render-feedback loop).
-                            modifier = Modifier.layerBackdrop(glassBackdrop),
+                            modifier = Modifier
+                                .layerBackdrop(glassBackdrop)
+                                .nestedScroll(
+                                    if (isTopLevelTab(navBackStackEntry?.destination) ||
+                                        navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
+                                        searchBarScrollBehavior.nestedScrollConnection
+                                    } else {
+                                        topAppBarScrollBehavior.nestedScrollConnection
+                                    }
+                                ),
                             navController = navController,
                             startDestination = when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                 NavigationTab.HOME -> HomeDestination
@@ -742,16 +751,7 @@ class MainActivity : ComponentActivity() {
                             enterTransition = { iosEnter(liquidGlassNavBar, animationsEnabled) },
                             exitTransition = { iosExit(liquidGlassNavBar, animationsEnabled) },
                             popEnterTransition = { iosPopEnter(liquidGlassNavBar, animationsEnabled) },
-                            popExitTransition = { iosPopExit(liquidGlassNavBar, animationsEnabled) },
-                            modifier = Modifier
-                                .nestedScroll(
-                                    if (isTopLevelTab(navBackStackEntry?.destination) ||
-                                        navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
-                                        searchBarScrollBehavior.nestedScrollConnection
-                                    } else {
-                                        topAppBarScrollBehavior.nestedScrollConnection
-                                    }
-                                )
+                            popExitTransition = { iosPopExit(liquidGlassNavBar, animationsEnabled) }
                         ) {
                             navigationBuilder(
                                 navController,

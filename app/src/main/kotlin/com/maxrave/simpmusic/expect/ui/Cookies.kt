@@ -12,7 +12,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+
+interface WebViewCookieManager {
+    fun getCookie(url: String): String
+
+    fun removeAllCookies()
+}
+
+sealed class WebViewState {
+    data class Loading(
+        val progress: Int,
+    ) : WebViewState()
+
+    object Finished : WebViewState()
+}
+
+@Composable
+fun rememberWebViewState(): androidx.compose.runtime.MutableState<WebViewState> =
+    remember {
+        mutableStateOf(WebViewState.Loading(0))
+    }
 
 fun createWebViewCookieManager(): WebViewCookieManager =
     object : WebViewCookieManager {

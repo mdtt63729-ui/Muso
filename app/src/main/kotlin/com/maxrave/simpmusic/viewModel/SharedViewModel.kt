@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import com.maxrave.domain.data.entities.NewFormatEntity
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.download.DownloadProgress
+import com.maxrave.domain.data.entities.SongInfoEntity
+import com.maxrave.domain.data.model.metadata.Lyrics
 import com.maxrave.domain.data.model.streams.TimeLine
 import com.maxrave.domain.mediaservice.handler.ControlState
 import com.maxrave.domain.mediaservice.handler.NowPlayingTrackState
@@ -63,6 +65,7 @@ class SharedViewModel(
 
     fun getEnableLiquidGlass() = dataStoreManager?.enableLiquidGlass ?: MutableStateFlow(DataStoreManager.FALSE)
     fun getLyricsOffsetMs(): Long = (dataStoreManager?.lyricsOffsetMs?.value ?: 0).toLong()
+    fun getLyricsStyle() = dataStoreManager?.lyricsStyle ?: MutableStateFlow(DataStoreManager.LYRICS_STYLE_CLASSIC)
     fun onUIEvent(uiEvent: UIEvent) { eventSink?.invoke(uiEvent) }
     fun stopPlayer() { stopSink?.invoke() }
     fun getQueueDataState(): kotlinx.coroutines.flow.StateFlow<com.maxrave.domain.mediaservice.handler.QueueData?> =

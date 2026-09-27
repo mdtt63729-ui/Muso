@@ -10,22 +10,6 @@ import java.io.File
  */
 private fun appContext(): Context? = com.maxrave.simpmusic.ui.component.SuiteRes.context
 
-fun copyToClipboard(label: String, text: String) {
-    val context = appContext() ?: return
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
-}
-
-fun shareUrl(title: String, url: String) {
-    val context = appContext() ?: return
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, url)
-        putExtra(Intent.EXTRA_TITLE, title)
-    }
-    context.startActivity(Intent.createChooser(intent, title).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-}
-
 fun saveImageToDevice(bytes: ByteArray, fileName: String): Boolean {
     val context = appContext() ?: return false
     return try {

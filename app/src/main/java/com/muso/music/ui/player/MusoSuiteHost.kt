@@ -5,7 +5,7 @@ import com.maxrave.domain.data.entities.SongEntity
 import com.muso.music.utils.makeTimeString
 import com.muso.music.playback.queues.Queue
 import com.muso.music.extensions.toMediaItem
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
@@ -53,18 +53,21 @@ import com.maxrave.domain.data.model.metadata.Lyrics
 import com.maxrave.simpmusic.extension.getColorFromPalette
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
+import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.viewModel.UIEvent
 import com.muso.music.db.entities.LyricsEntity
 import com.muso.music.playback.PlayerConnection
 import com.kmpalette.rememberPaletteState
 import androidx.compose.ui.platform.LocalContext
 import coil3.SingletonImageLoader
-import coil3.SuccessResult
+import coil3.request.SuccessResult
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import com.maxrave.simpmusic.expect.ui.toImageBitmap
 import kotlinx.coroutines.flow.collectLatest
 import com.muso.music.ui.component.SuiteRes
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
@@ -96,8 +99,8 @@ fun MusoSuiteHost(
     val lyricsOffsetMs by com.muso.music.utils.rememberPreference(
         com.muso.music.constants.LyricsOffsetKey, defaultValue = 0,
     )
+    val dsm: com.maxrave.domain.manager.DataStoreManager = org.koin.compose.koinInject()
     androidx.compose.runtime.LaunchedEffect(lyricsOffsetMs) {
-        val dsm: com.maxrave.domain.manager.DataStoreManager = org.koin.compose.koinInject()
         dsm.lyricsOffsetMs.value = lyricsOffsetMs
     }
     // Lyrics style (Classic / Apple Music): the suite renderer reads the live value.
@@ -105,7 +108,6 @@ fun MusoSuiteHost(
         com.muso.music.constants.LyricsStyleKey, defaultValue = "1",
     )
     androidx.compose.runtime.LaunchedEffect(lyricsStylePref) {
-        val dsm: com.maxrave.domain.manager.DataStoreManager = org.koin.compose.koinInject()
         dsm.lyricsStyle.value = lyricsStylePref
     }
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -131,7 +133,7 @@ fun MusoSuiteHost(
                 isExplicit = false,
                 likeStatus = null,
                 thumbnails = (md.artworkUri ?: window.mediaItem.mediaMetadata.extras?.getString("thumbnailUrl"))
-                    ?.toString()?.let { listOf(Thumbnail(it)) },
+                    ?.toString()?.let { listOf(Thumbnail(height = 544, url = it, width = 544)) },
                 title = md.title?.toString() ?: "",
                 videoId = window.mediaItem.mediaId ?: "",
                 videoType = null,
@@ -263,7 +265,7 @@ fun MusoSuiteHost(
             isShuffle = player.shuffleModeEnabled,
             repeatState = when (player.repeatMode) {
                 Player.REPEAT_MODE_ONE -> RepeatState.One
-                Player.REPEAT_MODE_ALL, Player.REPEAT_MODE_GROUP -> RepeatState.All
+                Player.REPEAT_MODE_ALL -> RepeatState.All
                 else -> RepeatState.None
             },
             isLiked = currentSong?.song?.liked == true,
@@ -375,7 +377,7 @@ fun MusoSuiteHost(
             isInPipMode = false,
             mainScrollState = ScrollState(0),
             isExpanded = true,
-            dismissIcon = com.maxrave.simpmusic.ui.icon.SimpIcons.ArrowForwardIos,
+            dismissIcon = SimpIcons.ArrowForwardIos,
             audioCodecLabel = codecLabel?.substringBefore(" •"),
             videoAspectRatio = 16f / 9,
         )
@@ -518,6 +520,8 @@ fun MusoSuiteBridge(
                 thumbnails = md.thumbnailUrl,
                 title = md.title,
                 videoType = "SONG",
+                category = null,
+                resultType = null,
             )
         }
         val nowPlaying = if (mediaMetadata == null) null else
@@ -558,7 +562,7 @@ fun MusoSuiteBridge(
 
     // --- timeline poll ---
     LaunchedEffect(player) {
-        while (kotlinx.coroutines.isActive) {
+        while (isActive) {
             val total = player.duration.takeIf { it != androidx.media3.common.C.TIME_UNSET } ?: 0L
             sharedViewModel.timeline.value = com.maxrave.domain.data.model.streams.TimeLine(
                 current = player.currentPosition.coerceAtLeast(0),
@@ -581,7 +585,7 @@ fun MusoSuiteBridge(
                         player.clearMediaItems()
                     }
                     is com.maxrave.domain.mediaservice.handler.MediaPlayerHandler.Command.SetQueueData -> {
-                        currentQueueData = command.queueData.data
+                        currentQueueData = command.queueData
                     }
                     is com.maxrave.domain.mediaservice.handler.MediaPlayerHandler.Command.LoadItem -> {
                         val track = command.track as? com.maxrave.domain.data.model.browse.album.Track

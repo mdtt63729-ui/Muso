@@ -60,7 +60,7 @@ class App : Application(), ImageLoaderFactory {
             modules(
                 module {
                 // Muso's Hilt-managed singletons, exposed to the suite's Koin modules.
-                val suiteEntryPoint = dagger.hilt.EntryPointAccessors.fromApplication(
+                val suiteEntryPoint = dagger.hilt.android.EntryPointAccessors.fromApplication(
                     this@App,
                     com.muso.music.suite.SuiteEntryPoint::class.java,
                 )

@@ -58,6 +58,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.maxrave.simpmusic.ui.component.getString
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
 import com.kmpalette.palette.graphics.Palette
 import com.maxrave.domain.data.model.ui.ScreenSizeInfo
 import com.maxrave.logger.Logger
@@ -469,7 +472,13 @@ fun Palette?.toImmersiveBackground(): Color {
 fun barBlurStyle(
     tint: Color,
     tintAlpha: Float,
-): Unit = Unit
+): HazeBlurStyle =
+    HazeBlurStyle {
+        blurEnabled(true)
+        blurRadius(24.dp)
+        backgroundColor(tint)
+        colorEffects(listOf(HazeColorEffect.tint(tint.copy(alpha = tintAlpha))))
+    }
 
 /**
  * Vertical scrim from [from] to [to] that fades without showing an edge.
@@ -586,7 +595,7 @@ fun ImageBitmap.toResizedBitmap(
     return resized
 }
 
-fun getStringBlocking(res: @StringRes Int): String =
+fun getStringBlocking(@StringRes res: Int): String =
     runBlocking {
         getString(res)
     }
@@ -622,8 +631,8 @@ fun getScreenSizeInfo(): ScreenSizeInfo {
     return ScreenSizeInfo(
         wPX = configuration.screenWidthDp,
         hPX = configuration.screenHeightDp,
-        wDP = configuration.screenWidthDp.toFloat(),
-        hDP = configuration.screenHeightDp.toFloat(),
+        wDP = configuration.screenWidthDp,
+        hDP = configuration.screenHeightDp,
     )
 }
 

@@ -23,8 +23,8 @@ android {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 138
-        versionName = "0.5.131"
+        versionCode = 139
+        versionName = "0.5.132"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -150,6 +150,9 @@ dependencies {
     implementation(libs.media3.session)
     implementation(libs.media3.ui)
     implementation(libs.media3.okhttp)
+    implementation(libs.media3.ui.compose)
+    implementation(libs.haze)
+    implementation(libs.haze.blur)
 
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)

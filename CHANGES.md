@@ -1,4 +1,87 @@
-## Round 116 (v0.5.131, code 138)
+## Round 117 (v0.5.132, code 139)
+
+## CI fix #9 — the :app Kotlin compile: ~250 errors across 35 files
+The resource fixes landed; the build now reaches :app:compileFossReleaseKotlin,
+the real compilation of everything ported since the player suite. This round
+fixes the whole reported batch in one pass.
+
+### Missing dependencies (versions verified live, HTTP 200)
+- dev.chrisbanes.haze:haze + haze-blur 2.0.0 — PlaylistScreen's frosted bar
+  (barBlurStyle restored to the real HazeBlurStyle implementation)
+- androidx.media3:media3-ui-compose 1.11.1 — MediaPlayerView (PlayerSurface,
+  rememberPresentationState; the imports were already correct, the artifact
+  was missing)
+
+### The big cascade: SharedViewModel's model classes
+SharedViewModel.kt never imported the domain Lyrics / SongInfoEntity types, so
+LyricsData.lyrics and songInfoData were error types — that alone produced ~80
+of the errors (lines()/syncType/words/startTimeMs "on receiver of type
+'String'" in LyricsView, FullscreenLyricsContent, all NowPlayingContents,
+ShareLyricsLines and MusoSuiteHost). Imports added; getLyricsStyle() ported
+(Flow forward of dataStoreManager.lyricsStyle).
+
+### DataStoreManager suite constants
+LYRICS_STYLE_CLASSIC/APPLE_MUSIC ("1"/"2" — matching what the hosting layer
+already feeds the flow), NOW_PLAYING_STYLE_SPOTIFY/M3_EXPRESSIVE/APPLE_MUSIC,
+lyrics provider keys (simpmusic/youtube/lrclib/better_lyrics) and the nested
+ProxyType enum — all values taken from the upstream v2.2.0 DataStoreManager.
+
+### expect/ui shims
+The port had stripped the expect-interface declarations but never ported the
+androidMain bodies: WebViewCookieManager + WebViewState (Cookies.kt),
+DeviceVolumeController, FilePickerLauncher, PhotoPickerLauncher, OpenEqLauncher,
+SaveImagePermissionRequester restored from the SimpMusic v2.2.0 androidActual;
+Scrollbar's expect/actual keywords removed; duplicate copyToClipboard/shareUrl
+removed from MusoExpectCompat (the Koin-based ports win); OpenEq's getString
+now goes through the suite resource accessor.
+
+### Domain / media3
+- GenericIntent: com.eygraber.uri.Uri -> android.net.Uri (no uri-kmp dep needed)
+- ProxyConfiguration: ProxyType now the DataStoreManager nested enum
+- MediaPlayerHandler: setQueueData takes QueueData.Data (sealed-style upstream
+  signature); Command.SetQueueData carries the Data; GenericMediaItem ported
+  into com.maxrave.domain.data.player
+- MediaPlayerView: activity fallback cast made null-safe
+
+### Hosting layer (MusoSuiteHost / MusoNavbarHost / MainActivity)
+- MainActivity: the duplicate modifier= argument (layerBackdrop + nestedScroll)
+  merged into one — that alone broke NavHost overload resolution
+- coil3 3.6.3 API fixes verified against the published jar: SuccessResult is
+  coil3.request.SuccessResult and allowHardware is an extension in
+  coil3.request (both verified in the coil-core-android artifact)
+- Animatable import moved to androidx.compose.animation.Animatable (the Color
+  overload the player gradient needs lives there — same as upstream)
+- koinInject() hoisted out of LaunchedEffect bodies (@Composable calls)
+- while (kotlinx.coroutines.isActive) -> while (isActive); launch import
+- REPEAT_MODE_GROUP dropped (not in media3; ALL covers it)
+- Thumbnail/SongEntity constructor args completed; ArrowForwardIos switched
+  to the import form (extension properties cannot be referenced fully-qualified)
+- LiquidGlassAppBottomNavigationBar gets its startDestination = HomeDestination
+- App.kt: dagger.hilt.android.EntryPointAccessors (was the wrong package)
+
+### Suite UI files
+- LiquidGlassAppBottomNavigationBar: com.muso.music.R import + private TAG
+- ModalBottomSheet: CMP resources imports replaced (StringResource -> Int,
+  getString -> the suite accessor); LyricsProvider import for the provider
+  sheet; the ActionButton ambiguities were cascades of those and are gone
+- Chip + InfiniteBorderAnimationView ported from upstream v2.2.0 (ChipGroup.kt,
+  AnimationComponents.kt) — the playlist sheet's two selector pills
+- simp_monochrome + simp_baseline_favorite_24 drawables added
+- ScreenSizeInfo realigned with upstream: wDP/hDP are Int (our Float version
+  broke the M3E/Spotify/AppleMusic layout arithmetic)
+- IconButtonTokens (internal material3) replaced with the 40dp literal
+- PlayerSettings' offset slider icon: mic -> lyrics
+
+### Suite repositories (Muso adapters)
+- MusicDatabase exposes the DAO by delegation — every db.dao.x call corrected
+  to db.x (Song/LocalPlaylist/Playlist repositories + DownloadHandler)
+- MusoSongRepository signatures realigned with the SongRepository interface
+  (updateThumbnailsSongEntity/updateSongInLibrary/updateDurationSeconds/
+  updateVideoTypeSongEntity/suspend mismatches)
+- MusoPlaylistRepository: our innertube returns Result directly —
+  .completed() dropped; DownloadHandler.Download qualified
+
+# Round 116 (v0.5.131, code 138)
 
 ## CI fix #8 — resource escaping in the ported SimpMusic strings
 The strings fix from last round landed; resource merging now runs and

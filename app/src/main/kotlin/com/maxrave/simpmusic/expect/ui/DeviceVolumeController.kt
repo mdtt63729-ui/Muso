@@ -12,6 +12,13 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
+interface DeviceVolumeController {
+    /** Current device volume as a 0f..1f fraction. Read during composition to observe changes. */
+    val volumeFraction: Float
+
+    fun setVolumeFraction(fraction: Float)
+}
+
 // External volume changes (hardware keys, another app) aren't observable without registering a
 // broadcast receiver for ACTION_VOLUME_CHANGED; a cheap 1s poll picks them up without that extra
 // lifecycle to manage — see CLAUDE.md's brief for this control (Apple Music style volume row).

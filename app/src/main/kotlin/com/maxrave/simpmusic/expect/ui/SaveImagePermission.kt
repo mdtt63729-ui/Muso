@@ -6,7 +6,14 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+
+interface SaveImagePermissionRequester {
+    /**
+     * Runs the permission check, then reports the answer through the callback the requester was
+     * built with.
+     */
+    fun requestIfNeeded()
+}import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext

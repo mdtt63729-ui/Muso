@@ -1,6 +1,6 @@
 package com.maxrave.domain.data.model.intent
 
-import com.eygraber.uri.Uri
+import android.net.Uri
 
 data class GenericIntent(
     val action: String? = null,

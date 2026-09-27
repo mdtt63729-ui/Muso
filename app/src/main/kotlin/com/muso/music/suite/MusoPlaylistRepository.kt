@@ -81,7 +81,7 @@ class MusoPlaylistRepository : PlaylistRepository {
         playlistId: String,
         viewString: String,
     ): Flow<Resource<Pair<PlaylistBrowse, String?>>> = flow {
-        val result = YouTube.playlist(playlistId).completed()
+        val result = YouTube.playlist(playlistId)
         result
             .onSuccess { page ->
                 emit(Resource.Success(page.toBrowse() to page.songsContinuation))
@@ -94,7 +94,7 @@ class MusoPlaylistRepository : PlaylistRepository {
         playlistId: String,
         viewString: String,
     ): Flow<Resource<PlaylistBrowse>> = flow {
-        val result = YouTube.playlist(playlistId).completed()
+        val result = YouTube.playlist(playlistId)
         result
             .onSuccess { page -> emit(Resource.Success(page.toBrowse())) }
             .onFailure { emit(Resource.Error(it.message ?: "Cannot load playlist")) }

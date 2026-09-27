@@ -71,6 +71,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import com.muso.music.R
 
 sealed class BottomNavScreen(
     val ordinal: Int,
@@ -143,6 +144,8 @@ sealed class BottomNavScreen(
     )
 }
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private const val TAG = "LiquidGlassAppBottomNavigationBar"
+
 @Composable
 fun LiquidGlassAppBottomNavigationBar(
     startDestination: Any,

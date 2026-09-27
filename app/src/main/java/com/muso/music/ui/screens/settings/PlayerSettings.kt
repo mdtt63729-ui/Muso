@@ -349,7 +349,7 @@ fun PlayerSettings(
             title = { Text(stringResource(R.string.lyrics_offset)) },
             description = stringResource(R.string.lyrics_offset_desc) +
                 "  (" + (if (lyricsOffset > 0) "+" else "") + "${lyricsOffset}ms)",
-            icon = { Icon(painterResource(R.drawable.mic), null) },
+            icon = { Icon(painterResource(R.drawable.lyrics), null) },
             content = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

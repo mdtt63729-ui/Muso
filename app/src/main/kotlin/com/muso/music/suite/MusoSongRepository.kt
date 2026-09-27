@@ -64,7 +64,7 @@ class MusoSongRepository(
         if (listVideoId.isEmpty()) {
             flowOf(emptyList())
         } else {
-            db.dao.songsByIds(listVideoId.toTypedArray()).map { songs -> songs.map { it.toDomain() } }
+            db.songsByIds(listVideoId.toTypedArray()).map { songs -> songs.map { it.toDomain() } }
         }
 
     override fun getDownloadedSongs(): Flow<List<SongEntity>?> = flowOf(null)
@@ -87,13 +87,13 @@ class MusoSongRepository(
     override fun getCanvasSong(max: Int): Flow<List<SongEntity>> = flowOf(emptyList())
 
     override fun getSongById(id: String): Flow<SongEntity?> =
-        db.dao.songsByIds(arrayOf(id)).map { it.firstOrNull()?.toDomain() }
+        db.songsByIds(arrayOf(id)).map { it.firstOrNull()?.toDomain() }
 
     override fun getSongAsFlow(id: String): Flow<SongEntity?> = getSongById(id)
 
     override fun insertSong(songEntity: SongEntity): Flow<Long> = flow {
         val inserted = runCatching {
-            db.dao.insert(
+            db.insert(
                 com.muso.music.db.entities.SongEntity(
                     id = songEntity.videoId,
                     title = songEntity.title,
@@ -105,28 +105,28 @@ class MusoSongRepository(
             )
             songEntity.artistId.orEmpty().forEachIndexed { index, artistId ->
                 val artistName = songEntity.artistName?.getOrNull(index) ?: return@forEachIndexed
-                db.dao.insert(ArtistEntity(id = artistId, name = artistName))
-                db.dao.insert(SongArtistMap(songId = songEntity.videoId, artistId = artistId, position = index))
+                db.insert(ArtistEntity(id = artistId, name = artistName))
+                db.insert(SongArtistMap(songId = songEntity.videoId, artistId = artistId, position = index))
             }
         }
         emit(inserted.getOrDefault(1L))
     }.flowOn(Dispatchers.IO)
 
-    override fun updateThumbnailsSongEntity(videoId: String, thumbnails: List<com.maxrave.domain.data.model.searchResult.songs.Thumbnail>) { }
+    override fun updateThumbnailsSongEntity(thumbnail: String, videoId: String): Flow<Int> = flowOf(0)
 
-    override fun updateVideoTypeSongEntity(videoId: String, videoType: String) { }
+    override fun updateVideoTypeSongEntity(videoType: String, videoId: String): Flow<Int> = flowOf(0)
 
     override suspend fun updateListenCount(videoId: String) { }
 
     override suspend fun resetTotalPlayTime(videoId: String) { }
 
     override suspend fun updateLikeStatus(videoId: String, likeStatus: Int) {
-        runCatching { db.dao.setLikedById(videoId, likeStatus == 1) }
+        runCatching { db.setLikedById(videoId, likeStatus == 1) }
     }
 
-    override fun updateSongInLibrary(videoId: String, inLibrary: LocalDateTime) { }
+    override fun updateSongInLibrary(inLibrary: LocalDateTime, videoId: String): Flow<Int> = flowOf(0)
 
-    override suspend fun updateDurationSeconds(videoId: String, durationSeconds: Int) { }
+    override suspend fun updateDurationSeconds(durationSeconds: Int, videoId: String) { }
 
     override fun getMostPlayedSongs(): Flow<List<SongEntity>> = flowOf(emptyList())
 
@@ -136,9 +136,9 @@ class MusoSongRepository(
 
     override suspend fun insertSongInfo(songInfo: SongInfoEntity) { }
 
-    override fun getSongInfoEntity(videoId: String): Flow<SongInfoEntity?> = flowOf(null)
+    override suspend fun getSongInfoEntity(videoId: String): Flow<SongInfoEntity?> = flowOf(null)
 
-    override suspend fun getSongInfo(videoId: String): Flow<SongInfoEntity?> = flowOf(null)
+    override fun getSongInfo(videoId: String): Flow<SongInfoEntity?> = flowOf(null)
 
     override suspend fun getLikeStatus(videoId: String): Flow<Boolean> = flowOf(false)
 
@@ -212,5 +212,5 @@ class MusoSongRepository(
 
     override suspend fun removeQueue() { }
 
-    override fun getSavedQueue(): Flow<List<QueueEntity>?> = flowOf(null)
+    override suspend fun getSavedQueue(): Flow<List<QueueEntity>?> = flowOf(null)
 }

@@ -168,6 +168,7 @@ import com.maxrave.simpmusic.ui.navigation.destination.list.AlbumDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
 import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
+import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetUIEvent
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel
 import com.maxrave.simpmusic.viewModel.SharedViewModel
@@ -178,8 +179,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import multiplatform.network.cmptoast.ToastGravity
 import multiplatform.network.cmptoast.showToast
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
+import com.maxrave.simpmusic.ui.component.getString
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
@@ -1881,7 +1881,7 @@ fun NowPlayingBottomSheet(
 @Composable
 fun ActionButton(
     icon: ImageVector,
-    text: StringResource?,
+    text: Int?,
     textString: String? = null,
     textColor: Color? = null,
     iconColor: Color = Color.Unspecified,

@@ -7,6 +7,6 @@ package com.maxrave.domain.data.model.ui
 data class ScreenSizeInfo(
     val wPX: Int,
     val hPX: Int,
-    val wDP: Float,
-    val hDP: Float,
+    val wDP: Int,
+    val hDP: Int,
 )

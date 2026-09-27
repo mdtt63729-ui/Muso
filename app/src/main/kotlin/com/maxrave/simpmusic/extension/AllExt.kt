@@ -170,8 +170,8 @@ fun ArtistBrowse.toArtistScreenData(): ArtistScreenData =
         playCount = this.views,
         isChannel = this.songs == null,
         channelId = this.channelId,
-        radioParam = this.radioId,
-        shuffleParam = this.shuffleId,
+        radioParam = this.radioId?.videoId,
+        shuffleParam = this.shuffleId?.videoId,
         description = this.description,
         listSongParam = this.songs?.browseId,
         popularSongs = this.songs?.results?.map { it.toTrack() } ?: emptyList(),
@@ -238,7 +238,7 @@ fun String.isTwoLetterCode(): Boolean {
     return regex.matches(this)
 }
 
-fun FilterState.displayNameRes(): @StringRes Int =
+fun FilterState.displayNameRes(): Int =
     when (this) {
         FilterState.NewerFirst -> R.string.simp_newer_first
         FilterState.OlderFirst -> R.string.simp_older_first
@@ -253,7 +253,7 @@ fun String?.ifNullOrEmpty(defaultValue: @Composable () -> String): String = if (
 fun SponsorBlockType.displayString(): String = stringResource(displayRes())
 
 /** The resource behind [displayString], for callers outside composition (the skip toast). */
-fun SponsorBlockType.displayRes(): @StringRes Int =
+fun SponsorBlockType.displayRes(): Int =
     when (this) {
         SponsorBlockType.FILLER -> R.string.simp_filler
         SponsorBlockType.INTERACTION -> R.string.simp_interaction

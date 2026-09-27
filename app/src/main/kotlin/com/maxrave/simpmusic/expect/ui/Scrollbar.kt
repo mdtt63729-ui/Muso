@@ -8,7 +8,7 @@ import androidx.compose.ui.Modifier
 
 /** [flingBehavior]: the list's own snap fling, run once the thumb is let go so a drag ends on an item. */
 @Composable
-expect fun HorizontalScrollBar(
+fun HorizontalScrollBar(
     modifier: Modifier,
     scrollState: LazyListState,
     flingBehavior: FlingBehavior? = null,
@@ -16,7 +16,7 @@ expect fun HorizontalScrollBar(
 
 /** [flingBehavior]: the grid's own snap fling, run once the thumb is let go so a drag ends on a column. */
 @Composable
-expect fun HorizontalScrollBar(
+fun HorizontalScrollBar(
     modifier: Modifier,
     scrollState: LazyGridState,
     flingBehavior: FlingBehavior? = null,

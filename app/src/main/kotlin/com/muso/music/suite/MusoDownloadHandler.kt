@@ -32,7 +32,7 @@ class MusoDownloadHandler(
             .let { flow ->
                 kotlinx.coroutines.flow.flow {
                     flow.collect { map ->
-                        emit(map.mapValues { (_, download) -> Download(state = download.state) to null })
+                        emit(map.mapValues { (_, download) -> DownloadHandler.Download(state = download.state) to null })
                     }
                 }
             }
