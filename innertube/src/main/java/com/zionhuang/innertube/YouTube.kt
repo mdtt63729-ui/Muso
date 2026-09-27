@@ -11,7 +11,6 @@ import com.zionhuang.innertube.models.PlaylistItem
 import com.zionhuang.innertube.models.SearchSuggestions
 import com.zionhuang.innertube.models.SongItem
 import com.zionhuang.innertube.models.YTItem
-import com.zionhuang.innertube.models.VideoItem
 import com.zionhuang.innertube.models.WatchEndpoint
 import com.zionhuang.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
@@ -134,7 +133,7 @@ object YouTube {
                     if (title != null && items.isNotEmpty()) summaries.add(SearchSummary(title, items))
                 }
                 shelf != null -> {
-                    val title = shelf.title.runs?.firstOrNull()?.text
+                    val title = shelf.title?.runs?.firstOrNull()?.text
                     val items = shelf.contents
                         ?.mapNotNull {
                             SearchSummaryPage.fromMusicResponsiveListItemRenderer(it.musicResponsiveListItemRenderer)
@@ -162,7 +161,6 @@ object YouTube {
         flatItems.forEach { item ->
             val title = when (item) {
                 is SongItem -> "Songs"
-                is VideoItem -> "Videos"
                 is AlbumItem -> "Albums"
                 is ArtistItem -> "Artists"
                 is PlaylistItem -> "Playlists"

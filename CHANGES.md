@@ -1,4 +1,28 @@
-## Round 110 (v0.5.125, code 132)
+## Round 111 (v0.5.126, code 133)
+
+## CI fix #3 — first real Kotlin compile errors (:innertube module)
+Progress: after the DSL migration the build now runs real compilation, and
+the sub-modules (kugou, lrclib, kizzy, betterlyrics, paxsenixlyrics,
+youlyplus, unison, simpmusic) all compiled clean. The :innertube module
+had three errors, all in YouTube.kt's search-summary code (the section
+written when YouTube flattened the All-results response — it had never
+been compiled because the whole project was blocked at configuration
+until Round 109):
+
+1. Unresolved reference 'VideoItem' (import + usage): Muso's innertube
+   models have no VideoItem type (that's a SimpMusic-models name). Videos
+   parse as SongItem here, so the "Videos" branch was dead weight — import
+   and branch removed; those rows simply group under "Songs"/"Results".
+2. Only safe calls allowed on a nullable receiver 'Runs?'
+   (YouTube.kt 137): MusicShelfRenderer.title is Runs?, so the shelf-title
+   read now uses shelf.title?.runs?.firstOrNull()?.text.
+3. Same VideoItem reference in the flatten-regroup when() — gone with (1).
+
+All other imports in the file verified resolvable against the module's
+declarations (the remaining ones are extension functions or external
+dependencies).
+
+# Round 110 (v0.5.125, code 132)
 
 ## CI fix #2 — compiler options DSL migration
 Progress from the last round: the TOML fix worked; Gradle configuration now
