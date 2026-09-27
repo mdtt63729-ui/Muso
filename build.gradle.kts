@@ -31,9 +31,13 @@ tasks.register<Delete>("Clean") {
 
 subprojects {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
-        // KGP 2.2: the legacy Kotlin compiler DSL is a hard error now —
-        // migrated to the task-level compilerOptions DSL.
+        // Task-level compilerOptions: works identically whether a module's
+        // Kotlin comes from the KGP plugin (JVM modules) or from AGP 9's
+        // built-in Kotlin support (:app), which applies Kotlin for you and
+        // rejects the org.jetbrains.kotlin.android plugin id.
         compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            freeCompilerArgs.add("-opt-in=androidx.compose.ui.ExperimentalComposeUiApi")
             if (project.findProperty("enableComposeCompilerReports") == "true") {
                 arrayOf("reports", "metrics").forEach {
                     freeCompilerArgs.add("-P")

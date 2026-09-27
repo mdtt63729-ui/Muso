@@ -1,4 +1,28 @@
-## Round 113 (v0.5.128, code 135)
+## Round 114 (v0.5.129, code 136)
+
+## CI fix #6 — AGP 9 built-in Kotlin adoption
+The wrapper fix worked (Gradle 9.5.1 booted, AGP 9.2.1 configured :app)
+and the next real error surfaced:
+"The 'org.jetbrains.kotlin.android' plugin is no longer required for
+Kotlin support since AGP 9.0. Remove it from app/build.gradle.kts."
+AGP 9 ships built-in Kotlin support and applies it for you - which is
+exactly how the SimpMusic androidApp module builds (its plugins block
+carries only android-application + compose-compiler, no Kotlin plugin).
+
+- Removed the kotlin("android") plugin from :app's plugins block.
+- To leave nothing depending on how Kotlin gets applied, the compiler
+  configuration (jvmTarget 17 + the ExperimentalComposeUiApi opt-in)
+  moved from :app's kotlin {} blocks into the root subprojects
+  tasks.withType<KotlinJvmCompile> { compilerOptions { } } block - the
+  task-level DSL works identically for KGP-plugin JVM modules and for
+  AGP's built-in Kotlin. The removed kotlin { jvmToolchain(17) } is
+  redundant with the existing compileOptions VERSION_17 pins and the CI
+  JDK being 17.
+- Two deprecation warnings remain in gradle.properties
+  (android.nonFinalResIds, android.enableJetifier) - they are warnings
+  only, on track for removal in AGP 10, not build blockers.
+
+# Round 113 (v0.5.128, code 135)
 
 ## CI fix #5 — wrapper version verified against reality + risk cleanup
 The Gradle wrapper URL was the failure this time: gradle-9.2-bin.zip
