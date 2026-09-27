@@ -1,4 +1,20 @@
-## Round 120 (v0.5.135, code 142)
+## Round 121 (v0.5.136, code 143)
+
+## CI fix #13 — Hilt green; R8's resource-shrinking flag
+The Hilt binding landed: hiltJavaCompile passed, dexing ran, and the build
+now fails inside :app:minifyFossReleaseWithR8 with a single, well-known
+complaint:
+
+  "Optimized resource shrinking requires non-final IDs."
+
+Muso pins android.nonFinalResIds=false, which is incompatible with R8's
+new optimized resource shrinking. Of R8's two offered fixes, this round
+takes the safe one: android.r8.optimizedResourceShrinking=false in
+gradle.properties — plain resource shrinking still runs, IDs stay final,
+nothing about the app changes. (Migrating to non-final IDs can come later;
+AGP 10 will force that conversation.)
+
+# Round 120 (v0.5.135, code 142)
 
 ## CI fix #12 — Kotlin compile is GREEN; Hilt's one missing binding
 :app:compileFossReleaseKotlin passed with zero errors for the first time
