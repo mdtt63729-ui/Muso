@@ -52,12 +52,21 @@ import androidx.work.WorkManager
 
 @HiltAndroidApp
 class App : Application(), ImageLoaderFactory {
+
+    companion object {
+        /** The single Koin instance, for non-composable access (e.g. the
+         * MusicService canvas preloader). Assigned in onCreate before any
+         * component can need it - the Application always starts first. */
+        lateinit var koin: org.koin.core.Koin
+            private set
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
         // The SimpMusic player suite resolves its few injected collaborators
         // (tab memory, sheet state, the queue-view handler) through Koin.
-        startKoin {
+        koin = startKoin {
             // The suite's expect shims (CopyToClipboard, OpenUrl, ImageIo)
             // resolve android.content.Context from Koin.
             androidContext(this@App)
@@ -117,7 +126,7 @@ class App : Application(), ImageLoaderFactory {
                 viewModel { com.maxrave.simpmusic.viewModel.SongSelectionViewModel(get(), get()) }
                 }
             )
-        }
+        }.koin
         com.maxrave.simpmusic.ui.component.SuiteRes.context = this
 
         // Crash log capture: writes the stack trace of any uncaught crash to

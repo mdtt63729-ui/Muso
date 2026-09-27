@@ -1,4 +1,29 @@
-## Round 134 (v0.5.149, code 156)
+## Round 135 (v0.5.150, code 157)
+
+Fixes the two remaining error groups from the v0.5.149 CI log (paste-1-24).
+
+## MusicService canvas preload: Koin 4.2 resolution (again)
+Koin 4.2's `get(clazz: KClass<*>, ...)` takes a STAR-PROJECTION class - the
+reified type can never be inferred from a class literal, which is why
+"Cannot infer type for T" kept coming back no matter which accessor was
+used. The preloader now uses the reified overload with an explicit type
+argument: `App.koin.get<SimpleCache>(named(CANVAS_CACHE))`. To make that
+possible, App exposes the started Koin instance as `App.koin` (assigned
+from `startKoin { ... }.koin` in onCreate - the Application always starts
+before any service, so the canvas init block can never see it unset).
+
+## MotionIndication: node API done right
+The classic Indication/IndicationInstance API is flagged as a deprecation
+ERROR in Compose 1.12, so the press indication is back on
+IndicationNodeFactory - this time with the correct import
+(androidx.compose.ui.node.DrawModifierNode) and the explicit-receiver
+`this@draw.drawContent()` inside the scale block (drawContent lives on
+ContentDrawScope, not the scale lambda's plain DrawScope). Progress is
+snapshot state (mutableFloatStateOf) read inside draw(), so
+DrawModifierNode's auto draw-invalidation redraws only while a press
+animates - no manual invalidate calls, no recomposition, still §14.2-clean.
+
+# Round 134 (v0.5.149, code 156)
 
 Fixes every compile error from the v0.5.148 CI log (paste-1-23) - the first
 CI run of the reference NowPlayingScreen port and the motion system.

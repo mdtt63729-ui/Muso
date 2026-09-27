@@ -927,8 +927,7 @@ class MusicService : MediaLibraryService(),
     private suspend fun preloadCanvasSegment(url: String): Boolean {
         return kotlinx.coroutines.withContext(Dispatchers.IO) {
             runCatching {
-                val cache = org.koin.core.context.GlobalContext.get().get(
-                    androidx.media3.datasource.cache.SimpleCache::class,
+                val cache = com.muso.music.App.koin.get<androidx.media3.datasource.cache.SimpleCache>(
                     org.koin.core.qualifier.named(com.maxrave.common.Config.CANVAS_CACHE),
                 )
                 val source = androidx.media3.datasource.cache.CacheDataSource.Factory()
