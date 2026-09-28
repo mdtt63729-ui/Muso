@@ -544,10 +544,11 @@ class MainActivity : ComponentActivity() {
                     // One-time: M3 Expressive is the default player style now (user
                     // request). Only a stored CLASSIC (the old default) migrates; after
                     // this runs once, whatever the user picks is respected.
+                    val migrationContext = androidx.compose.ui.platform.LocalContext.current
                     LaunchedEffect(Unit) {
-                        val prefs = androidx.compose.ui.platform.LocalContext.current.dataStore.data.first()
+                        val prefs = migrationContext.dataStore.data.first()
                         if (prefs[com.muso.music.constants.PlayerStyleMigratedKey] != true) {
-                            androidx.compose.ui.platform.LocalContext.current.dataStore.edit {
+                            migrationContext.dataStore.edit {
                                 if (it[com.muso.music.constants.PlayerStyleKey] ==
                                     com.muso.music.constants.PlayerStyle.CLASSIC.name
                                 ) {

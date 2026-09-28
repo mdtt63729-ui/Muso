@@ -1,4 +1,13 @@
-## Round 143 (v0.5.158, code 165)
+## Round 143 (continued, v0.5.159, code 166)
+
+Identical content to the v0.5.158 build; re-versioned only because two
+zips named Muso-v0.5.158-source.zip (the broken first upload and the
+compile-fixed one) caused the wrong one to be downloaded - CI kept
+compiling the pre-fix MainActivity. The fix itself is unchanged: the
+player-style migration captures LocalContext outside the
+LaunchedEffect body.
+
+# Round 143 (v0.5.158, code 165)
 
 Round of user reports on 0.5.157.
 
