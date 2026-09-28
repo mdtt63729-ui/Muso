@@ -1,4 +1,29 @@
-## Round 141 (v0.5.156, code 163)
+## Round 142 (v0.5.157, code 164)
+
+HOTFIX 2: the app froze after opening (nothing clickable, v0.5.156).
+
+The Round 140 sheet rewrite ("state created once, bounds updated in place")
+was the wrong shape: with the state object never re-created, the collapsed
+anchoring became conditional and the sheet could sit off its anchor, which
+left the invisible full-screen gesture layer of the expanded content over
+the app - every touch died there.
+
+Reverted to the v0.5.154 sheet architecture (the last shape the app ran
+on) with ONE surgical improvement that still fixes the original complaints
+without any of the risk: the Animatable is re-created per bounds/anchor
+change ALREADY POSITIONED at its anchor (construction is synchronous), so
+no frame ever renders the sheet between anchors. That single late frame
+was what caused the grey plate flash under the glass bar and the misplaced
+touch catcher eating taps ("player opens by itself") - both stay fixed,
+without the in-place state that froze the app. The 25%-progress transparent
+plate in Player.kt is kept.
+
+Everything else from Rounds 139-141 is unchanged: video any-height
+fallback + fullscreen video screen, 1024px artwork, per-player lyrics UI,
+ForceDarkContent for the Apple Music style, cache-on-play with lyrics,
+library home with Recently Played, light/dark navbar fix.
+
+# Round 141 (v0.5.156, code 163)
 
 HOTFIX: crash on app open (v0.5.155 regression).
 
