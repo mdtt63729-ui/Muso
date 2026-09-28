@@ -120,7 +120,7 @@ fun LibraryMixScreen(
                             Text(
                                 text = stringResource(
                                     when (sortType) {
-                                        MixSortType.CREATE_DATE -> R.string.mix_sort_date
+                                        MixSortType.CREATE_DATE -> R.string.date_added
                                         MixSortType.NAME -> R.string.mix_sort_name
                                     }
                                 ),
@@ -130,7 +130,7 @@ fun LibraryMixScreen(
                         }
                         DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = { sortMenuExpanded = false }) {
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.mix_sort_date)) },
+                                text = { Text(stringResource(R.string.date_added)) },
                                 onClick = {
                                     onSortTypeChange(MixSortType.CREATE_DATE)
                                     sortMenuExpanded = false
@@ -184,23 +184,23 @@ fun LibraryMixScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(24.dp),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(18.dp))
+                            .size(76.dp)
+                            .clip(RoundedCornerShape(22.dp))
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.favorite),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(38.dp),
                         )
                     }
-                    Spacer(Modifier.size(20.dp))
+                    Spacer(Modifier.size(22.dp))
                     Column {
                         Surface(
                             shape = RoundedCornerShape(50),
@@ -228,29 +228,39 @@ fun LibraryMixScreen(
             }
         }
 
-        // --- Category cards row (image grid minus the separate Cached card) ---
+        // --- Category cards, 2x2 like the reference image (no separate Cached
+        // card - the cache lives on as Recently Played below) ---
         item(key = "category_cards", contentType = CONTENT_TYPE_HEADER) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
             ) {
-                LibraryHomeCard(
-                    iconRes = R.drawable.simp_baseline_downloaded,
-                    label = stringResource(R.string.downloaded),
-                    modifier = Modifier.weight(1f),
-                ) { navController.navigate("auto_playlist/offline") }
-                LibraryHomeCard(
-                    iconRes = R.drawable.trending_up,
-                    label = stringResource(R.string.my_top_50),
-                    modifier = Modifier.weight(1f),
-                ) { navController.navigate("auto_playlist/top") }
-                LibraryHomeCard(
-                    iconRes = R.drawable.history,
-                    label = stringResource(R.string.history),
-                    modifier = Modifier.weight(1f),
-                ) { navController.navigate("history") }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    LibraryHomeCard(
+                        iconRes = R.drawable.simp_baseline_downloaded,
+                        label = stringResource(R.string.downloaded),
+                        modifier = Modifier.weight(1f),
+                    ) { navController.navigate("auto_playlist/offline") }
+                    LibraryHomeCard(
+                        iconRes = R.drawable.trending_up,
+                        label = stringResource(R.string.my_top_50),
+                        modifier = Modifier.weight(1f),
+                    ) { navController.navigate("auto_playlist/top") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    LibraryHomeCard(
+                        iconRes = R.drawable.history,
+                        label = stringResource(R.string.history),
+                        modifier = Modifier.weight(1f),
+                    ) { navController.navigate("history") }
+                    LibraryHomeCard(
+                        iconRes = R.drawable.library_music,
+                        label = stringResource(R.string.uploaded),
+                        modifier = Modifier.weight(1f),
+                    ) { navController.navigate("uploaded") }
+                }
             }
         }
 
@@ -323,20 +333,20 @@ private fun LibraryHomeCard(
             verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(20.dp),
         ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(18.dp))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             ) {
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(30.dp),
                 )
             }
             Text(

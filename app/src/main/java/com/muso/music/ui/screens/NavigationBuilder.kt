@@ -98,6 +98,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable("cached") {
         CachedScreen(navController)
     }
+    composable<com.maxrave.simpmusic.ui.navigation.destination.player.FullscreenDestination> {
+        com.muso.music.ui.player.FullscreenVideoScreen(navController)
+    }
     composable<LibraryDestination> {
         LibraryScreen(navController)
     }

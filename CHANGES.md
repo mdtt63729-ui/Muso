@@ -1,4 +1,68 @@
-## Round 138 (v0.5.153, code 160)
+## Round 140 (v0.5.155, code 162)
+
+Runtime polish round for the reports on 0.5.154.
+
+## 1. The box under the navbar + player opening by itself + green flash
+Root cause found: the player-sheet state was RE-CREATED on every
+navigation-bar/inset change. That restarted its gesture handlers
+mid-transition and left the collapsed touch catcher misplaced for a frame -
+taps meant for screen content landed on the invisible catcher and the
+player "opened by itself" - and re-snapped the sheet a frame late,
+flashing the opaque grey plate under the glass bar (the "box below the
+player"). The state object is now created ONCE and the bounds update IN
+PLACE; nothing restarts, nothing flashes. The sheet plate also stays
+transparent through the whole collapsed zone (below 25% expansion), so no
+between-insets frame can ever show it.
+
+## 2. Thumbnail quality
+The suite player's artwork bitmap was still loaded at 256px (the palette
+went to 1024 in Round 136 but the artwork itself did not) - every screen
+showed a pixelated square. The artwork now loads at 1024.
+
+## 3. Lyrics UI per player
+The lyrics style followed only the standalone lyrics preference, so every
+player showed the classic lyrics UI. Now the lyrics UI follows the PLAYER
+STYLE: Spotify/M3 Expressive use their own suite lyrics view, Apple Music
+uses the Apple lyrics view; the explicit Apple-lyrics preference still
+overrides everywhere.
+
+## 4. Queue/lyrics text unreadable (Apple Music style)
+The suite typography takes text colors from the HOST theme: on Muso's
+light theme the Apple Music style's black canvas got dark-brown
+queue/lyrics text. The style now runs inside ForceDarkContent like the
+reference app - white titles, grey bodies.
+
+## 5. Video fullscreen button did nothing
+The suite player's fullscreen button navigates to FullscreenDestination -
+a route that was never registered in Muso. Now it opens a real fullscreen
+video screen (same canvas video stream, fill-screen, tap to toggle the
+overlay, back to leave).
+
+## Carried from Round 139
+Video appears whenever the song has any video (quality-bar fallback),
+cache-on-play, lyrics with downloads, the Material 3 library home with
+Recently Played queue, and the light/dark navbar fix.
+
+# Round 139 (v0.5.154, code 161)
+
+Verification round: v0.5.152/153 sources were audited file-by-file against
+their zips - every fix IS present and the diffs are exactly the intended
+files. If the installed app showed none of it, the APK being tested was an
+older build: check the CI log and the version under Settings > About.
+
+- Video: final fallback added - when no stream reaches the quality bar,
+  the best video of ANY height is used, so the canvas appears whenever a
+  song has a video at all (previously many songs produced nothing).
+- Library home (image 581028): the tab now ALWAYS opens on the redesigned
+  home (pill state no longer persisted), the pills gained icons and the
+  image's translucent bordered style, the Liked card and category cards
+  are bigger, and the categories sit in a 2x2 grid (Downloaded, My top 50,
+  History, Uploaded). The sort bar reads "Date added".
+- Everything from 152/153 is included unchanged: cache-on-play, lyrics
+  with downloads, Recently Played section, suite LocalIsDarkTheme fix,
+  flat pill mini player with glass off.
+
+# Round 138 (v0.5.153, code 160)
 
 Light/dark reversal fixed for the navbar buttons and the mini player
 (reference images 581031/581032), and glass-OFF now gets the real pill.

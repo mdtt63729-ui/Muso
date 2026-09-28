@@ -130,7 +130,12 @@ fun BottomSheetPlayer(
         // Only while COLLAPSED, though: the sheet goes opaque again the moment
         // it leaves the collapsed anchor, or the expanded player would be see
         // -through - the feed showed through it and dragging it flickered.
-        backgroundColor = if (!showCollapsedMiniPlayer && !state.isExpanded && state.value <= state.collapsedBound) Color.Transparent
+        // The sheet plate stays transparent through the whole collapsed zone:
+        // anything below 25% expansion progress shows NOTHING (the expanded
+        // content is alpha-0 there anyway), so a re-anchored or
+        // between-insets frame can never flash the grey plate under the
+        // glass bar - that was the "box below the navbar/player".
+        backgroundColor = if (!state.isExpanded && state.progress < 0.25f) Color.Transparent
         else backgroundColor,
         collapsedHitHeight = if (showCollapsedMiniPlayer) null
         // Glass mode: ONLY the mini player card itself is interactive. The

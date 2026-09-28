@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.muso.music.constants.NavigationBarAnimationSpec
 import kotlinx.coroutines.CoroutineScope
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 
 /**
@@ -165,8 +167,14 @@ class BottomSheetState(
     private val coroutineScope: CoroutineScope,
     private val animatable: Animatable<Dp, AnimationVector1D>,
     private val onAnchorChanged: (Int) -> Unit,
-    val collapsedBound: Dp,
+    collapsedBound: Dp,
 ) : DraggableState by draggableState {
+    /** The collapsed anchor. Mutable: bounds update IN PLACE (see
+     *  [rememberBottomSheetState]) instead of recreating the state, which
+     *  restarted gesture handlers mid-navigation and misplaced the collapsed
+     *  touch catcher for a frame - taps meant for screen content landed on it
+     *  and the player "opened by itself". */
+    var collapsedBound: Dp = collapsedBound
     val dismissedBound: Dp
         get() = animatable.lowerBound!!
 
@@ -342,26 +350,7 @@ fun rememberBottomSheetState(
         Animatable(0.dp, Dp.VectorConverter)
     }
 
-    return remember(dismissedBound, expandedBound, collapsedBound, coroutineScope) {
-        val initialValue = when (previousAnchor) {
-            expandedAnchor -> expandedBound
-            collapsedAnchor -> collapsedBound
-            dismissedAnchor -> dismissedBound
-            else -> error("Unknown BottomSheet anchor")
-        }
-
-        animatable.updateBounds(dismissedBound.coerceAtMost(expandedBound), expandedBound)
-        // SNAP, never animate: the bounds change whenever the navigation bar
-        // shows/hides per screen or the insets re-report during back
-        // navigation. Animating there slides an opaque grey plate (the
-        // rounded sheet surface) up over the glass bar - the "box below the
-        // player" glitch - and leaves the sheet between anchors, where the
-        // collapsed touch catcher eats taps meant for content. Snapping
-        // re-anchors invisibly and instantly.
-        coroutineScope.launch {
-            animatable.snapTo(initialValue)
-        }
-
+    val state = remember {
         BottomSheetState(
             draggableState = DraggableState { delta ->
                 coroutineScope.launch {
@@ -371,7 +360,36 @@ fun rememberBottomSheetState(
             onAnchorChanged = { previousAnchor = it },
             coroutineScope = coroutineScope,
             animatable = animatable,
-            collapsedBound = collapsedBound
+            collapsedBound = collapsedBound,
         )
     }
+
+    // The state object is created ONCE. Bounds (and the collapsed anchor)
+    // update IN PLACE: recreating it on every navigation-bar/inset change
+    // restarted its gesture handlers mid-transition and left the collapsed
+    // touch catcher misplaced for a frame - taps meant for screen content
+    // landed on the invisible catcher and the player "opened by itself" -
+    // and re-snapped the sheet a frame late, flashing an opaque grey plate
+    // under the glass bar (the "box below the player"). In place there is
+    // nothing to restart and nothing to flash.
+    LaunchedEffect(dismissedBound, expandedBound, collapsedBound) {
+        val anchorValue = when (previousAnchor) {
+            expandedAnchor -> expandedBound
+            collapsedAnchor -> collapsedBound
+            dismissedAnchor -> dismissedBound
+            else -> collapsedBound
+        }
+        val wasCollapsed =
+            abs((state.collapsedBound - animatable.value).value) < 0.01f
+        animatable.updateBounds(dismissedBound.coerceAtMost(expandedBound), expandedBound)
+        state.collapsedBound = collapsedBound
+        // Re-anchor only when the sheet is actually resting on an anchor: a
+        // sheet mid-drag keeps its live value, one resting at the OLD
+        // collapsed bound snaps to the new one.
+        if (wasCollapsed || previousAnchor != collapsedAnchor) {
+            animatable.snapTo(anchorValue)
+        }
+    }
+
+    return state
 }

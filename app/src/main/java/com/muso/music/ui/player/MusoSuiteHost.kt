@@ -104,12 +104,25 @@ fun MusoSuiteHost(
     androidx.compose.runtime.LaunchedEffect(lyricsOffsetMs) {
         dsm.lyricsOffsetMs.value = lyricsOffsetMs
     }
-    // Lyrics style (Classic / Apple Music): the suite renderer reads the live value.
+    // Lyrics style follows the PLAYER STYLE (user request: every player gets
+    // its own lyrics UI). The explicit Apple Music lyrics preference still
+    // wins everywhere; otherwise Spotify/M3 Expressive players use their own
+    // classic-suite lyrics view and the Apple Music player uses the Apple
+    // lyrics view.
     val lyricsStylePref by com.muso.music.utils.rememberPreference(
         com.muso.music.constants.LyricsStyleKey, defaultValue = "1",
     )
-    androidx.compose.runtime.LaunchedEffect(lyricsStylePref) {
-        dsm.lyricsStyle.value = lyricsStylePref
+    val lyricsPlayerStyle by com.muso.music.utils.rememberEnumPreference(
+        com.muso.music.constants.PlayerStyleKey, defaultValue = com.muso.music.constants.PlayerStyle.CLASSIC,
+    )
+    androidx.compose.runtime.LaunchedEffect(lyricsStylePref, lyricsPlayerStyle) {
+        dsm.lyricsStyle.value = when {
+            lyricsStylePref == com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_APPLE_MUSIC ->
+                com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_APPLE_MUSIC
+            lyricsPlayerStyle == com.muso.music.constants.PlayerStyle.IMMERSIVE ->
+                com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_APPLE_MUSIC
+            else -> com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_CLASSIC
+        }
     }
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -180,8 +193,11 @@ fun MusoSuiteHost(
         if (url != null) {
             runCatching {
                 val loader = SingletonImageLoader.get(context)
+                // 1024, not 256: this bitmap IS the artwork the suite player
+                // renders (fullscreen background + square thumb). 256 came
+                // out visibly pixelated on every screen (user report).
                 val result = loader.execute(
-                    ImageRequest.Builder(context).data(url).size(256).allowHardware(false).build()
+                    ImageRequest.Builder(context).data(url).size(1024).allowHardware(false).build()
                 )
                 (result as? SuccessResult)?.image?.toImageBitmap()
             }.getOrNull()?.let { bmp ->
@@ -402,7 +418,16 @@ fun MusoSuiteHost(
         when (playerStyle) {
             com.muso.music.constants.PlayerStyle.CLASSIC -> NowPlayingContentSpotify(state = state, actions = actions)
             com.muso.music.constants.PlayerStyle.EXPRESSIVE -> NowPlayingContentM3Expressive(state = state, actions = actions)
-            com.muso.music.constants.PlayerStyle.IMMERSIVE -> NowPlayingContentAppleMusic(state = state, actions = actions)
+            // ForceDarkContent: the Apple Music style is a black canvas by
+            // design, and the suite's typo() takes its text colors from the
+            // HOST theme - on Muso's light theme that meant dark-brown
+            // queue/lyrics text on the black backdrop, unreadable. The
+            // reference app runs this whole style inside ForceDarkContent;
+            // now Muso does too (white titles, grey bodies, dark scheme).
+            com.muso.music.constants.PlayerStyle.IMMERSIVE ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    NowPlayingContentAppleMusic(state = state, actions = actions)
+                }
         }
     }
 }

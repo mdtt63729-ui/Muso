@@ -462,6 +462,7 @@
     <string name="liked">Liked</string>
     <string name="offline">Offline</string>
     <string name="downloaded">Downloaded</string>
+    <string name="date_added">Date added</string>
     <string name="mix_sort_date">Recent</string>
     <string name="mix_sort_name">Name</string>
     <string name="library_mix_empty">Nothing in your library yet</string>

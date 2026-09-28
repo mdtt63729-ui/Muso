@@ -994,7 +994,18 @@ class MusicService : MediaLibraryService(),
                 .filter { !it.url.isNullOrEmpty() && !it.isAudio && (it.height ?: 0) >= targetHeight }
             val muxed = streamingData?.formats.orEmpty()
                 .filter { !it.url.isNullOrEmpty() && (it.height ?: 0) >= targetHeight }
-            (adaptive.minByOrNull { it.height ?: 0 } ?: muxed.maxByOrNull { it.height ?: 0 })?.url
+            // Preferred: the smallest at-or-above-target video-only stream (or a
+            // muxed one at that bar). User report (v0.5.152): videos NEVER came
+            // even after a whole song - for many songs nothing reaches the bar,
+            // and "no video at all" beats the quality bar. Final fallback: the
+            // best video of ANY height, so a canvas appears whenever the song
+            // simply HAS a video.
+            val preferred = adaptive.minByOrNull { it.height ?: 0 } ?: muxed.maxByOrNull { it.height ?: 0 }
+            val anyAdaptive = streamingData?.adaptiveFormats.orEmpty()
+                .filter { !it.url.isNullOrEmpty() && !it.isAudio }
+            val anyMuxed = streamingData?.formats.orEmpty()
+                .filter { !it.url.isNullOrEmpty() }
+            (preferred ?: anyAdaptive.maxByOrNull { it.height ?: 0 } ?: anyMuxed.maxByOrNull { it.height ?: 0 })?.url
         }.getOrNull()
 
     private fun createDataSourceFactory(): DataSource.Factory {
