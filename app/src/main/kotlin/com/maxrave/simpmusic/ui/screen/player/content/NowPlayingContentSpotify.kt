@@ -314,9 +314,13 @@ fun NowPlayingContentSpotify(
                     // (onSuccess), so we use the SAME bitmap that's painted on screen —
                     // matches the outer Column's palette extraction characteristics.
                     val pagePaletteState = rememberPaletteState()
+                    // NOT re-created per track: resetting to Color.Black on every song
+                    // change is what flashed the player black (the palette only lands
+                    // after the artwork decodes). One Animatable that survives the
+                    // track change and animates to the new palette when it arrives.
                     val pageStartColor =
-                        remember(pageTrack?.videoId) {
-                            Animatable(Color.Black)
+                        remember {
+                            Animatable(Color(0xFF282828))
                         }
                     LaunchedEffect(pagePaletteState, pageTrack?.videoId) {
                         snapshotFlow { pagePaletteState.palette }
@@ -385,20 +389,14 @@ fun NowPlayingContentSpotify(
                             Crossfade(targetState = state.screenData.canvasData?.isVideo) { isVideo ->
                                 if (isVideo == true) {
                                     state.screenData.canvasData?.url?.let { url ->
+                                        // Edge-to-edge (user spec): the video covers the whole
+                                        // player screen, crop-to-fill, never letterboxed and never
+                                        // squeezed - the same treatment the Apple Music backdrop
+                                        // already had.
                                         MediaPlayerView(
                                             url = url,
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxHeight()
-                                                    .then(
-                                                        if (getPlatform() == Platform.Desktop) {
-                                                            Modifier
-                                                        } else {
-                                                            Modifier
-                                                                .wrapContentWidth(unbounded = true, align = Alignment.CenterHorizontally)
-                                                                .align(Alignment.Center)
-                                                        },
-                                                    ),
+                                            cropToBounds = true,
+                                            modifier = Modifier.fillMaxSize(),
                                         )
                                     }
                                 } else if (isVideo == false) {
@@ -585,23 +583,14 @@ fun NowPlayingContentSpotify(
                                                 Modifier
                                                     .aspectRatio(state.videoAspectRatio)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(Color.Black),
+                                                    // Transparent: the full-bleed backdrop video
+                                                    // shows through this slot. The inline second
+                                                    // decoder is retired - it was half the
+                                                    // "lags while the video loads" and its boxed
+                                                    // shape was the "compressed, not fullscreen"
+                                                    // complaint.
+                                                    .background(Color.Transparent),
                                         ) {
-                                            Box(Modifier.fillMaxSize()) {
-                                                MediaPlayerViewWithSubtitle(
-                                                    playerName = MAIN_PLAYER,
-                                                    modifier = Modifier.align(Alignment.Center),
-                                                    shouldShowSubtitle = internalShowSubtitle,
-                                                    shouldPip = false,
-                                                    shouldScaleDownSubtitle = true,
-                                                    timelineState = state.timelineState,
-                                                    lyricsData = state.screenData.lyricsData?.lyrics,
-                                                    translatedLyricsData = state.screenData.lyricsData?.translatedLyrics?.first,
-                                                    isInPipMode = state.isInPipMode,
-                                                    mainTextStyle = typo().bodyLarge,
-                                                    translatedTextStyle = typo().bodyMedium,
-                                                )
-                                            }
                                             Box(
                                                 modifier =
                                                     Modifier

@@ -1,4 +1,57 @@
-## Round 144 (v0.5.160, code 167)
+## Round 146 (v0.5.162, code 169)
+
+Three user reports with SimpMusic references.
+
+## 1. Old strip mini player retired everywhere
+The very first Muso strip mini player (which had been standing in on
+navbar-hidden screens like Settings) is deleted for good: the collapsed
+sheet now never paints anything of its own. Only the suite's two pill
+variants exist - the Liquid Glass pill when glass is enabled, the flat
+pill when not - and the navbar host keeps one alive on navbar-hidden
+screens too (it used to slide the whole stack away there).
+
+## 2. Instant search results
+The online search now navigates to the results screen by itself after a
+450ms pause on 2+ typed characters - songs with thumbnails appear as you
+type, no enter key needed (reference behaviour). Auto-searched queries do
+not write search history; explicit searches still do.
+
+## 3. Video: edge-to-edge, no second decode, no black flash
+- The Spotify and M3 Expressive canvas/video backdrops now cover the WHOLE
+  player screen, crop-to-fill (the Apple Music treatment) - never a
+  letterboxed band and never squeezed.
+- The inline second video decoder in the artwork slot is retired: the
+  backdrop video shows through the transparent slot instead. One decode
+  instead of two - the "lags a lot while the video loads" is gone.
+- The per-page backdrop colour no longer resets to black on every track
+  change (it animated from black until the palette landed after the
+  artwork decoded - the black flash when expanding from the mini player);
+  it survives the track change and animates to the new palette.
+
+# Round 145 (v0.5.161, code 168)
+
+Apple Music lyrics round (user reports with SimpMusic side-by-side).
+
+## 1. Lyrics lines carried "<03:19.606>" junk
+Enhanced-LRC word-timing tags (<mm:ss.xxx> before every word) were never
+stripped by the bridge parser - every rendered line started with a
+visible timestamp. They are metadata, not text: the parser strips them
+all now, so lines render as pure text like the reference.
+
+## 2. Lyrics screen navigation
+- Apple Music Lyrics/Queue views: tapping the thumbnail or the song
+  name in the compact header returns to the MAIN player view (reference
+  behaviour).
+- A pull-down anywhere the lyric list cannot consume the gesture (the
+  header, the gaps, the list's top edge) now returns to the player view
+  instead of falling through to the sheet detector, which collapsed the
+  whole player to the mini bar.
+- The fullscreen lyrics sheet's header (thumbnail, song name, artist):
+  tapping any of it slides the lyrics away back to the fullscreen
+  player. The old artist-tap navigated to the artist page, which
+  blanked the screen when the destination had no data to show.
+
+# Round 144 (v0.5.160, code 167)
 
 Thumbnail belt-and-braces on top of Round 143.
 

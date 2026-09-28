@@ -120,8 +120,7 @@ private val ArtworkCardShape = RoundedCornerShape(28.dp)
  * one plays, capped at square so a tall video is never taller than a song's card. The one
  * expression both the drawn card and the measuring spacer in `NowPlayingContentM3Expressive` use.
  */
-internal fun NowPlayingContentState.expressiveCardSlotRatio(): Float =
-    if (screenData.isVideo && shouldShowVideo) maxOf(videoAspectRatio, 1f) else 1f
+internal fun NowPlayingContentState.expressiveCardSlotRatio(): Float = 1f
 
 /**
  * One pager page: a rounded square card (width = screen − 40dp, 1:1, 28dp corners).
@@ -153,7 +152,7 @@ internal fun ExpressiveArtworkCardPage(
     // square card — fitted into a slot no taller than the square card a song gets, so a tall video
     // narrows the card instead of pushing the page past the fold. Every page shares the slot so the
     // pager height matches the measuring spacer in the content column (expressiveCardSlotRatio).
-    val cardAspectRatio = if (state.screenData.isVideo && state.shouldShowVideo) state.videoAspectRatio else 1f
+    val cardAspectRatio = 1f
 
     Box(
         contentAlignment = Alignment.Center,
@@ -186,20 +185,12 @@ internal fun ExpressiveArtworkCardPage(
             Crossfade(targetState = state.screenData.canvasData?.isVideo) { isVideo ->
                 if (isVideo == true) {
                     state.screenData.canvasData?.url?.let { url ->
+                        // Edge-to-edge (user spec): crop-to-fill cover, never a
+                        // letterboxed band - same as the Apple Music backdrop.
                         MediaPlayerView(
                             url = url,
-                            modifier =
-                                Modifier
-                                    .fillMaxHeight()
-                                    .then(
-                                        if (getPlatform() == Platform.Desktop) {
-                                            Modifier
-                                        } else {
-                                            Modifier
-                                                .wrapContentWidth(unbounded = true, align = Alignment.CenterHorizontally)
-                                                .align(Alignment.Center)
-                                        },
-                                    ),
+                            cropToBounds = true,
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                 } else if (isVideo == false) {
@@ -329,7 +320,9 @@ internal fun ExpressiveArtworkCardPage(
                                         Modifier.fillMaxSize()
                                     },
                                 ).alpha(
-                                    if (pageHasCanvas || (state.screenData.isVideo && state.shouldShowVideo)) 0f else 1f,
+                                    // The artwork card stays visible over the full-bleed video
+                                    // backdrop (the inline video that replaced it is retired).
+                                    1f,
                                 ),
                     )
 
@@ -348,23 +341,10 @@ internal fun ExpressiveArtworkCardPage(
                             modifier =
                                 Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black),
+                                    // Transparent: the full-bleed backdrop video shows
+                                    // through. The inline second decoder is retired (lag).
+                                    .background(Color.Transparent),
                         ) {
-                            Box(Modifier.fillMaxSize()) {
-                                MediaPlayerViewWithSubtitle(
-                                    playerName = MAIN_PLAYER,
-                                    modifier = Modifier.align(Alignment.Center),
-                                    shouldShowSubtitle = internalShowSubtitle,
-                                    shouldPip = false,
-                                    shouldScaleDownSubtitle = true,
-                                    timelineState = state.timelineState,
-                                    lyricsData = state.screenData.lyricsData?.lyrics,
-                                    translatedLyricsData = state.screenData.lyricsData?.translatedLyrics?.first,
-                                    isInPipMode = state.isInPipMode,
-                                    mainTextStyle = typo().bodyLarge,
-                                    translatedTextStyle = typo().bodyMedium,
-                                )
-                            }
                             Box(
                                 modifier =
                                     Modifier

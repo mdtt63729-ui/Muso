@@ -341,6 +341,10 @@ internal fun AppleMusicCompactHeader(
     actions: NowPlayingContentActions,
     typography: AppleMusicTypography,
     modifier: Modifier = Modifier,
+    // The Lyrics/Queue headers are the "back to the player" affordance
+    // (reference behaviour): tapping the thumbnail or the song name returns
+    // to the MAIN view. Null leaves them inert.
+    onBackToPlayer: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -358,10 +362,26 @@ internal fun AppleMusicCompactHeader(
             placeholder = rememberHolderPainter(),
             error = rememberHolderPainter(),
             contentDescription = null,
-            modifier = Modifier.size(55.dp).clip(RoundedCornerShape(4.dp)),
+            modifier =
+                Modifier.size(55.dp).clip(RoundedCornerShape(4.dp)).then(
+                    if (onBackToPlayer != null) {
+                        Modifier.clickable { onBackToPlayer() }
+                    } else {
+                        Modifier
+                    },
+                ),
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier =
+                Modifier.weight(1f).then(
+                    if (onBackToPlayer != null) {
+                        Modifier.clickable { onBackToPlayer() }
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
             // Ellipsis, not marquee: a marquee in this narrow header scrolls constantly and
             // snapshots as garbage ("Vill Be Okay … Eve" in the first device screenshots).
             Text(

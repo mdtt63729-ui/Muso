@@ -148,7 +148,12 @@ internal fun AppleMusicQueueView(
                     with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() } + 20.dp,
                 ),
         )
-        AppleMusicCompactHeader(state = state, actions = actions, typography = typography)
+        AppleMusicCompactHeader(
+            state = state,
+            actions = actions,
+            typography = typography,
+            onBackToPlayer = { onSelectView(AppleMusicView.MAIN) },
+        )
         AppleMusicQueuePillsRow(
             state = state,
             actions = actions,

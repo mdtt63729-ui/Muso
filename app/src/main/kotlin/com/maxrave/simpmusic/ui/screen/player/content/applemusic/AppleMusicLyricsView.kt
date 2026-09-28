@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gesture.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -142,7 +144,38 @@ internal fun AppleMusicLyricsView(
             }
         }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .pointerInput(onSelectView) {
+                    // A pull-down anywhere the lyric list itself cannot consume the
+                    // gesture (the header, the gaps, the list's top edge) returns to
+                    // the PLAYER view, exactly like the reference app. Without this,
+                    // that drag fell through to the player sheet's own detector and
+                    // collapsed the whole player to the mini bar.
+                    var pullDown = 0f
+                    var switched = false
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { change, dragAmount ->
+                            change.consume()
+                            if (dragAmount > 0f) pullDown += dragAmount else pullDown = 0f
+                            if (!switched && pullDown > 72.dp.toPx()) {
+                                switched = true
+                                onSelectView(AppleMusicView.MAIN)
+                            }
+                        },
+                        onDragEnd = {
+                            pullDown = 0f
+                            switched = false
+                        },
+                        onDragCancel = {
+                            pullDown = 0f
+                            switched = false
+                        },
+                    )
+                },
+    ) {
         // statusBars + 20dp, not a bare status-bar offset: the grabber that
         // NowPlayingContentAppleMusic draws above the view Crossfade floats over this column, and
         // without the extra room the header's title slides underneath it.
@@ -152,7 +185,14 @@ internal fun AppleMusicLyricsView(
                     with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() } + 20.dp,
                 ),
         )
-        AppleMusicCompactHeader(state = state, actions = actions, typography = typography)
+        AppleMusicCompactHeader(
+            state = state,
+            actions = actions,
+            typography = typography,
+            // Tapping the thumbnail or song name returns to the player, like the
+            // reference app (the old path led to a blank screen).
+            onBackToPlayer = { onSelectView(AppleMusicView.MAIN) },
+        )
 
         Box(
             modifier =

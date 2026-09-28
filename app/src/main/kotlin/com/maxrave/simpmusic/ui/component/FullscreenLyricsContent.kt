@@ -354,14 +354,20 @@ fun FullscreenLyricsContent(
                             modifier =
                                 Modifier
                                     .size(45.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onDismiss() },
                         )
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // Song Info Column
+                        // Song Info Column - tapping the title/artist block returns
+                        // to the fullscreen player (reference behaviour); the old
+                        // artist-page navigation here is what blanked the screen.
                         Column(
-                            modifier = Modifier.weight(1f),
+                            modifier =
+                                Modifier.weight(1f).clickable {
+                                    onDismiss()
+                                },
                         ) {
                             // Song Name
                             Text(
@@ -379,27 +385,12 @@ fun FullscreenLyricsContent(
 
                             Spacer(modifier = Modifier.height(2.dp))
 
-                            // Artist Name with Explicit Badge
+                            // Artist Name with Explicit Badge - same back-to-player tap.
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier =
                                     Modifier.clickable {
-                                        coroutineScope.launch {
-                                            val song = sharedViewModel.nowPlayingState.value?.songEntity
-                                            (
-                                                song?.artistId?.firstOrNull()?.takeIf { it.isNotEmpty() }
-                                                    ?: screenDataState.songInfoData?.authorId
-                                            )?.let { channelId ->
-                                                // The host animates its own exit: the sheet hides
-                                                // before it leaves composition, the Popup just closes.
-                                                onDismiss()
-                                                navController.navigate(
-                                                    ArtistDestination(
-                                                        channelId = channelId,
-                                                    ),
-                                                )
-                                            }
-                                        }
+                                        onDismiss()
                                     },
                             ) {
                                 if (screenDataState.isExplicit) {

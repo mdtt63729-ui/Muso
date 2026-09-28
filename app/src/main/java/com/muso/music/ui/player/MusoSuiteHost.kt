@@ -442,11 +442,15 @@ fun MusoSuiteHost(
  */
 private fun parseLrcToSuiteLines(data: String): Pair<List<Line>, Boolean>? {
     val stamp = Regex("""\[(\d{1,3}):(\d{1,2}(?:[.,]\d{1,3})?)]""")
+    // Enhanced-LRC word timing tags: <mm:ss.xxx> before every word. They are
+    // metadata, not lyric text - left in, every rendered line started with a
+    // visible "<03:19.606>" (user report). Strip them all.
+    val wordTag = Regex("""<\d{1,3}:\d{1,2}(?:[.,]\d{1,3})?>""")
     val timed = mutableListOf<Pair<Long, String>>()
     for (rawLine in data.lineSequence()) {
         val stamps = stamp.findAll(rawLine).toList()
         if (stamps.isEmpty()) continue
-        val text = rawLine.substring(stamps.last().range.last + 1).trim()
+        val text = wordTag.replace(rawLine.substring(stamps.last().range.last + 1), "").trim()
         for (m in stamps) {
             val minutes = m.groupValues[1].toLong()
             val seconds = m.groupValues[2].replace(',', '.').toDouble()

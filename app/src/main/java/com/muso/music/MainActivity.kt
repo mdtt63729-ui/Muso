@@ -964,6 +964,15 @@ class MainActivity : ComponentActivity() {
                                             query = query.text,
                                             onQueryChange = onQueryChange,
                                             navController = navController,
+                                            // Instant results (reference behaviour): the
+                                            // debounced auto-search in the screen calls this;
+                                            // it navigates WITHOUT writing search history, so
+                                            // half-typed queries never pollute it.
+                                            onAutoSearch = {
+                                                navController.navigate("search/${it.urlEncode()}") {
+                                                    launchSingleTop = true
+                                                }
+                                            },
                                             onSearch = {
                                                 navController.navigate("search/${it.urlEncode()}")
                                                 if (dataStore[PauseSearchHistoryKey] != true) {
@@ -1036,13 +1045,11 @@ class MainActivity : ComponentActivity() {
                             // Both modes get the floating pill from the navbar host
                             // now (glass or flat variant); Muso's old strip mini
                             // player is gone.
-                            // Settings and other navbar-hidden screens: the floating
-                            // pill rides the navigation bar, which is hidden there -
-                            // without this the collapsed sheet painted an EMPTY plate
-                            // (the grey box over Settings' last rows). The strip mini
-                            // player takes its place, exactly like the pre-NavbarHost
-                            // app did on those screens.
-                            showCollapsedMiniPlayer = !shouldShowNavigationBar,
+                            // The old strip mini player is RETIRED everywhere (user
+                            // spec): only the suite's two pill variants exist, and the
+                            // navbar host keeps one alive on navbar-hidden screens too,
+                            // so the collapsed sheet never paints anything of its own.
+                            showCollapsedMiniPlayer = false,
                         )
 
                         // === SimpMusic floating navigation bar (PRD section 12) ============

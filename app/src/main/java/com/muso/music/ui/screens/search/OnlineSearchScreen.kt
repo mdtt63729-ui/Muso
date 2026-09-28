@@ -53,12 +53,18 @@ import com.muso.music.ui.menu.YouTubeArtistMenu
 import com.muso.music.ui.menu.YouTubePlaylistMenu
 import com.muso.music.ui.menu.YouTubeSongMenu
 import com.muso.music.viewmodels.OnlineSearchSuggestionViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
 @Composable
 fun OnlineSearchScreen(
     query: String,
     onQueryChange: (TextFieldValue) -> Unit,
+    // Instant results (reference behaviour): fired after the user pauses
+    // typing (>= 2 chars), navigating straight to the results screen with
+    // thumbnails - no enter key needed. The screen debounces; this callback
+    // should NOT write search history.
+    onAutoSearch: (String) -> Unit = {},
     navController: NavController,
     onSearch: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -84,6 +90,17 @@ fun OnlineSearchScreen(
             .collect {
                 keyboardController?.hide()
             }
+    }
+
+    // Instant results: a 450ms pause on 2+ characters opens the online
+    // results by itself. Cancels on every keystroke, so it only fires once
+    // per typing burst; returning to this screen with an unchanged query
+    // does not re-fire (LaunchedEffect key unchanged).
+    LaunchedEffect(query) {
+        if (query.length >= 2) {
+            delay(450)
+            onAutoSearch(query)
+        }
     }
 
     LaunchedEffect(query) {

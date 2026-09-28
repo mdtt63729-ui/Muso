@@ -79,7 +79,11 @@ fun BoxScope.MusoNavbarHost(
             // MiniPlayer (with its colored wavy progress ring) visibly sinks
             // below the navigation bar on screens that hide the bar.
             .graphicsLayer {
-                alpha = (visibleHeight / NavigationBarHeight).coerceIn(0f, 1f)
+                // Navbar-hidden screens keep the pill at full alpha; while the
+                // bar itself is coming or going the whole stack fades together.
+                alpha =
+                    if (visibleHeight <= 0.dp) 1f
+                    else (visibleHeight / NavigationBarHeight).coerceIn(0f, 1f)
             }
             .offset {
                 // The bar's full stack is capsule + glass MiniPlayer above it.
@@ -88,8 +92,13 @@ fun BoxScope.MusoNavbarHost(
                 // MiniPlayer floating over the expanded player, covering its
                 // bottom controls and eating their touches.
                 val fullStack = bottomInset + NavigationBarHeight + MiniPlayerHeight
-                if (visibleHeight == 0.dp) {
-                    IntOffset(x = 0, y = fullStack.roundToPx())
+                if (visibleHeight <= 0.dp) {
+                    // Navbar hidden: the PILL alone survives, lifted by the gesture
+                    // inset and still sliding away when the player sheet expands.
+                    // The old rule parked the whole stack off-screen - Settings had
+                    // no mini player at all, and the retired strip stood in for it.
+                    val slideOffset = fullStack * playerBottomSheetState.progress.coerceIn(0f, 1f)
+                    IntOffset(x = 0, y = (bottomInset + slideOffset).roundToPx())
                 } else {
                     val slideOffset = fullStack * playerBottomSheetState.progress.coerceIn(0f, 1f)
                     val hideOffset = (bottomInset + NavigationBarHeight) * (1 - visibleHeight / NavigationBarHeight)
@@ -97,7 +106,34 @@ fun BoxScope.MusoNavbarHost(
                 }
             },
     ) {
-        if (liquidGlass) {
+        // Hoisted: the flat branch and the pill-only branch below both need it.
+        val nowPlayingData by sharedViewModel.nowPlayingState.collectAsState()
+        val isShowMiniPlayer by androidx.compose.runtime.remember {
+            androidx.compose.runtime.derivedStateOf {
+                val item = nowPlayingData?.mediaItem
+                item != null && item != com.maxrave.domain.data.player.GenericMediaItem.EMPTY
+            }
+        }
+        if (visibleHeight <= 0.dp) {
+            // Navbar-hidden screens (Settings and friends): the suite MiniPlayer
+            // alone, self-styled glass or flat by the LiquidGlass setting - the
+            // same two variants the navbar itself shows (user spec: only these
+            // two exist anywhere).
+            if (isShowMiniPlayer) {
+                com.maxrave.simpmusic.ui.screen.MiniPlayer(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .height(56.dp),
+                    backdrop = backdrop,
+                    onClick = { playerBottomSheetState.expandSoft() },
+                    onClose = {
+                        sharedViewModel.stopPlayer()
+                        sharedViewModel.isServiceRunning = false
+                    },
+                )
+            }
+        } else if (liquidGlass) {
             LiquidGlassAppBottomNavigationBar(
                 startDestination = com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination,
                 navController = navController,
@@ -116,13 +152,6 @@ fun BoxScope.MusoNavbarHost(
             // (SimpMusic navbar files): light theme = white pill on the light
             // theme, dark theme = dark pill on the dark theme.
             // Same visibility rule the glass bar uses: no track, no pill.
-            val nowPlayingData by sharedViewModel.nowPlayingState.collectAsState()
-            val isShowMiniPlayer by androidx.compose.runtime.remember {
-                androidx.compose.runtime.derivedStateOf {
-                    val item = nowPlayingData?.mediaItem
-                    item != null && item != com.maxrave.domain.data.player.GenericMediaItem.EMPTY
-                }
-            }
             androidx.compose.foundation.layout.Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
