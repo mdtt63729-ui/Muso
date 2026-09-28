@@ -1,4 +1,22 @@
-## Round 143 (continued, v0.5.159, code 166)
+## Round 144 (v0.5.160, code 167)
+
+Thumbnail belt-and-braces on top of Round 143.
+
+## Artwork upgraded at EVERY bridge source
+The main artwork pager Track (the big square in the Spotify/M3 Expressive
+players - it fed straight from mediaMetadata extras) and the queue Track
+list still carried the raw 544px URL. Coil's interceptor would upgrade
+them on the network path, but now the bridge passes hqYtThumb() through
+all of them as well: pager artwork, NowPlayingScreenData, artwork bitmap
+(palette) and the queue - every thumbnail the suite renders starts from
+maxresdefault at full resolution.
+
+Note for testing: the thumbnail fixes shipped in v0.5.158, which NEVER
+built successfully (compile error, then a stale-zip mix-up) - v0.5.159
+was the first buildable one. Any APK <= 0.5.157 shows pixelated art by
+definition.
+
+# Round 143 (continued, v0.5.159, code 166)
 
 Identical content to the v0.5.158 build; re-versioned only because two
 zips named Muso-v0.5.158-source.zip (the broken first upload and the

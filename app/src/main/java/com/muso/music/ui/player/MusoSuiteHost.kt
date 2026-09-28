@@ -147,7 +147,7 @@ fun MusoSuiteHost(
                 isExplicit = false,
                 likeStatus = null,
                 thumbnails = (md.artworkUri ?: window.mediaItem.mediaMetadata.extras?.getString("thumbnailUrl"))
-                    ?.toString()?.let { listOf(Thumbnail(height = 544, url = it, width = 544)) },
+                    ?.toString()?.let { hqYtThumb(it) }?.let { listOf(Thumbnail(height = 544, url = it, width = 544)) },
                 title = md.title?.toString() ?: "",
                 videoId = window.mediaItem.mediaId ?: "",
                 videoType = null,
@@ -651,7 +651,7 @@ fun MusoSuiteBridge(
                 isAvailable = true,
                 isExplicit = false,
                 likeStatus = if (liked) "LIKE" else "INDIFFERENT",
-                thumbnails = md.thumbnailUrl,
+                thumbnails = hqYtThumb(md.thumbnailUrl),
                 title = md.title,
                 videoType = "SONG",
                 category = null,
