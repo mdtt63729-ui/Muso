@@ -138,10 +138,16 @@ fun AboutScreen(
 
         Spacer(Modifier.height(4.dp))
 
+        // The developer credit in a real handwritten typeface (Caveat), so
+        // it reads like a signature (user request).
         Text(
-            text = "by Zion Huang",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.secondary
+            text = "Manik",
+            fontFamily = androidx.compose.ui.text.font.FontFamily(
+                androidx.compose.ui.text.font.Font(R.font.caveat)
+            ),
+            fontSize = 42.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 6.dp)
         )
 
         Spacer(Modifier.height(8.dp))

@@ -68,6 +68,13 @@ fun BottomSheet(
     // glass capsule, stealing vertical drags from the feed. The mini player
     // zone is the only part that should grab gestures, like the reference.
     collapsedHitHeight: Dp? = null,
+    // False when the collapsed sheet renders no content of its own (the glass
+    // navbar draws the mini player): the sheet's own collapsed hit box is then
+    // an INVISIBLE full-width strip whose drag/click handlers fired on list
+    // scrolls and stray taps - the player "opened by itself" while scrolling
+    // or right after launch. The external mini player handles its own tap, so
+    // the ghost box needs no gestures at all.
+    collapsedInteractive: Boolean = true,
     collapsedContent: @Composable BoxScope.() -> Unit,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -125,7 +132,8 @@ fun BottomSheet(
         if (!state.isExpanded && (onDismiss == null || !state.isDismissed)) {
             Box(
                 modifier = Modifier
-                    .pointerInput(state, collapsedHitHeight) {
+                    .pointerInput(state, collapsedHitHeight, collapsedInteractive) {
+                        if (!collapsedInteractive) return@pointerInput
                         val velocityTracker = VelocityTracker()
 
                         detectVerticalDragGestures(
@@ -148,6 +156,7 @@ fun BottomSheet(
                         alpha = 1f - (state.progress * 4).coerceAtMost(1f)
                     }
                     .clickable(
+                        enabled = collapsedInteractive,
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = state::expandSoft
@@ -215,11 +224,13 @@ class BottomSheetState(
     }
 
     fun collapseSoft() {
-        collapse(spring(stiffness = Spring.StiffnessMediumLow))
+        // iOS-sheet feel (user report: full -> mini felt laggy): critically
+        // damped medium spring - fast settle, zero bounce.
+        collapse(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium))
     }
 
     fun expandSoft() {
-        expand(spring(stiffness = Spring.StiffnessMediumLow))
+        expand(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium))
     }
 
     fun dismiss() {

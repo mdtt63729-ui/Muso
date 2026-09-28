@@ -166,7 +166,7 @@ fun DiscordSettings(
             description = if (discordUsername.isNotEmpty()) {
                 "@$discordUsername"
             } else null,
-            icon = { Icon(painterResource(R.drawable.discord), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.discord)) },
             trailingContent = {
                 if (isLoggedIn) {
                     OutlinedButton(onClick = {

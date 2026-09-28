@@ -540,12 +540,21 @@ object YouTube {
         }
     }
 
-    suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResponse> = runCatching {
+    private fun PlayerResponse.hasHighQualityFormats(): Boolean =
+        streamingData?.adaptiveFormats?.any { it.itag == 774 || it.itag == 141 } == true
+
+    suspend fun player(
+        videoId: String,
+        playlistId: String? = null,
+        requireHighQuality: Boolean = false,
+    ): Result<PlayerResponse> = runCatching {
         var playerResponse: PlayerResponse
         if (this.cookie != null) { // if logged in: try ANDROID_MUSIC client first because IOS client does not play age restricted songs
             playerResponse = innerTube.player(ANDROID_MUSIC, videoId, playlistId).body<PlayerResponse>()
             if (playerResponse.playabilityStatus.status == "OK" &&
-                !playerResponse.streamingData?.adaptiveFormats.isNullOrEmpty()
+                !playerResponse.streamingData?.adaptiveFormats.isNullOrEmpty() &&
+                // High quality (774/141): keep looking unless this client serves it.
+                (!requireHighQuality || playerResponse.hasHighQualityFormats())
             ) {
                 return@runCatching playerResponse
             }
@@ -553,6 +562,7 @@ object YouTube {
         // Echo-Music measured fallback chain: VISIONOS -> ANDROID_VR 1.65.10 -> ANDROID_VR 1.43.32 -> IPADOS -> IOS.
         // Each client is tried in order and the first one returning an OK playability status with
         // usable audio formats wins.
+        var fallback: PlayerResponse? = null
         for (client in STREAM_FALLBACK_CLIENTS) {
             runCatching {
                 innerTube.player(client, videoId, playlistId).body<PlayerResponse>()
@@ -560,10 +570,17 @@ object YouTube {
                 if (response.playabilityStatus.status == "OK" &&
                     !response.streamingData?.adaptiveFormats.isNullOrEmpty()
                 ) {
-                    return@runCatching response
+                    // Track the first usable response; when the user selected a
+                    // High quality (SimpMusic's 774/141), only stop early on a
+                    // client that actually serves those premium itags.
+                    if (fallback == null) fallback = response
+                    if (!requireHighQuality || response.hasHighQualityFormats()) {
+                        return@runCatching response
+                    }
                 }
             }
         }
+        if (fallback != null) return@runCatching fallback!!
         // Last resort: TVHTML5 with stream URLs merged from the Piped API (legacy InnerTune path).
         val safePlayerResponse = innerTube.player(TVHTML5, videoId, playlistId).body<PlayerResponse>()
         if (safePlayerResponse.playabilityStatus.status != "OK" ||

@@ -69,6 +69,7 @@ import com.muso.music.constants.VideoQuality
 import com.muso.music.constants.VideoQualityKey
 import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AudioQualityKey
+import com.muso.music.constants.itagPreference
 import com.muso.music.constants.LoudnessPreset
 import com.muso.music.constants.LoudnessPresetKey
 import com.muso.music.constants.HistoryDurationKey
@@ -193,7 +194,7 @@ class MusicService : MediaLibraryService(),
 
     private lateinit var connectivityManager: ConnectivityManager
 
-    private val audioQuality by enumPreference(this, AudioQualityKey, AudioQuality.HIGH)
+    private val audioQuality by enumPreference(this, AudioQualityKey, AudioQuality.HIGH_OPUS)
 
     // Echo Player and Audio settings
     private val dataSaver by preference(this, DataSaverKey, false)
@@ -336,6 +337,11 @@ class MusicService : MediaLibraryService(),
             .setBitmapLoader(CoilBitmapLoader(this, scope))
             .build()
         player.repeatMode = dataStore.get(RepeatModeKey, REPEAT_MODE_OFF)
+        // Publish the button layout immediately: the media notification
+        // controller connects when the session is created, and controllers
+        // that connect before the first playback-state change need the
+        // preferences with their initial connection result.
+        updateNotification()
 
         // Echo Player and Audio: prune old listening history once at startup.
         scope.launch(Dispatchers.IO) {
@@ -571,8 +577,7 @@ class MusicService : MediaLibraryService(),
     }
 
     private fun updateNotification() {
-        mediaSession.setCustomLayout(
-            listOf(
+        val customLayout = listOf(
                 CommandButton.Builder()
                     .setDisplayName(getString(if (currentSong.value?.song?.inLibrary != null) R.string.remove_from_library else R.string.add_to_library))
                     .setIconResId(if (currentSong.value?.song?.inLibrary != null) R.drawable.library_add_check else R.drawable.library_add)
@@ -611,8 +616,14 @@ class MusicService : MediaLibraryService(),
                     )
                     .setSessionCommand(CommandToggleRepeatMode)
                     .build()
-            )
         )
+        // The custom layout is what pre-Android 13 notification actions read;
+        // the lock screen and Android 13+ system media controls read custom
+        // buttons from the MEDIA BUTTON PREFERENCES instead (media3 1.11).
+        // Set both so every surface - notification shade, lock screen, quick
+        // settings media carousel, Wear OS - gets the buttons.
+        mediaSession.setCustomLayout(customLayout)
+        mediaSession.setMediaButtonPreferences(customLayout)
     }
 
     private suspend fun recoverSong(mediaId: String, playerResponse: PlayerResponse? = null) {
@@ -1039,9 +1050,14 @@ class MusicService : MediaLibraryService(),
 
             // Check whether format exists so that users from older version can view format details
             // There may be inconsistent between the downloaded file and the displayed info if user change audio quality frequently
+            val wantedQuality = if (dataSaver) AudioQuality.LOW else audioQuality
             val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
             val playerResponse = runBlocking(Dispatchers.IO) {
-                YouTube.player(mediaId)
+                YouTube.player(
+                    mediaId,
+                    requireHighQuality = wantedQuality == AudioQuality.HIGH_OPUS ||
+                        wantedQuality == AudioQuality.HIGH_AAC,
+                )
             }.getOrElse { throwable ->
                 when (throwable) {
                     is ConnectException, is UnknownHostException -> {
@@ -1059,7 +1075,13 @@ class MusicService : MediaLibraryService(),
                 throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
             }
 
-            val format = playedFormat?.let { pf ->
+            // Quality setting must always govern: the previously played format is
+            // reused ONLY when it still belongs to the selected quality family.
+            // Without this guard, a song cached at the old low itag would ignore
+            // the quality picker forever (user report: "always stays Low").
+            val format = playedFormat
+                ?.takeIf { pf -> wantedQuality.itagPreference().contains(pf.itag) }
+                ?.let { pf ->
                     playerResponse.streamingData?.adaptiveFormats?.find {
                         // Use itag to identify previously played format
                         it.itag == pf.itag
@@ -1067,12 +1089,16 @@ class MusicService : MediaLibraryService(),
                 }
                 ?: playerResponse.streamingData?.adaptiveFormats
                     ?.filter { it.isAudio }
-                    ?.maxByOrNull {
-                        it.bitrate * when (if (dataSaver) AudioQuality.LOW else audioQuality) {
-                            AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
-                            AudioQuality.HIGH -> 1
-                            AudioQuality.LOW -> -1
-                        } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
+                    ?.let { audio ->
+                        // SimpMusic quality system: the setting's exact itag first,
+                        // then its high-quality twin (774 <-> 141), then the family
+                        // order - and only if none exists fall back to the highest
+                        // bitrate. Data saver always forces Low.
+                        (if (dataSaver) AudioQuality.LOW.itagPreference() else wantedQuality.itagPreference())
+                            .firstNotNullOfOrNull { wantedItag ->
+                                audio.find { it.itag == wantedItag }
+                            }
+                            ?: audio.maxByOrNull { it.bitrate }
                     }
                 ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
 

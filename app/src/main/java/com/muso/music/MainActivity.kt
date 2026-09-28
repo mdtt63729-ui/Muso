@@ -314,6 +314,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Kill the cold-start flash: the window carries the splash's dark
+        // background before Compose's first frame lands.
+        window.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(0xFF101014.toInt())
+        )
 
         // Launched by tapping the update notification: fetch the latest release
         // right away and bring the update popup straight up.

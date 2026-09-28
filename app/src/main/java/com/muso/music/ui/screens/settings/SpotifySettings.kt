@@ -174,14 +174,14 @@ fun SpotifySettings(
             PreferenceEntry(
                 title = { Text(stringResource(R.string.spotify_client_id)) },
                 description = spotifyClientId.ifEmpty { null },
-                icon = { Icon(painterResource(R.drawable.security), null) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.security)) },
                 onClick = { showClientIdDialog = true },
             )
 
             PreferenceEntry(
                 title = { Text(stringResource(R.string.log_in_to_spotify)) },
                 description = if (spotifyClientId.isEmpty()) stringResource(R.string.spotify_client_id_desc) else null,
-                icon = { Icon(painterResource(R.drawable.spotify), null) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.spotify)) },
                 isEnabled = spotifyClientId.isNotEmpty(),
                 onClick = { navController.navigate("spotify_login") },
             )
@@ -189,7 +189,7 @@ fun SpotifySettings(
             PreferenceEntry(
                 title = { Text(stringResource(R.string.log_out_from_spotify)) },
                 description = stringResource(R.string.spotify_logged_in, displayName),
-                icon = { Icon(painterResource(R.drawable.spotify), null) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.spotify)) },
                 onClick = { showLogOutDialog = true },
             )
 

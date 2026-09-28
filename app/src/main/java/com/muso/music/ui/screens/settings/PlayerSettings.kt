@@ -41,6 +41,10 @@ import com.muso.music.constants.PreloadLyricsKey
 import com.muso.music.constants.PreloadNextSongKey
 import com.muso.music.constants.AutomixKey
 import com.muso.music.constants.SpatialAudioKey
+import com.muso.music.constants.AudioQuality
+import com.muso.music.constants.AudioQualityKey
+import com.muso.music.constants.DownloadQualityKey
+import com.muso.music.ui.component.BlobSettingIcon
 import com.muso.music.ui.component.ListPreference
 import com.muso.music.constants.LoudnessPreset
 import com.muso.music.constants.LoudnessPresetKey
@@ -76,6 +80,8 @@ fun PlayerSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
+    val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.HIGH_OPUS)
+    val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(key = DownloadQualityKey, defaultValue = AudioQuality.MEDIUM)
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(PersistentQueueKey, defaultValue = true)
     val (skipSilence, onSkipSilenceChange) = rememberPreference(SkipSilenceKey, defaultValue = false)
     val (audioNormalization, onAudioNormalizationChange) = rememberPreference(AudioNormalizationKey, defaultValue = true)
@@ -114,24 +120,55 @@ fun PlayerSettings(
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
 
+        // Audio quality (user request: must be reachable and findable).
+        PreferenceGroupTitle(text = stringResource(R.string.audio_quality))
+        EnumListPreference(
+            title = { Text(stringResource(R.string.streaming_quality)) },
+            icon = { BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
+            selectedValue = audioQuality,
+            onValueSelected = onAudioQualityChange,
+            valueText = {
+                when (it) {
+                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low_66)
+                    AudioQuality.MEDIUM -> stringResource(R.string.audio_quality_medium_129)
+                    AudioQuality.HIGH_OPUS -> stringResource(R.string.audio_quality_high_opus)
+                    AudioQuality.HIGH_AAC -> stringResource(R.string.audio_quality_high_aac)
+                }
+            }
+        )
+        EnumListPreference(
+            title = { Text(stringResource(R.string.download_quality)) },
+            icon = { BlobSettingIcon(painterResource(R.drawable.download)) },
+            selectedValue = downloadQuality,
+            onValueSelected = onDownloadQualityChange,
+            valueText = {
+                when (it) {
+                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low_66)
+                    AudioQuality.MEDIUM -> stringResource(R.string.audio_quality_medium_129)
+                    AudioQuality.HIGH_OPUS -> stringResource(R.string.audio_quality_high_opus)
+                    AudioQuality.HIGH_AAC -> stringResource(R.string.audio_quality_high_aac)
+                }
+            }
+        )
+
 
         SwitchPreference(
             title = { Text(stringResource(R.string.skip_silence)) },
-            icon = { Icon(painterResource(R.drawable.fast_forward), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.fast_forward)) },
             checked = skipSilence,
             onCheckedChange = onSkipSilenceChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.audio_normalization)) },
-            icon = { Icon(painterResource(R.drawable.volume_up), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.volume_up)) },
             checked = audioNormalization,
             onCheckedChange = onAudioNormalizationChange
         )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.audio_loudness_preset)) },
-            icon = { Icon(painterResource(R.drawable.volume_up), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.volume_up)) },
             selectedValue = loudnessPreset,
             onValueSelected = onLoudnessPresetChange,
             valueText = {
@@ -146,7 +183,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.spatial_audio)) },
             description = stringResource(R.string.spatial_audio_desc),
-            icon = { Icon(painterResource(R.drawable.surround_sound), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.surround_sound)) },
             checked = spatialAudio,
             onCheckedChange = onSpatialAudioChange
         )
@@ -154,7 +191,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.data_saver)) },
             description = stringResource(R.string.data_saver_desc),
-            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
             checked = dataSaver,
             onCheckedChange = onDataSaverChange
         )
@@ -162,7 +199,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.seek_seconds_addup)) },
             description = stringResource(R.string.seek_seconds_addup_desc),
-            icon = { Icon(painterResource(R.drawable.fast_forward), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.fast_forward)) },
             checked = seekExtraSeconds,
             onCheckedChange = onSeekExtraSecondsChange
         )
@@ -193,7 +230,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.automix)) },
             description = stringResource(R.string.automix_desc),
-            icon = { Icon(painterResource(R.drawable.playlist_play), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.playlist_play)) },
             checked = automix,
             onCheckedChange = onAutomixChange
         )
@@ -201,7 +238,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.preload_next_song)) },
             description = stringResource(R.string.preload_next_song_desc),
-            icon = { Icon(painterResource(R.drawable.fast_forward), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.fast_forward)) },
             checked = preloadNextSong,
             onCheckedChange = onPreloadNextSongChange
         )
@@ -209,7 +246,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.preload_lyrics)) },
             description = stringResource(R.string.preload_lyrics_desc),
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = preloadLyrics,
             onCheckedChange = onPreloadLyricsChange
         )
@@ -219,7 +256,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.animated_artwork)) },
             description = stringResource(R.string.animated_artwork_desc),
-            icon = { Icon(painterResource(R.drawable.palette), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.palette)) },
             checked = animatedArtwork,
             onCheckedChange = onAnimatedArtworkChange
         )
@@ -227,7 +264,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.keep_screen_on)) },
             description = stringResource(R.string.keep_screen_on_desc),
-            icon = { Icon(painterResource(R.drawable.lock), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lock)) },
             checked = keepScreenOn,
             onCheckedChange = onKeepScreenOnChange
         )
@@ -243,7 +280,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.persistent_queue)) },
             description = stringResource(R.string.persistent_queue_desc),
-            icon = { Icon(painterResource(R.drawable.queue_music), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.queue_music)) },
             checked = persistentQueue,
             onCheckedChange = onPersistentQueueChange
         )
@@ -251,7 +288,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.auto_load_more)) },
             description = stringResource(R.string.auto_load_more_desc),
-            icon = { Icon(painterResource(R.drawable.playlist_add), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.playlist_add)) },
             checked = autoLoadMore,
             onCheckedChange = onAutoLoadMoreChange
         )
@@ -259,7 +296,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.prevent_duplicate_tracks)) },
             description = stringResource(R.string.prevent_duplicate_tracks_desc),
-            icon = { Icon(painterResource(R.drawable.queue_music), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.queue_music)) },
             checked = preventDuplicateTracks,
             onCheckedChange = onPreventDuplicateTracksChange
         )
@@ -267,7 +304,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.auto_skip_next_on_error)) },
             description = stringResource(R.string.auto_skip_next_on_error_desc),
-            icon = { Icon(painterResource(R.drawable.skip_next), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.skip_next)) },
             checked = autoSkipNextOnError,
             onCheckedChange = onAutoSkipNextOnErrorChange
         )
@@ -278,28 +315,28 @@ fun PlayerSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.stop_music_on_task_clear)) },
-            icon = { Icon(painterResource(R.drawable.clear_all), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.clear_all)) },
             checked = stopMusicOnTaskClear,
             onCheckedChange = onStopMusicOnTaskClearChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.pause_music_when_media_is_muted)) },
-            icon = { Icon(painterResource(R.drawable.volume_up), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.volume_up)) },
             checked = pauseOnMute,
             onCheckedChange = onPauseOnMuteChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.download_on_wifi_only)) },
-            icon = { Icon(painterResource(R.drawable.download), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.download)) },
             checked = downloadOnWifiOnly,
             onCheckedChange = onDownloadOnWifiOnlyChange
         )
 
         ListPreference(
             title = { Text(stringResource(R.string.history_duration)) },
-            icon = { Icon(painterResource(R.drawable.delete_history), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.delete_history)) },
             selectedValue = historyDuration.toString(),
             values = listOf("0", "12", "24", "168", "720"),
             valueText = {
@@ -323,7 +360,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.animations)) },
             description = stringResource(R.string.animations_desc),
-            icon = { Icon(painterResource(R.drawable.tune), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.tune)) },
             checked = animationsEnabled,
             onCheckedChange = onAnimationsEnabledChange
         )
@@ -331,7 +368,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.gesture_animations)) },
             description = stringResource(R.string.gesture_animations_desc),
-            icon = { Icon(painterResource(R.drawable.swipe), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.swipe)) },
             checked = gestureAnimations,
             onCheckedChange = onGestureAnimationsChange
         )
@@ -339,7 +376,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.reduced_motion)) },
             description = stringResource(R.string.reduced_motion_desc),
-            icon = { Icon(painterResource(R.drawable.discover_tune), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.discover_tune)) },
             checked = reducedMotion,
             onCheckedChange = onReducedMotionChange
         )
@@ -349,7 +386,7 @@ fun PlayerSettings(
             title = { Text(stringResource(R.string.lyrics_offset)) },
             description = stringResource(R.string.lyrics_offset_desc) +
                 "  (" + (if (lyricsOffset > 0) "+" else "") + "${lyricsOffset}ms)",
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             content = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -370,7 +407,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.crossfade)) },
             description = stringResource(R.string.crossfade_desc),
-            icon = { Icon(painterResource(R.drawable.playlist_play), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.playlist_play)) },
             checked = crossfadeEnabled,
             onCheckedChange = onCrossfadeEnabledChange
         )
@@ -378,7 +415,7 @@ fun PlayerSettings(
             PreferenceEntry(
                 title = { Text(stringResource(R.string.crossfade_duration)) },
                 description = "${crossfadeDuration}s",
-                icon = { Icon(painterResource(R.drawable.playlist_play), null) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.playlist_play)) },
                 content = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -399,7 +436,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.audio_offload)) },
             description = stringResource(R.string.audio_offload_desc),
-            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
             checked = audioOffload,
             onCheckedChange = onAudioOffloadChange,
             isEnabled = !crossfadeEnabled,

@@ -153,8 +153,50 @@ val ProxyTypeKey = stringPreferencesKey("proxyType")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
+/**
+ * SimpMusic streaming-quality system (PRD SS4): exact itag selection with a
+ * high-quality twin fallback. Labels persist as the setting value; the
+ * legacy AUTO/HIGH/LOW values map through enumPreference's safe default.
+ */
 enum class AudioQuality {
-    AUTO, HIGH, LOW
+    LOW, MEDIUM, HIGH_OPUS, HIGH_AAC
+}
+
+object ITAG {
+    /** Opus ~66 kbps - "Low". */
+    const val AUDIO_OPUS_LOW = 250
+    /** Opus ~129 kbps - "Medium". */
+    const val AUDIO_OPUS_MEDIUM = 251
+    /** Opus 256 kbps - YouTube Premium accounts only. */
+    const val AUDIO_OPUS_HIGH = 774
+    /** AAC 256 kbps - the high-quality TWIN: what 774 falls back to. */
+    const val AUDIO_AAC_HIGH = 141
+
+    fun highQualityTwinOf(itag: Int): Int = if (itag == AUDIO_OPUS_HIGH) AUDIO_AAC_HIGH else itag
+}
+
+/** The exact itag this quality asks for. */
+fun AudioQuality.itag(): Int = when (this) {
+    AudioQuality.LOW -> ITAG.AUDIO_OPUS_LOW
+    AudioQuality.MEDIUM -> ITAG.AUDIO_OPUS_MEDIUM
+    AudioQuality.HIGH_OPUS -> ITAG.AUDIO_OPUS_HIGH
+    AudioQuality.HIGH_AAC -> ITAG.AUDIO_AAC_HIGH
+}
+
+/** Preference order: the wanted itag, its high-quality twin, then the rest. */
+fun AudioQuality.itagPreference(): List<Int> = when (this) {
+    AudioQuality.LOW -> listOf(ITAG.AUDIO_OPUS_LOW, ITAG.AUDIO_OPUS_MEDIUM, ITAG.AUDIO_AAC_HIGH, ITAG.AUDIO_OPUS_HIGH)
+    AudioQuality.MEDIUM -> listOf(ITAG.AUDIO_OPUS_MEDIUM, ITAG.AUDIO_OPUS_HIGH, ITAG.AUDIO_AAC_HIGH, ITAG.AUDIO_OPUS_LOW)
+    AudioQuality.HIGH_OPUS -> listOf(ITAG.AUDIO_OPUS_HIGH, ITAG.highQualityTwinOf(ITAG.AUDIO_OPUS_HIGH), ITAG.AUDIO_OPUS_MEDIUM, ITAG.AUDIO_OPUS_LOW)
+    AudioQuality.HIGH_AAC -> listOf(ITAG.AUDIO_AAC_HIGH, ITAG.AUDIO_OPUS_HIGH, ITAG.AUDIO_OPUS_MEDIUM, ITAG.AUDIO_OPUS_LOW)
+}
+
+/** Legacy-label migration: the old AUTO/HIGH/LOW values. */
+fun legacyAudioQualityOf(saved: String?): AudioQuality = when (saved) {
+    "LOW" -> AudioQuality.LOW
+    "HIGH", null -> AudioQuality.HIGH_OPUS
+    "AUTO" -> AudioQuality.MEDIUM
+    else -> runCatching { AudioQuality.valueOf(saved) }.getOrDefault(AudioQuality.HIGH_OPUS)
 }
 
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")

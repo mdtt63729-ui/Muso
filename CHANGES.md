@@ -1,4 +1,111 @@
-## Round 150 (v0.5.167, code 174)
+# Round 156 (v0.5.173, code 180)
+
+High Opus / High AAC actually arriving (user report: works in SimpMusic,
+not here):
+- The stream fallback chain used to stop at the FIRST client that returned
+  playable formats - usually a free-tier response without the premium itags
+  774/141 that SimpMusic's WEB_REMIX request serves.
+- YouTube.player() now takes requireHighQuality: when the selected quality
+  is High Opus or High AAC, the chain keeps walking until a client actually
+  serves itag 774 (or its twin 141) and only then stops; if none does, the
+  first playable response is still returned (twin fallback, nothing breaks).
+  Same for the downloader with its own setting.
+# Round 155 (v0.5.172, code 179)
+
+- About credit now reads "Manik" (handwritten Caveat font kept).
+- Audio quality findable + actually applying:
+  - Streaming and Download quality pickers now also live at the TOP of
+    Settings > Player and audio (they remain in Content settings too).
+  - Root cause of "always stays Low": the previously played format
+    (persisted FormatEntity) overrode the quality setting forever - a song
+    ever played at the old low itag ignored the picker. The cached format is
+    now reused ONLY when its itag belongs to the selected quality family;
+    otherwise the picker's itag wins (same guard in the downloader).
+## Round 154 (v0.5.171, code 178)
+
+SimpMusic streaming-quality system (SimpMusic-streaming-quality PRD SS4),
+ported onto Muso's own innertube pipeline:
+- AudioQuality is now LOW (itag 250, Opus 66k) / MEDIUM (251, Opus 129k) /
+  HIGH_OPUS (774, 256k Premium) / HIGH_AAC (141, 256k) - exact itag
+  selection in the stream resolver AND the downloader, with the
+  high-quality twin fallback (774 <-> 141) so non-Premium accounts still
+  play high. Old AUTO/HIGH/LOW values migrate.
+- Streaming and download quality remain separate settings; both pickers now
+  show the exact kbps labels.
+
+Motion + startup polish:
+- Page transitions: the outgoing page travels WITH the incoming one
+  (parallax 20% -> 80%), so pages shift as one surface instead of pulling
+  apart.
+- Full -> mini player sheet: critically damped medium spring - fast settle,
+  zero bounce, no laggy tail.
+- Cold-start flash removed: the window carries the splash's dark background
+  before Compose's first frame.
+- Settings icons (paste-1-31 PRD): every setting icon across the settings
+  screens sits in a soft organic glassmorphic blob container - dark
+  translucent purple-tinted surface, thin border, inner highlight, soft
+  shadow, bottom notch, consistent white glyph language.
+- About: the developer credit "Zion Huang" rendered in the Caveat
+  handwritten typeface, like a signature.
+# Round 153 (v0.5.170, code 177)
+
+Six user-reported fixes:
+
+1. Apple Music V2 (letter-by-letter) is now the DEFAULT word-by-word
+   animation style.
+2. Wave/squiggly slider no longer renders as a jagged zigzag: fewer, longer
+   waves, gentler amplitude, softer stroke (Apple-WavySlider look).
+3. Rich-sync lines become current the moment their FIRST WORD starts
+   (line stamp was sometimes later than the first word, which delayed the
+   whole line 1-3 words).
+4. Ultra-high-quality artwork: googleusercontent song art is bumped from
+   =w544 to =w1200 at the source - the suite player renders through coil3,
+   which never ran the coil2 HQ interceptor, so the big artwork was
+   pixelated.
+5. The fullscreen player no longer opens by itself: the sheet's collapsed
+   hit box was an invisible full-width strip whose drag/click fired on
+   list scrolls and stray taps. With the strip retired it is now fully
+   non-interactive; the mini player pill keeps its own tap.
+6. The player's fullscreen video button now actually navigates to the
+   fullscreen video screen (the callback was empty).
+# Round 152 (v0.5.169, code 176)
+
+APPLE_V2 (letter-by-letter) reworked into the two-layer word fill from the
+kimi lyrics reference (kimi_20_285_29.html + the recorded video):
+
+- Each word of the active line is a dim 30% base pre-render with a bright
+  fill layer on top, masked left-to-right by the word's own synced progress
+  with a soft 8% gradient front - the letters fill in one after another as
+  the word is sung.
+- A soft 12px glow rides the fill layer.
+- The singing word gently floats up (4px * sin(progress * PI)) and scales by
+  2% while it sings, settling back when it completes.
+- Completed words show the full glowing fill; unsung words show the dim
+  base; non-current lines stay plain dim text.
+# Round 151 (v0.5.168, code 175)
+
+Lock screen / system media controls now show the transport buttons
+(play/pause, previous, next) plus the custom ones, Spotify-style.
+
+Root cause: the platform media session (what the lock screen and the
+Android 13+ media carousel render) mirrors the MEDIA NOTIFICATION
+controller's available player commands into its PlaybackStateCompat, and
+reads custom buttons from the media button preferences (media3 1.11) -
+Muso set neither. The notification card therefore rendered with artwork,
+title and progress but zero action buttons.
+
+Fixes:
+- MediaLibrarySessionCallback.onConnect now special-cases the media
+  notification controller and grants it the full DEFAULT_PLAYER_COMMANDS
+  set, so play/pause + previous + next always land in the platform
+  PlaybackState.
+- updateNotification() now calls setMediaButtonPreferences(customLayout)
+  alongside setCustomLayout, so the custom buttons (library, like, shuffle,
+  repeat) appear on the lock screen / media carousel too.
+- updateNotification() runs immediately after the session is built, so
+  controllers connecting at session creation get the buttons with their
+  initial connection result instead of waiting for the first state change.
+# Round 150 (v0.5.167, code 174)
 
 CI compile fixes in EchoLyricsStyles.kt (Round 148's integration; everything
 else already compiled clean):

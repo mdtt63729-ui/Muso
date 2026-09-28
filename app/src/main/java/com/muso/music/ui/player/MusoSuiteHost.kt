@@ -346,7 +346,13 @@ fun MusoSuiteHost(
             onShowAddToPlaylist = onShowAddToPlaylist,
             onShowFullscreenLyrics = onShowMusoLyrics,
             onShowVoteDialog = { },
-            onEnterFullscreenVideo = { },
+            onEnterFullscreenVideo = {
+                // The suite's fullscreen button navigated nowhere (empty
+                // callback) while the route was registered - wire it.
+                navController.navigate(
+                    com.maxrave.simpmusic.ui.navigation.destination.player.FullscreenDestination
+                )
+            },
             onDismiss = onDismiss,
             onToolbarVisibilityChange = { },
             onMoveQueueItem = { from, to -> if (from != to) player.moveMediaItem(from, to) },
@@ -484,10 +490,25 @@ private fun parseLrcToSuiteLines(data: String): Triple<List<Line>, Boolean, Bool
     }
     if (timed.isNotEmpty()) {
         timed.sortBy { it.first }
+        // Rich lines: the line must become current the moment its FIRST WORD
+        // starts. Some sources stamp the line later than the first word, which
+        // made the whole line (and its letter-by-letter fill) appear 1-3 words
+        // late (user report) - take the earlier of the two.
+        val firstWordTag = Regex("""<(\d{2}):(\d{2})\.(\d{3})>""")
         val lines = timed.mapIndexed { i, (start, text) ->
-            val end = timed.getOrNull(i + 1)?.first ?: (start + 5_000L)
+            val effectiveStart =
+                if (anyWordTimings) {
+                    firstWordTag.find(text)?.let { m ->
+                        m.groupValues[1].toLong() * 60_000L +
+                            m.groupValues[2].toLong() * 1000L +
+                            m.groupValues[3].toLong()
+                    }?.takeIf { it < start } ?: start
+                } else {
+                    start
+                }
+            val end = (timed.getOrNull(i + 1)?.first ?: (start + 5_000L)).coerceAtLeast(effectiveStart + 1L)
             Line(
-                startTimeMs = start.toString(),
+                startTimeMs = effectiveStart.toString(),
                 endTimeMs = end.toString(),
                 syllables = null,
                 words = text.ifBlank { "♪" },
@@ -846,6 +867,23 @@ private fun com.maxrave.domain.data.model.browse.album.Track.toMusMediaItem(): a
 // interceptor.
 private fun hqYtThumb(url: String?): String? {
     if (url == null) return null
+    // Google-hosted song art (YouTube Music): the database stores a small
+    // variant (typically =w544-h544-...), and the suite's player renders with
+    // coil3, which does NOT go through the coil2 interceptor - so these URLs
+    // loaded at 544px and looked pixelated on the big artwork. Bump the size
+    // to 1200px, keeping the original crop/rounding flags so the same master
+    // is served.
+    if (url.contains("googleusercontent.com/") || url.contains("ggpht.com")) {
+        val base = url.substringBefore("?")
+        val wh = Regex("""=w(\d+)-h(\d+)([^=]*)$""").find(base)
+        if (wh != null) {
+            val width = wh.groupValues[1].toIntOrNull() ?: 0
+            if (width in 1 until 1200) {
+                return base.replaceRange(wh.range, "=w1200-h1200" + wh.groupValues[3])
+            }
+        }
+        return url
+    }
     val i = url.indexOf("i.ytimg.com/vi/")
     if (i < 0) return url
     val id = url.substringAfter("i.ytimg.com/vi/").substringBefore("/")

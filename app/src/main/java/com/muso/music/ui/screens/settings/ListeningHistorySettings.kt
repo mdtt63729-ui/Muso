@@ -102,20 +102,20 @@ fun ListeningHistorySettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.pause_listen_history)) },
-            icon = { Icon(painterResource(R.drawable.history), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.history)) },
             checked = !pauseListenHistory,
             onCheckedChange = { onPauseListenHistoryChange(!it) },
         )
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.clear_listen_history)) },
-            icon = { Icon(painterResource(R.drawable.delete_history), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.delete_history)) },
             onClick = { showClearListenHistoryDialog = true },
         )
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.stats)) },
-            icon = { Icon(painterResource(R.drawable.trending_up), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.trending_up)) },
             onClick = { navController.navigate("stats") },
         )
     }

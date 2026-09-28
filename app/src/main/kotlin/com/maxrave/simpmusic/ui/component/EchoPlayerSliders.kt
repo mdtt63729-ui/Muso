@@ -101,12 +101,13 @@ private fun WavyPlayerSlider(
         val w = size.width
         val h = size.height
         val mid = h / 2f
-        // The played side carries more amplitude (energy) than the part still
-        // ahead, exactly the Echo WAVY behaviour.
-        val activeAmp = h * 0.30f
-        val idleAmp = h * 0.12f
-        val waveLen = w / (if (squiggle) 16f else 9f)
-        val harmonic = if (squiggle) 0.4f else 0f
+        // Calm, smooth Apple-style wave (user report: the earlier dense
+        // zigzag read as a broken slider): few long waves, gentle amplitude
+        // difference between the played and idle sides, soft stroke.
+        val activeAmp = h * 0.22f
+        val idleAmp = h * 0.09f
+        val waveLen = w / (if (squiggle) 7f else 4f)
+        val harmonic = if (squiggle) 0.22f else 0f
         val cutX = w * shown
 
         fun drawWave(fromX: Float, toX: Float, amp: Float, color: Color) {
@@ -125,7 +126,7 @@ private fun WavyPlayerSlider(
                 }
                 x += 2f
             }
-            drawPath(path, color = color, style = Stroke(width = 5f, cap = StrokeCap.Round))
+            drawPath(path, color = color, style = Stroke(width = 4.5f, cap = StrokeCap.Round))
         }
 
         drawWave(0f, cutX, activeAmp, accent)

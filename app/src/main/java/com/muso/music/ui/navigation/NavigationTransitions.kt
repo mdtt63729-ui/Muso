@@ -52,7 +52,7 @@ private val IosEasing = Motion.EnterEasing
 private const val PUSH_MS = Motion.PUSH
 private const val POP_MS = Motion.POP
 private const val TAB_MS = Motion.TAB
-private const val PARALLAX_NUM = 2
+private const val PARALLAX_NUM = 8
 private const val PARALLAX_DEN = 10
 
 private fun NavDestination.isTopLevelTab(): Boolean =

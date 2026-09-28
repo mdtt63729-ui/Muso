@@ -222,6 +222,12 @@
     <string name="mini_player_style_glass">Glass</string>
     <string name="mini_player_style_flat">Flat</string>
     <string name="wavy">Wavy</string>
+    <string name="audio_quality_low_66">Low - 66 kbps</string>
+    <string name="audio_quality_medium_129">Medium - 129 kbps</string>
+    <string name="audio_quality_high_opus">High Opus - 256 kbps (YT Premium)</string>
+    <string name="audio_quality_high_aac">High AAC - 256 kbps (YT Premium)</string>
+    <string name="developer">Developer</string>
+    <string name="streaming_quality">Streaming quality</string>
     <string name="slim">Slim</string>
     <string name="word_by_word_animation_style">Word-by-word animation style</string>
     <string name="lyrics_style_flare">Flare</string>

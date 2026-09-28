@@ -49,13 +49,28 @@ class MediaLibrarySessionCallback @Inject constructor(
 
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
         val connectionResult = super.onConnect(session, controller)
+        val sessionCommands = connectionResult.availableSessionCommands.buildUpon()
+            .add(MediaSessionConstants.CommandToggleLibrary)
+            .add(MediaSessionConstants.CommandToggleLike)
+            .add(MediaSessionConstants.CommandToggleShuffle)
+            .add(MediaSessionConstants.CommandToggleRepeatMode)
+            .build()
+        if (session.isMediaNotificationController(controller)) {
+            // The platform media session - what the LOCK SCREEN and system
+            // media controls read - mirrors the media notification
+            // controller's available player commands into its
+            // PlaybackStateCompat. Grant it the full transport set
+            // explicitly, so play/pause, previous and next always render
+            // there whatever the default pass-through produced.
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(sessionCommands)
+                .setAvailablePlayerCommands(
+                    MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon().build(),
+                )
+                .build()
+        }
         return MediaSession.ConnectionResult.accept(
-            connectionResult.availableSessionCommands.buildUpon()
-                .add(MediaSessionConstants.CommandToggleLibrary)
-                .add(MediaSessionConstants.CommandToggleLike)
-                .add(MediaSessionConstants.CommandToggleShuffle)
-                .add(MediaSessionConstants.CommandToggleRepeatMode)
-                .build(),
+            sessionCommands,
             connectionResult.availablePlayerCommands
         )
     }

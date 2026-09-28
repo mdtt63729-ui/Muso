@@ -147,7 +147,7 @@ fun AppearanceSettings(
     val (gridCellSize, onGridCellSizeChange) = rememberEnumPreference(key = GridCellSizeKey, defaultValue = GridCellSize.SMALL)
     val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(key = PlayerStyleKey, defaultValue = PlayerStyle.EXPRESSIVE)
     val (miniPlayerStyle, onMiniPlayerStyleChange) = rememberEnumPreference(key = MiniPlayerStyleKey, defaultValue = MiniPlayerStyle.GLASS)
-    val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.ECHOMUSIC_1)
+    val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.APPLE_V2)
 
     val (playerBackgroundStyle, onPlayerBackgroundStyleChange) = rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
@@ -395,7 +395,7 @@ fun AppearanceSettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.now_playing_style)) },
-            icon = { Icon(painterResource(R.drawable.play), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.play)) },
             selectedValue = playerStyle,
             onValueSelected = onPlayerStyleChange,
             valueText = {
@@ -413,7 +413,7 @@ fun AppearanceSettings(
         // is on).
         EnumListPreference(
             title = { Text(stringResource(R.string.mini_player_style)) },
-            icon = { Icon(painterResource(R.drawable.play), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.play)) },
             selectedValue = miniPlayerStyle,
             onValueSelected = onMiniPlayerStyleChange,
             valueText = {
@@ -428,7 +428,7 @@ fun AppearanceSettings(
         // own rich-sync wipe (default); the other ten are the Echo styles.
         EnumListPreference(
             title = { Text(stringResource(R.string.word_by_word_animation_style)) },
-            icon = { Icon(painterResource(R.drawable.play), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.play)) },
             selectedValue = lyricsAnimationStyle,
             onValueSelected = onLyricsAnimationStyleChange,
             valueText = {
@@ -450,7 +450,7 @@ fun AppearanceSettings(
 
         ListPreference(
             title = { Text(stringResource(R.string.theme_color)) },
-            icon = { Icon(painterResource(R.drawable.palette), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.palette)) },
             selectedValue = themeColorMode,
             values = listOf(THEME_COLOR_MODE_DEFAULT, THEME_COLOR_MODE_WALLPAPER, THEME_COLOR_MODE_CUSTOM),
             valueText = {
@@ -480,7 +480,7 @@ fun AppearanceSettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.theme)) },
-            icon = { Icon(painterResource(R.drawable.dark_mode), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.dark_mode)) },
             selectedValue = darkMode,
             onValueSelected = onDarkModeChange,
             valueText = {
@@ -495,7 +495,7 @@ fun AppearanceSettings(
         AnimatedVisibility(useDarkTheme) {
             SwitchPreference(
                 title = { Text(stringResource(R.string.pure_black)) },
-                icon = { Icon(painterResource(R.drawable.contrast), null) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.contrast)) },
                 checked = pureBlack,
                 onCheckedChange = onPureBlackChange,
             )
@@ -504,7 +504,7 @@ fun AppearanceSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.liquid_glass_effect)) },
             description = stringResource(R.string.liquid_glass_effect_desc),
-            icon = { Icon(painterResource(R.drawable.tune), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.tune)) },
             checked = translucentNavBar && playerBackgroundStyle == PlayerBackgroundStyle.BLURRED_ARTWORK,
             onCheckedChange = { on ->
                 onTranslucentNavBarChange(on)
@@ -517,7 +517,7 @@ fun AppearanceSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.liquid_glass_nav_bar)) },
             description = stringResource(R.string.liquid_glass_nav_bar_desc),
-            icon = { Icon(painterResource(R.drawable.tune), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.tune)) },
             checked = liquidGlassNavBar,
             onCheckedChange = onLiquidGlassNavBarChange,
         )
@@ -525,14 +525,14 @@ fun AppearanceSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_high_refresh_rate)) },
             description = stringResource(R.string.enable_high_refresh_rate_desc),
-            icon = { Icon(painterResource(R.drawable.tune), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.tune)) },
             checked = highRefreshRate,
             onCheckedChange = onHighRefreshRateChange,
         )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.default_open_tab)) },
-            icon = { Icon(painterResource(R.drawable.tab), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.tab)) },
             selectedValue = defaultOpenTab,
             onValueSelected = onDefaultOpenTabChange,
             valueText = {
@@ -545,7 +545,7 @@ fun AppearanceSettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.grid_cell_size)) },
-            icon = { Icon(painterResource(R.drawable.grid_view), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.grid_view)) },
             selectedValue = gridCellSize,
             onValueSelected = onGridCellSizeChange,
             valueText = {
@@ -563,7 +563,7 @@ fun AppearanceSettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.player_background)) },
-            icon = { Icon(painterResource(R.drawable.palette), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.palette)) },
             selectedValue = playerBackgroundStyle,
             onValueSelected = onPlayerBackgroundStyleChange,
             valueText = {
@@ -576,7 +576,7 @@ fun AppearanceSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.show_codec_on_player)) },
-            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
             checked = showCodecOnPlayer,
             onCheckedChange = onShowCodecOnPlayerChange,
         )
@@ -589,20 +589,20 @@ fun AppearanceSettings(
                 SliderStyle.SLIM -> stringResource(R.string.slim)
                 SliderStyle.SQUIGGLY -> stringResource(R.string.squiggly)
             },
-            icon = { Icon(painterResource(R.drawable.sliders), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.sliders)) },
             onClick = { showSliderOptionDialog = true },
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.hide_player_slider)) },
-            icon = { Icon(painterResource(R.drawable.sliders), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.sliders)) },
             checked = hidePlayerSlider,
             onCheckedChange = onHidePlayerSliderChange,
         )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.player_buttons_style)) },
-            icon = { Icon(painterResource(R.drawable.play), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.play)) },
             selectedValue = playerButtonsStyle,
             onValueSelected = onPlayerButtonsStyleChange,
             valueText = {
@@ -616,14 +616,14 @@ fun AppearanceSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.hide_player_thumbnail)) },
-            icon = { Icon(painterResource(R.drawable.music_note), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.music_note)) },
             checked = hidePlayerThumbnail,
             onCheckedChange = onHidePlayerThumbnailChange,
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.crop_album_art)) },
-            icon = { Icon(painterResource(R.drawable.crop), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.crop)) },
             checked = cropAlbumArt,
             onCheckedChange = onCropAlbumArtChange,
         )
@@ -631,7 +631,7 @@ fun AppearanceSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.rotating_artwork)) },
             description = stringResource(R.string.rotating_artwork_desc),
-            icon = { Icon(painterResource(R.drawable.disc), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.disc)) },
             checked = rotatingArtwork,
             onCheckedChange = onRotatingArtworkChange,
         )
@@ -643,7 +643,7 @@ fun AppearanceSettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.lyrics_style)) },
-            icon = { Icon(painterResource(R.drawable.format_align_center), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.format_align_center)) },
             selectedValue = lyricsStyle,
             onValueSelected = onLyricsStyleChange,
             valueText = {
@@ -656,7 +656,7 @@ fun AppearanceSettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.lyrics_text_position)) },
-            icon = { Icon(painterResource(R.drawable.format_align_center), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.format_align_center)) },
             selectedValue = lyricsTextPosition,
             onValueSelected = onLyricsTextPositionChange,
             valueText = {
@@ -670,7 +670,7 @@ fun AppearanceSettings(
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.lyrics_text_size)) },
-            icon = { Icon(painterResource(R.drawable.format_align_center), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.format_align_center)) },
             content = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -690,7 +690,7 @@ fun AppearanceSettings(
         PreferenceEntry(
             title = { Text(stringResource(R.string.lyrics_line_spacing)) },
             description = "x%.1f".format(lyricsLineSpacing),
-            icon = { Icon(painterResource(R.drawable.format_align_center), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.format_align_center)) },
             content = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -710,7 +710,7 @@ fun AppearanceSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.lyrics_auto_scroll)) },
             description = stringResource(R.string.lyrics_auto_scroll_desc),
-            icon = { Icon(painterResource(R.drawable.sync), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.sync)) },
             checked = lyricsAutoScroll,
             onCheckedChange = onLyricsAutoScrollChange,
         )
@@ -718,7 +718,7 @@ fun AppearanceSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.lyrics_blur)) },
             description = stringResource(R.string.lyrics_blur_desc),
-            icon = { Icon(painterResource(R.drawable.palette), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.palette)) },
             checked = lyricsBlurEnabled,
             onCheckedChange = onLyricsBlurEnabledChange,
         )
@@ -726,7 +726,7 @@ fun AppearanceSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.romanize_lyrics)) },
             description = stringResource(R.string.romanize_lyrics_desc),
-            icon = { Icon(painterResource(R.drawable.translate), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.translate)) },
             checked = romanizeLyrics,
             onCheckedChange = onRomanizeLyricsChange,
         )
@@ -743,28 +743,28 @@ fun AppearanceSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.show_liked_playlist)) },
-            icon = { Icon(painterResource(R.drawable.favorite), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.favorite)) },
             checked = showLikedPlaylist,
             onCheckedChange = onShowLikedPlaylistChange,
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.show_downloaded_playlist)) },
-            icon = { Icon(painterResource(R.drawable.download), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.download)) },
             checked = showDownloadedPlaylist,
             onCheckedChange = onShowDownloadedPlaylistChange,
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.show_uploaded_playlist)) },
-            icon = { Icon(painterResource(R.drawable.upload), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.upload)) },
             checked = showUploadedPlaylist,
             onCheckedChange = onShowUploadedPlaylistChange,
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.show_cached_playlist)) },
-            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
             checked = showCachedPlaylist,
             onCheckedChange = onShowCachedPlaylistChange,
         )

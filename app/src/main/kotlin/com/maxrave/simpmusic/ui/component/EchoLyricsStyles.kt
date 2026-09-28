@@ -22,6 +22,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -47,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.sin
 import com.maxrave.simpmusic.extension.ParsedRichSyncLine
 import com.maxrave.simpmusic.ui.theme.typo
 import com.muso.music.constants.LyricsAnimationStyle
@@ -99,6 +101,15 @@ fun EchoLyricsLine(
                     val duration = (endMs - startMs).coerceAtLeast(1L)
                     val progress =
                         ((currentTimeMs - startMs).toFloat() / duration).coerceIn(0f, 1f)
+                    if (style == LyricsAnimationStyle.APPLE_V2) {
+                        // Letter-by-letter two-layer fill (see AppleV2EchoWord).
+                        AppleV2EchoWord(
+                            text = word.text,
+                            progress = progress,
+                            isLineCurrent = isCurrent,
+                            isLast = index == last,
+                        )
+                    } else {
                     EchoWord(
                         text = word.text,
                         progress = progress,
@@ -108,6 +119,7 @@ fun EchoLyricsLine(
                         style = style,
                         isLast = index == last,
                     )
+                    }
                 }
             }
         }
@@ -210,7 +222,7 @@ private fun EchoWord(
                 color = EchoPendingWordColor
             }
         }
-        LyricsAnimationStyle.APPLE, LyricsAnimationStyle.APPLE_V2 -> {
+        LyricsAnimationStyle.APPLE -> {
             color =
                 if (isLineCurrent && (isWordComplete || isWordActive)) EchoSungWordColor
                 else EchoPendingWordColor
@@ -235,10 +247,6 @@ private fun EchoWord(
             ty = (1f - rise) * 6f
             if (isWordActive) scale = 1f + 0.06f * rise
         }
-        LyricsAnimationStyle.APPLE_V2 -> if (isWordActive && isLineCurrent) {
-            ty = -1.5f
-            scale = 1.03f
-        }
         else -> {}
     }
 
@@ -254,6 +262,93 @@ private fun EchoWord(
             scaleY = scale
         },
     )
+}
+
+/**
+ * APPLE_V2 (letter-by-letter), ported from the kimi lyrics reference: each
+ * word of the ACTIVE line renders as two stacked layers -
+ *
+ *  - a dim base pre-render at 30% opacity, and
+ *  - a bright fill that sweeps in left-to-right with a soft gradient front
+ *    (feather ~8% of the word), masked by the word's own 0..1 progress, with
+ *    a soft 12px glow riding the fill;
+ *
+ * and while the word is being sung it gently floats up
+ * (4px * sin(progress * PI)) and scales by 2%. Completed words show the full
+ * fill; not-yet-sung words show the dim base. Lines that are not current
+ * render as plain dim text.
+ */
+@Composable
+private fun AppleV2EchoWord(
+    text: String,
+    progress: Float,
+    isLineCurrent: Boolean,
+    isLast: Boolean,
+) {
+    val word = if (isLast) text else "$text "
+    val baseStyle = if (isLineCurrent) typo().headlineLarge else typo().headlineMedium
+    if (!isLineCurrent) {
+        Text(
+            text = word,
+            style = baseStyle,
+            color = EchoPendingWordColor,
+            overflow = TextOverflow.Visible,
+        )
+        return
+    }
+    // Soft glow riding the fill layer (reference: text-shadow 0 0 12px @35%).
+    val fillStyle = baseStyle.copy(
+        shadow = Shadow(color = Color.White.copy(alpha = 0.35f), blurRadius = 12f),
+    )
+    // The mask: opaque up to the word's progress, then an 8% feather to
+    // transparent - the letters fill in one after another as it advances.
+    val cut = progress
+    val fillBrush = if (progress >= 1f) null else Brush.horizontalGradient(
+        *arrayOf(
+            0f to Color.White,
+            cut to Color.White,
+            (cut + 0.08f).coerceAtMost(1f) to Color.Transparent,
+            1f to Color.Transparent,
+        ),
+    )
+    // Gentle float + scale while the word sings.
+    val sinP = sin(progress * Math.PI.toFloat())
+
+    Box {
+        // Base layer - the dim pre-render of the whole word.
+        Text(
+            text = word,
+            style = baseStyle,
+            color = Color.White.copy(alpha = 0.3f),
+            overflow = TextOverflow.Visible,
+        )
+        // Fill layer - sweeps over the base, masked by the word's progress.
+        if (fillBrush != null) {
+            Text(
+                text = word,
+                style = fillStyle.copy(brush = fillBrush),
+                color = Color.Unspecified,
+                overflow = TextOverflow.Visible,
+                modifier = Modifier.graphicsLayer {
+                    translationY = -4f * sinP
+                    scaleX = 1f + 0.02f * sinP
+                    scaleY = 1f + 0.02f * sinP
+                },
+            )
+        } else {
+            Text(
+                text = word,
+                style = fillStyle,
+                color = Color.White,
+                overflow = TextOverflow.Visible,
+                modifier = Modifier.graphicsLayer {
+                    translationY = 0f
+                    scaleX = 1f
+                    scaleY = 1f
+                },
+            )
+        }
+    }
 }
 
 /**

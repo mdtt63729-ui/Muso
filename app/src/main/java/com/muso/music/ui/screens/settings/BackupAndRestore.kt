@@ -77,7 +77,7 @@ fun BackupAndRestore(
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.action_backup)) },
-            icon = { Icon(painterResource(R.drawable.backup), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.backup)) },
             onClick = {
                 val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
                 backupLauncher.launch("${context.getString(R.string.app_name)}_${LocalDateTime.now().format(formatter)}.backup")
@@ -85,7 +85,7 @@ fun BackupAndRestore(
         )
         PreferenceEntry(
             title = { Text(stringResource(R.string.action_restore)) },
-            icon = { Icon(painterResource(R.drawable.restore), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.restore)) },
             onClick = {
                 restoreLauncher.launch(arrayOf("application/octet-stream"))
             }
@@ -101,7 +101,7 @@ fun BackupAndRestore(
         SwitchPreference(
             title = { Text(stringResource(R.string.auto_backup)) },
             description = stringResource(R.string.auto_backup_desc),
-            icon = { Icon(painterResource(R.drawable.update), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.update)) },
             checked = autoBackup,
             onCheckedChange = onAutoBackupChange
         )
@@ -109,7 +109,7 @@ fun BackupAndRestore(
         if (autoBackup) {
             EnumListPreference(
                 title = { Text(stringResource(R.string.backup_frequency)) },
-                icon = { Icon(painterResource(R.drawable.update), null) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.update)) },
                 selectedValue = backupFrequency,
                 onValueSelected = onBackupFrequencyChange,
                 valueText = {

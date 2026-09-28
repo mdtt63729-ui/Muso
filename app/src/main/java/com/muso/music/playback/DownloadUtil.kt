@@ -16,6 +16,7 @@ import androidx.media3.exoplayer.offline.DownloadNotificationHelper
 import com.zionhuang.innertube.YouTube
 import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AudioQualityKey
+import com.muso.music.constants.itagPreference
 import com.muso.music.constants.DownloadQualityKey
 import com.muso.music.db.MusicDatabase
 import com.muso.music.db.entities.FormatEntity
@@ -57,11 +58,11 @@ class DownloadUtil @Inject constructor(
     private val lyricsHelper: com.muso.music.lyrics.LyricsHelper,
 ) {
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
-    private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.HIGH)
+    private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.HIGH_OPUS)
 
     // SimpMusic-style separate download quality: downloads can pick a different stream
     // than streaming playback does.
-    private val downloadQuality by enumPreference(context, DownloadQualityKey, AudioQuality.AUTO)
+    private val downloadQuality by enumPreference(context, DownloadQualityKey, AudioQuality.MEDIUM)
 
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
 
@@ -191,24 +192,30 @@ class DownloadUtil @Inject constructor(
 
             val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
         val playerResponse = runBlocking(Dispatchers.IO) {
-            YouTube.player(mediaId)
+            YouTube.player(
+                mediaId,
+                requireHighQuality = downloadQuality == AudioQuality.HIGH_OPUS ||
+                    downloadQuality == AudioQuality.HIGH_AAC,
+            )
         }.getOrThrow()
         if (playerResponse.playabilityStatus.status != "OK") {
             throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
         }
 
         val format =
-            if (playedFormat != null) {
+            if (playedFormat != null && downloadQuality.itagPreference().contains(playedFormat.itag)) {
                 playerResponse.streamingData?.adaptiveFormats?.find { it.itag == playedFormat.itag }
             } else {
                 playerResponse.streamingData?.adaptiveFormats
                     ?.filter { it.isAudio }
-                    ?.maxByOrNull {
-                        it.bitrate * when (quality()) {
-                            AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
-                            AudioQuality.HIGH -> 1
-                            AudioQuality.LOW -> -1
-                        } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
+                    ?.let { audio ->
+                        // SimpMusic quality system: exact itag with the
+                        // high-quality twin fallback, highest bitrate last.
+                        quality().itagPreference()
+                            .firstNotNullOfOrNull { wantedItag ->
+                                audio.find { it.itag == wantedItag }
+                            }
+                            ?: audio.maxByOrNull { it.bitrate }
                     }
             }!!.let {
                 // Specify range to avoid YouTube's throttling

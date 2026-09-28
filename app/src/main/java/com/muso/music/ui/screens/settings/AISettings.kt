@@ -189,7 +189,7 @@ fun AISettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.ai_provider)) },
-            icon = { Icon(painterResource(R.drawable.auto_awesome), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.auto_awesome)) },
             selectedValue = aiProvider,
             onValueSelected = onAIProviderChange,
             valueText = {
@@ -204,14 +204,14 @@ fun AISettings(
         PreferenceEntry(
             title = { Text(stringResource(R.string.ai_api_key)) },
             description = if (apiKey.isEmpty()) null else "••••••••",
-            icon = { Icon(painterResource(R.drawable.security), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.security)) },
             onClick = { showApiKeyDialog = true },
         )
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.ai_custom_model)) },
             description = customModel.ifEmpty { null },
-            icon = { Icon(painterResource(R.drawable.tune), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.tune)) },
             onClick = { showModelDialog = true },
         )
 
@@ -219,14 +219,14 @@ fun AISettings(
             PreferenceEntry(
                 title = { Text(stringResource(R.string.ai_base_url)) },
                 description = customBaseUrl.ifEmpty { "https://api.openai.com/v1/" },
-                icon = { Icon(painterResource(R.drawable.language), null) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.language)) },
                 onClick = { showBaseUrlDialog = true },
             )
         }
 
         ListPreference(
             title = { Text(stringResource(R.string.ai_translation_language)) },
-            icon = { Icon(painterResource(R.drawable.translate), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.translate)) },
             selectedValue = targetLanguage,
             values = AITranslator.TARGET_LANGUAGES.map { it.first },
             valueText = { code ->
@@ -239,7 +239,7 @@ fun AISettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.use_ai_translation)) },
             description = stringResource(R.string.use_ai_translation_desc),
-            icon = { Icon(painterResource(R.drawable.translate), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.translate)) },
             checked = useAITranslation,
             onCheckedChange = onUseAITranslationChange,
             isEnabled = apiKey.isNotEmpty(),

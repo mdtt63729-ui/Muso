@@ -101,14 +101,14 @@ fun PrivacySettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.pause_search_history)) },
-            icon = { Icon(painterResource(R.drawable.search_off), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.search_off)) },
             checked = pauseSearchHistory,
             onCheckedChange = onPauseSearchHistoryChange
         )
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.clear_search_history)) },
-            icon = { Icon(painterResource(R.drawable.clear_all), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.clear_all)) },
             onClick = { showClearSearchHistoryDialog = true }
         )
 
@@ -119,7 +119,7 @@ fun PrivacySettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.use_login_for_browse)) },
             description = stringResource(R.string.use_login_for_browse_desc),
-            icon = { Icon(painterResource(R.drawable.person), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.person)) },
             checked = useLoginForBrowse,
             onCheckedChange = {
                 YouTube.useLoginForBrowse = it
@@ -134,7 +134,7 @@ fun PrivacySettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.disable_screenshot)) },
             description = stringResource(R.string.disable_screenshot_desc),
-            icon = { Icon(painterResource(R.drawable.screenshot), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.screenshot)) },
             checked = disableScreenshot,
             onCheckedChange = onDisableScreenshotChange
         )

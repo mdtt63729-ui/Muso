@@ -108,10 +108,10 @@ fun ContentSettings(
     val (proxyType, onProxyTypeChange) = rememberEnumPreference(key = ProxyTypeKey, defaultValue = Proxy.Type.HTTP)
     val (proxyUrl, onProxyUrlChange) = rememberPreference(key = ProxyUrlKey, defaultValue = "host:port")
     val (autoDownloadLikedSongs, onAutoDownloadLikedSongsChange) = rememberPreference(key = AutoDownloadLikedSongsKey, defaultValue = false)
-    val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.HIGH)
+    val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.HIGH_OPUS)
     val (showVideoInPlayer, onShowVideoInPlayerChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
     val (videoQuality, onVideoQualityChange) = rememberEnumPreference(VideoQualityKey, defaultValue = VideoQuality.Q720)
-    val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(key = DownloadQualityKey, defaultValue = AudioQuality.AUTO)
+    val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(key = DownloadQualityKey, defaultValue = AudioQuality.MEDIUM)
 
 
     val scrollState = rememberScrollState()
@@ -126,35 +126,37 @@ fun ContentSettings(
 
         EnumListPreference(
             title = { Text(stringResource(R.string.audio_quality)) },
-            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
             selectedValue = audioQuality,
             onValueSelected = onAudioQualityChange,
             valueText = {
                 when (it) {
-                    AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
-                    AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
-                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low_66)
+                    AudioQuality.MEDIUM -> stringResource(R.string.audio_quality_medium_129)
+                    AudioQuality.HIGH_OPUS -> stringResource(R.string.audio_quality_high_opus)
+                    AudioQuality.HIGH_AAC -> stringResource(R.string.audio_quality_high_aac)
                 }
             }
         )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.download_quality)) },
-            icon = { Icon(painterResource(R.drawable.download), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.download)) },
             selectedValue = downloadQuality,
             onValueSelected = onDownloadQualityChange,
             valueText = {
                 when (it) {
-                    AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
-                    AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
-                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low_66)
+                    AudioQuality.MEDIUM -> stringResource(R.string.audio_quality_medium_129)
+                    AudioQuality.HIGH_OPUS -> stringResource(R.string.audio_quality_high_opus)
+                    AudioQuality.HIGH_AAC -> stringResource(R.string.audio_quality_high_aac)
                 }
             }
         )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.video_quality)) },
-            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
             selectedValue = videoQuality,
             onValueSelected = onVideoQualityChange,
             valueText = {
@@ -169,14 +171,14 @@ fun ContentSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.show_video_in_player)) },
             description = stringResource(R.string.show_video_in_player_desc),
-            icon = { Icon(painterResource(R.drawable.music_note), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.music_note)) },
             checked = showVideoInPlayer,
             onCheckedChange = onShowVideoInPlayerChange
         )
         val activity = LocalContext.current as? Activity
         ListPreference(
             title = { Text(stringResource(R.string.app_language)) },
-            icon = { Icon(painterResource(R.drawable.language), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.language)) },
             selectedValue = appLanguage,
             values = listOf(SYSTEM_DEFAULT) + AppLanguageToName.keys.toList(),
             valueText = {
@@ -197,7 +199,7 @@ fun ContentSettings(
         )
         ListPreference(
             title = { Text(stringResource(R.string.preferred_audio_language)) },
-            icon = { Icon(painterResource(R.drawable.language), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.language)) },
             selectedValue = contentLanguage,
             values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
             valueText = {
@@ -209,7 +211,7 @@ fun ContentSettings(
         )
         ListPreference(
             title = { Text(stringResource(R.string.content_country)) },
-            icon = { Icon(painterResource(R.drawable.location_on), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.location_on)) },
             selectedValue = contentCountry,
             values = listOf(SYSTEM_DEFAULT) + CountryCodeToName.keys.toList(),
             valueText = {
@@ -228,14 +230,14 @@ fun ContentSettings(
             } else {
                 stringResource(R.string.manage_your_youtube_accounts)
             },
-            icon = { Icon(painterResource(R.drawable.person), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.person)) },
             onClick = { navController.navigate("login") }
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.auto_download_liked_songs)) },
             description = stringResource(R.string.auto_download_liked_songs_desc),
-            icon = { Icon(painterResource(R.drawable.download), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.download)) },
             checked = autoDownloadLikedSongs,
             onCheckedChange = onAutoDownloadLikedSongsChange
         )
@@ -243,14 +245,14 @@ fun ContentSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.play_explicit_content)) },
             description = stringResource(R.string.play_explicit_content_desc),
-            icon = { Icon(painterResource(R.drawable.explicit), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.explicit)) },
             checked = !hideExplicit,
             onCheckedChange = { onHideExplicitChange(!it) }
         )
 
         ListPreference(
             title = { Text(stringResource(R.string.preferred_lyrics_provider)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             selectedValue = LyricsProviderRegistry.deserializeProviderOrder(lyricsProviderOrder).firstOrNull() ?: "",
             values = LyricsProviderRegistry.providerNames,
             valueText = { LyricsProviderRegistry.getDisplayName(it) },
@@ -262,49 +264,49 @@ fun ContentSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_lrclib)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = enableLrcLib,
             onCheckedChange = onEnableLrcLibChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_kugou)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = enableKugou,
             onCheckedChange = onEnableKugouChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_youlyplus)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = enableYouLyPlus,
             onCheckedChange = onEnableYouLyPlusChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_paxsenix)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = enablePaxsenix,
             onCheckedChange = onEnablePaxsenixChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_unison)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = enableUnison,
             onCheckedChange = onEnableUnisonChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_better_lyrics)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = enableBetterLyrics,
             onCheckedChange = onEnableBetterLyricsChange
         )
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_simpmusic)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.lyrics)) },
             checked = enableSimpMusic,
             onCheckedChange = onEnableSimpMusicChange
         )
@@ -315,7 +317,7 @@ fun ContentSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_proxy)) },
-            icon = { Icon(painterResource(R.drawable.wifi_proxy), null) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.wifi_proxy)) },
             checked = proxyEnabled,
             onCheckedChange = onProxyEnabledChange
         )

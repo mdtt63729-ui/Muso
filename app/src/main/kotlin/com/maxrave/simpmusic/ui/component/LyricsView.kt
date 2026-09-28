@@ -448,10 +448,11 @@ fun LyricsView(
     // rich-sync wipe; anything else swaps the line for the Echo renderer.
     val echoLyricsStyle by com.muso.music.utils.rememberEnumPreference(
         key = com.muso.music.constants.LyricsAnimationStyleKey,
-        // The PRD's own default: the EchoMusic floating word-by-word style,
-        // so the new system is what you see out of the box. FLARE is still
-        // one tap away in Appearance for anyone who wants the old wipe.
-        defaultValue = com.muso.music.constants.LyricsAnimationStyle.ECHOMUSIC_1,
+        // User request: Apple Music V2 (letter-by-letter) is the default — the
+        // two-layer masked fill from the kimi reference. Every other style,
+        // including the suite's own FLARE wipe, stays one tap away in
+        // Appearance -> Word-by-word animation style.
+        defaultValue = com.muso.music.constants.LyricsAnimationStyle.APPLE_V2,
     )
 
     // Read here rather than taken as a parameter: all four call sites (the fullscreen sheet and

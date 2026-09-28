@@ -152,6 +152,11 @@ fun BottomSheetPlayer(
         // behind the glass opened the player instead of the screen - felt
         // like the player opened "automatically".
         else MiniPlayerHeight,
+        // The collapsed strip is retired (showCollapsedMiniPlayer = false
+        // everywhere): the sheet's own collapsed content is an empty spacer,
+        // so its hit box is a ghost - disable its drag/click entirely. The
+        // navbar's mini player pill keeps its own tap handler.
+        collapsedInteractive = showCollapsedMiniPlayer,
         // Reference behaviour: dismissing (swiping away) the mini player is
         // purely visual - playback keeps running and the sheet returns when
         // the connection or queue changes. The old stop()+clearMediaItems()
