@@ -157,6 +157,9 @@ fun LiquidGlassAppBottomNavigationBar(
     showMixForYouTab: Boolean,
     onOpenNowPlaying: () -> Unit,
     reloadDestinationIfNeeded: (KClass<*>) -> Unit,
+    // The bar's integrated glass mini player can be turned off (the standalone
+    // pill rides above the bar instead) without touching anything else.
+    showMiniPlayer: Boolean = true,
 ) {
     val layer = rememberGraphicsLayer()
     val toolbarInteraction = rememberGlassInteraction()
@@ -212,7 +215,7 @@ fun LiquidGlassAppBottomNavigationBar(
     val isShowMiniPlayer by remember {
         derivedStateOf {
             val item = nowPlayingData?.mediaItem
-            item != null && item != GenericMediaItem.EMPTY
+            showMiniPlayer && item != null && item != GenericMediaItem.EMPTY
         }
     }
 

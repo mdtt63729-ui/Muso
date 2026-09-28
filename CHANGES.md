@@ -1,4 +1,56 @@
-## Round 146 (continued, v0.5.163, code 170)
+## Round 149 (v0.5.166, code 173)
+
+The word-by-word animation default is now ECHOMUSIC_1 - the PRD's own
+default - so the Echo word-by-word look (floating rising words, bold active
+line) is what shows out of the box instead of the old flare wipe. FLARE
+remains one tap away in Appearance -> Word-by-word animation style, along
+with the other nine styles.
+
+# Round 148 (v0.5.165, code 172)
+
+Echo word-by-word lyrics system (Echo-Word-By-Word-Lyrics-System PRD).
+
+## 1. Word-by-word lyrics actually work now
+The bridge used to strip every <mm:ss.xxx> word-timing tag, which reduced
+every word-timed lyric to a plain line-level one. Tags are now kept
+(normalized to the strict <mm:ss.xxx> shape the suite's rich-sync parser
+expects) and the lyrics are marked RICH_SYNCED, so the suite's own
+RichSyncLyricsLineItem word-by-word wipe - the travelling flare - finally
+renders. Lines without word tags still render line-level as before.
+
+## 2. Ten Echo animation styles (Appearance -> Word-by-word animation style)
+FLARE (default, the suite wipe) plus NONE, FADE, GLOW, SLIDE, KARAOKE,
+APPLE, APPLE_V2, ECHOMUSIC_1 (floating rise), LYRICS_V2 (fluid rise + glow
++ micro-scale) and METRO_LYRICS (canvas word render with per-word colour
+fill). All ten render from the same parsed word timings, applied live with
+no restart.
+
+## 3. Player slider styles wired up
+The slider style setting existed but nothing consumed it. The Classic
+player now renders DEFAULT (its own Material slider), WAVY (sine wave, the
+played side carrying more energy), SLIM (hairline track) and SQUIGGLY
+(high-frequency double-harmonic squiggle); the Appearance picker gained
+WAVY and SLIM preview cards.
+
+# Round 147 (v0.5.164, code 171)
+
+## 1. Pill sank to the display edge on playlists and Settings
+The navbar-hidden pill was lifted by a manually-computed inset offset that
+came out zero on some devices - the pill sat flush against the bottom edge,
+clipped by the display and overlapping the gesture bar. The pill now insets
+itself with the real system-bar padding, read at draw time.
+
+## 2. Mini player style setting (Appearance)
+A "Mini player style" enum setting now sits directly below the fullscreen
+player style in Appearance, decoupling the pill DESIGN from the Liquid Glass
+EFFECT:
+- Glass (default): the glass-bar pill - the integrated glass mini player when
+  glass is on, the SAME design rendered flat when glass is off.
+- Flat: the standalone pill that rides above the bar - the flat design, which
+  itself renders with the glass material when the effect is on.
+Either way: effect on = totally glass, effect off = totally flat.
+
+# Round 146 (continued, v0.5.163, code 170)
 
 Same content as v0.5.162 plus one import fix: the pull-down-to-player
 gesture in the Apple Music lyrics view imported

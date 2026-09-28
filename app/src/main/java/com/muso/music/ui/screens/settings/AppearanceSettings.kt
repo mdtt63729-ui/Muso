@@ -72,6 +72,10 @@ import com.muso.music.constants.PlayerBackgroundStyleKey
 import com.muso.music.constants.PlayerButtonsStyle
 import com.muso.music.constants.PlayerButtonsStyleKey
 import com.muso.music.constants.PlayerStyle
+import com.muso.music.constants.MiniPlayerStyle
+import com.muso.music.constants.MiniPlayerStyleKey
+import com.muso.music.constants.LyricsAnimationStyle
+import com.muso.music.constants.LyricsAnimationStyleKey
 import com.muso.music.constants.PlayerStyleKey
 import com.muso.music.constants.PureBlackKey
 import com.muso.music.constants.RotatingArtworkKey
@@ -142,6 +146,8 @@ fun AppearanceSettings(
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(key = DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
     val (gridCellSize, onGridCellSizeChange) = rememberEnumPreference(key = GridCellSizeKey, defaultValue = GridCellSize.SMALL)
     val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(key = PlayerStyleKey, defaultValue = PlayerStyle.EXPRESSIVE)
+    val (miniPlayerStyle, onMiniPlayerStyleChange) = rememberEnumPreference(key = MiniPlayerStyleKey, defaultValue = MiniPlayerStyle.GLASS)
+    val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.ECHOMUSIC_1)
 
     val (playerBackgroundStyle, onPlayerBackgroundStyleChange) = rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
@@ -308,6 +314,66 @@ fun AppearanceSettings(
                     )
                 }
             }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, if (sliderStyle == SliderStyle.WAVY) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                        .clickable {
+                            onSliderStyleChange(SliderStyle.WAVY)
+                            showSliderOptionDialog = false
+                        }
+                        .padding(16.dp)
+                ) {
+                    com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
+                        style = SliderStyle.WAVY,
+                        position = 0.5f,
+                        onSeek = {},
+                        onSeekFinished = {},
+                        accent = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    Text(
+                        text = stringResource(R.string.wavy),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, if (sliderStyle == SliderStyle.SLIM) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                        .clickable {
+                            onSliderStyleChange(SliderStyle.SLIM)
+                            showSliderOptionDialog = false
+                        }
+                        .padding(16.dp)
+                ) {
+                    com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
+                        style = SliderStyle.SLIM,
+                        position = 0.5f,
+                        onSeek = {},
+                        onSeekFinished = {},
+                        accent = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    Text(
+                        text = stringResource(R.string.slim),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
         }
     }
 
@@ -337,6 +403,47 @@ fun AppearanceSettings(
                     PlayerStyle.CLASSIC -> stringResource(R.string.player_style_classic)
                     PlayerStyle.EXPRESSIVE -> stringResource(R.string.player_style_expressive)
                     PlayerStyle.IMMERSIVE -> stringResource(R.string.player_style_immersive)
+                }
+            },
+        )
+
+        // The pill design, decoupled from the Liquid Glass effect (user spec):
+        // Glass keeps the glass pill (rendered flat when the effect is off),
+        // Flat uses the standalone pill (rendered with glass when the effect
+        // is on).
+        EnumListPreference(
+            title = { Text(stringResource(R.string.mini_player_style)) },
+            icon = { Icon(painterResource(R.drawable.play), null) },
+            selectedValue = miniPlayerStyle,
+            onValueSelected = onMiniPlayerStyleChange,
+            valueText = {
+                when (it) {
+                    MiniPlayerStyle.GLASS -> stringResource(R.string.mini_player_style_glass)
+                    MiniPlayerStyle.FLAT -> stringResource(R.string.mini_player_style_flat)
+                }
+            },
+        )
+
+        // Word-by-word animation style (Echo-Music PRD): FLARE is the suite's
+        // own rich-sync wipe (default); the other ten are the Echo styles.
+        EnumListPreference(
+            title = { Text(stringResource(R.string.word_by_word_animation_style)) },
+            icon = { Icon(painterResource(R.drawable.play), null) },
+            selectedValue = lyricsAnimationStyle,
+            onValueSelected = onLyricsAnimationStyleChange,
+            valueText = {
+                when (it) {
+                    LyricsAnimationStyle.FLARE -> stringResource(R.string.lyrics_style_flare)
+                    LyricsAnimationStyle.NONE -> stringResource(R.string.lyrics_style_none)
+                    LyricsAnimationStyle.FADE -> stringResource(R.string.lyrics_style_fade)
+                    LyricsAnimationStyle.GLOW -> stringResource(R.string.lyrics_style_glow)
+                    LyricsAnimationStyle.SLIDE -> stringResource(R.string.lyrics_style_slide)
+                    LyricsAnimationStyle.KARAOKE -> stringResource(R.string.lyrics_style_karaoke)
+                    LyricsAnimationStyle.APPLE -> stringResource(R.string.lyrics_style_apple)
+                    LyricsAnimationStyle.APPLE_V2 -> stringResource(R.string.lyrics_style_apple_v2)
+                    LyricsAnimationStyle.ECHOMUSIC_1 -> stringResource(R.string.lyrics_style_echomusic_1)
+                    LyricsAnimationStyle.LYRICS_V2 -> stringResource(R.string.lyrics_style_lyrics_v2)
+                    LyricsAnimationStyle.METRO_LYRICS -> stringResource(R.string.lyrics_style_metro)
                 }
             },
         )
@@ -478,6 +585,8 @@ fun AppearanceSettings(
             title = { Text(stringResource(R.string.player_slider_style)) },
             description = when (sliderStyle) {
                 SliderStyle.DEFAULT -> stringResource(R.string.default_)
+                SliderStyle.WAVY -> stringResource(R.string.wavy)
+                SliderStyle.SLIM -> stringResource(R.string.slim)
                 SliderStyle.SQUIGGLY -> stringResource(R.string.squiggly)
             },
             icon = { Icon(painterResource(R.drawable.sliders), null) },

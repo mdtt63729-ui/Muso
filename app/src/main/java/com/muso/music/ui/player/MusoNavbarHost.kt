@@ -27,6 +27,11 @@ import com.muso.music.constants.NavigationBarHeight
 import com.muso.music.constants.MiniPlayerHeight
 import com.muso.music.playback.PlayerConnection
 import com.muso.music.ui.component.BottomSheetState
+import androidx.compose.foundation.layout.navigationBarsPadding
+import com.muso.music.constants.MiniPlayerStyle
+import androidx.compose.foundation.layout.navigationBarsPadding
+import com.muso.music.constants.MiniPlayerStyleKey
+import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -56,6 +61,13 @@ fun BoxScope.MusoNavbarHost(
     onReloadTab: () -> Unit,
 ) {
     val liquidGlass by rememberPreference(LiquidGlassNavBarKey, defaultValue = true)
+
+    // The pill DESIGN is the user's choice now (Appearance), decoupled from the
+    // Liquid Glass effect: glass style keeps the bar-integrated pill when glass
+    // is on, flat style always uses the standalone pill above the bar. Either
+    // way the material follows the effect setting (glass pill / same design
+    // flat; flat design / flat design with glass).
+    val miniPlayerStyle by rememberEnumPreference(MiniPlayerStyleKey, defaultValue = MiniPlayerStyle.GLASS)
 
     // Keep the suite's DataStoreManager shim in sync so the glass MiniPlayer
     // styles itself to match the bar variant the user picked.
@@ -93,12 +105,13 @@ fun BoxScope.MusoNavbarHost(
                 // bottom controls and eating their touches.
                 val fullStack = bottomInset + NavigationBarHeight + MiniPlayerHeight
                 if (visibleHeight <= 0.dp) {
-                    // Navbar hidden: the PILL alone survives, lifted by the gesture
-                    // inset and still sliding away when the player sheet expands.
-                    // The old rule parked the whole stack off-screen - Settings had
-                    // no mini player at all, and the retired strip stood in for it.
+                    // Navbar hidden: the PILL alone survives and still slides away
+                    // when the player sheet expands. Its lift above the gesture bar
+                    // comes from its own navigationBarsPadding (the manual inset
+                    // offset here proved fragile on some devices - the pill ended
+                    // up flush against the display edge).
                     val slideOffset = fullStack * playerBottomSheetState.progress.coerceIn(0f, 1f)
-                    IntOffset(x = 0, y = (bottomInset + slideOffset).roundToPx())
+                    IntOffset(x = 0, y = slideOffset.roundToPx())
                 } else {
                     val slideOffset = fullStack * playerBottomSheetState.progress.coerceIn(0f, 1f)
                     val hideOffset = (bottomInset + NavigationBarHeight) * (1 - visibleHeight / NavigationBarHeight)
@@ -124,6 +137,10 @@ fun BoxScope.MusoNavbarHost(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
+                        // The real system bar inset, read at draw time: this is
+                        // what keeps the pill clear of the gesture bar on
+                        // Settings and the playlist screens (user report).
+                        .navigationBarsPadding()
                         .height(56.dp),
                     backdrop = backdrop,
                     onClick = { playerBottomSheetState.expandSoft() },
@@ -133,7 +150,8 @@ fun BoxScope.MusoNavbarHost(
                     },
                 )
             }
-        } else if (liquidGlass) {
+        } else if (liquidGlass && miniPlayerStyle == MiniPlayerStyle.GLASS) {
+            // Glass style: the bar's integrated glass pill, exactly as before.
             LiquidGlassAppBottomNavigationBar(
                 startDestination = com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination,
                 navController = navController,
@@ -145,6 +163,39 @@ fun BoxScope.MusoNavbarHost(
                 onOpenNowPlaying = { playerBottomSheetState.expandSoft() },
                 reloadDestinationIfNeeded = { onReloadTab() },
             )
+        } else if (liquidGlass) {
+            // Flat style with glass on: the standalone pill (rendered with the
+            // glass material by itself) above the glass bar, whose integrated
+            // pill is off.
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            ) {
+                if (isShowMiniPlayer) com.maxrave.simpmusic.ui.screen.MiniPlayer(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .height(56.dp),
+                    backdrop = backdrop,
+                    onClick = { playerBottomSheetState.expandSoft() },
+                    onClose = {
+                        sharedViewModel.stopPlayer()
+                        sharedViewModel.isServiceRunning = false
+                    },
+                )
+                LiquidGlassAppBottomNavigationBar(
+                    startDestination = com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination,
+                    navController = navController,
+                    backdrop = backdrop,
+                    viewModel = sharedViewModel,
+                    isScrolledToTop = isScrolledToTop,
+                    showAnalyticsTab = false,
+                    showMixForYouTab = false,
+                    onOpenNowPlaying = { playerBottomSheetState.expandSoft() },
+                    reloadDestinationIfNeeded = { onReloadTab() },
+                    showMiniPlayer = false,
+                )
+            }
         } else {
             // Liquid glass OFF: the SAME pill mini player, flat variant - round
             // artwork, controls in filled circles, theme-surface card - riding

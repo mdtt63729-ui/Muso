@@ -444,6 +444,15 @@ fun LyricsView(
     // which the `now <= 0L` guard below already reads as "no line yet" — correct, since in heard
     // time the song has not reached its first line.
     val lyricsOffsetMs by dataStoreManager.lyricsOffsetMs.collectAsStateWithLifecycle(0)
+    // Word-by-word animation style (Echo-Music PRD). FLARE = the suite's own
+    // rich-sync wipe; anything else swaps the line for the Echo renderer.
+    val echoLyricsStyle by com.muso.music.utils.rememberEnumPreference(
+        key = com.muso.music.constants.LyricsAnimationStyleKey,
+        // The PRD's own default: the EchoMusic floating word-by-word style,
+        // so the new system is what you see out of the box. FLARE is still
+        // one tap away in Appearance for anyone who wants the old wipe.
+        defaultValue = com.muso.music.constants.LyricsAnimationStyle.ECHOMUSIC_1,
+    )
 
     // Read here rather than taken as a parameter: all four call sites (the fullscreen sheet and
     // the three player styles) want the user's one choice, so making them each thread it through
@@ -612,7 +621,18 @@ fun LyricsView(
                                         result
                                     }
 
-                                if (parsedLine != null) {
+                                if (parsedLine != null && echoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.FLARE) {
+                                    // Echo animation styles (Appearance setting): the same
+                                    // parsed word timings, a different word renderer.
+                                    EchoLyricsLine(
+                                        parsedLine = parsedLine,
+                                        translatedWords = translatedWords,
+                                        romanizedWords = romanizedWords,
+                                        currentTimeMs = current.current - lyricsOffsetMs,
+                                        isCurrent = index == currentLineIndex,
+                                        style = echoLyricsStyle,
+                                    )
+                                } else if (parsedLine != null) {
                                     // Reused verbatim by BOTH styles: word-by-word highlighting is
                                     // already what Apple does with a rich-synced line, so there is
                                     // nothing to re-implement — only the focus treatment differs,

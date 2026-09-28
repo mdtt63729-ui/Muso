@@ -13,6 +13,36 @@ val PlayerTextAlignmentKey = stringPreferencesKey("playerTextAlignment")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")
 val PlayerStyleKey = stringPreferencesKey("playerStyle")
 val PlayerStyleMigratedKey = booleanPreferencesKey("playerStyleMigratedV158")
+val MiniPlayerStyleKey = stringPreferencesKey("miniPlayerStyle")
+
+/** Design of the floating pill mini player, decoupled from the Liquid Glass effect. */
+enum class MiniPlayerStyle {
+    /** The glass-bar pill: the bar's integrated glass mini player when glass is on, the same design flat when it is off. */
+    GLASS,
+
+    /** The standalone pill that rides above the bar: flat-surface design, rendered with glass material when the effect is on. */
+    FLAT,
+}
+
+val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")
+
+/**
+ * Word-by-word lyrics animation style (Echo-Music PRD). FLARE is the suite's own
+ * rich-sync wipe (default, unchanged); the other ten are the Echo styles.
+ */
+enum class LyricsAnimationStyle {
+    FLARE,
+    NONE,
+    FADE,
+    GLOW,
+    SLIDE,
+    KARAOKE,
+    APPLE,
+    APPLE_V2,
+    ECHOMUSIC_1,
+    LYRICS_V2,
+    METRO_LYRICS,
+}
 val LiquidGlassNavBarKey = booleanPreferencesKey("liquidGlassNavBar")
 val LyricsOffsetKey = intPreferencesKey("lyricsOffsetMs")
 val AnimationsEnabledKey = booleanPreferencesKey("animationsEnabled")
@@ -95,7 +125,7 @@ enum class VideoQuality {
 }
 
 enum class SliderStyle {
-    DEFAULT, SQUIGGLY
+    DEFAULT, WAVY, SLIM, SQUIGGLY
 }
 
 val DefaultOpenTabKey = stringPreferencesKey("defaultOpenTab")

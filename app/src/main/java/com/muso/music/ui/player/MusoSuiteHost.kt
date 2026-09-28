@@ -223,12 +223,16 @@ fun MusoSuiteHost(
         if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) {
             null
         } else {
-            parseLrcToSuiteLines(raw)?.let { (lines, synced) ->
+            parseLrcToSuiteLines(raw)?.let { (lines, synced, rich) ->
                 NowPlayingScreenData.LyricsData(
                     lyrics = Lyrics(
                         error = false,
                         lines = lines,
-                        syncType = if (synced) "LINE_SYNCED" else "UNSYNCED",
+                        syncType = when {
+                            rich -> "RICH_SYNCED"
+                            synced -> "LINE_SYNCED"
+                            else -> "UNSYNCED"
+                        },
                     ),
                     translatedLyrics = null,
                     lyricsProvider = LyricsProvider.LRCLIB,
@@ -440,17 +444,38 @@ fun MusoSuiteHost(
  *   ("LINE_SYNCED") or plain text ("UNSYNCED"), or null when there is nothing
  *   usable at all.
  */
-private fun parseLrcToSuiteLines(data: String): Pair<List<Line>, Boolean>? {
+private fun parseLrcToSuiteLines(data: String): Triple<List<Line>, Boolean, Boolean>? {
     val stamp = Regex("""\[(\d{1,3}):(\d{1,2}(?:[.,]\d{1,3})?)]""")
-    // Enhanced-LRC word timing tags: <mm:ss.xxx> before every word. They are
-    // metadata, not lyric text - left in, every rendered line started with a
-    // visible "<03:19.606>" (user report). Strip them all.
-    val wordTag = Regex("""<\d{1,3}:\d{1,2}(?:[.,]\d{1,3})?>""")
+    // Enhanced-LRC word timing tags: <mm:ss.xxx> before every word. When
+    // present they are KEPT (normalized to the strict <mm:ss.xxx> shape the
+    // suite's rich-sync parser expects): the suite renders word-by-word from
+    // them - RichSyncLyricsLineItem's flare and the ten Echo styles alike.
+    // Lines without any tags keep them stripped, so nothing regresses to the
+    // visible "<03:19.606>" garbage.
+    val wordTag = Regex("""<(\d{1,3}):(\d{1,2}(?:[.,]\d{1,3})?)>""")
     val timed = mutableListOf<Pair<Long, String>>()
+    var anyWordTimings = false
     for (rawLine in data.lineSequence()) {
         val stamps = stamp.findAll(rawLine).toList()
         if (stamps.isEmpty()) continue
-        val text = wordTag.replace(rawLine.substring(stamps.last().range.last + 1), "").trim()
+        var text = rawLine.substring(stamps.last().range.last + 1).trim()
+        if (wordTag.containsMatchIn(text)) {
+            anyWordTimings = true
+            // Normalize every tag to <mm:ss.xxx> (2-digit minutes, 3-digit
+            // milliseconds) - parseRichSyncWords only accepts that shape.
+            text = wordTag.replace(text) { m ->
+                val minutes = m.groupValues[1].toInt()
+                val secParts = m.groupValues[2].split('.', ',', limit = 2)
+                val seconds = secParts[0].toInt()
+                val fraction = if (secParts.size > 1) secParts[1] else "0"
+                val ms = when (fraction.length) {
+                    1 -> fraction + "00"
+                    2 -> fraction + "0"
+                    else -> fraction.take(3)
+                }
+                "<%02d:%02d.%s>".format(minutes, seconds, ms)
+            }
+        }
         for (m in stamps) {
             val minutes = m.groupValues[1].toLong()
             val seconds = m.groupValues[2].replace(',', '.').toDouble()
@@ -468,14 +493,18 @@ private fun parseLrcToSuiteLines(data: String): Pair<List<Line>, Boolean>? {
                 words = text.ifBlank { "♪" },
             )
         }
-        return lines to true
+        return Triple(lines, true, anyWordTimings)
     }
     // No timestamps: plain lyrics - every non-empty line becomes a word line.
     val words = data.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
     if (words.isEmpty()) return null
-    return words.map { word ->
-        Line(startTimeMs = "0", endTimeMs = "0", syllables = null, words = word)
-    } to false
+    return Triple(
+        words.map { word ->
+            Line(startTimeMs = "0", endTimeMs = "0", syllables = null, words = word)
+        },
+        false,
+        false,
+    )
 }
 
 
@@ -573,12 +602,16 @@ fun MusoSuiteBridge(
         val lyricsData = if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) {
             null
         } else {
-            parseLrcToSuiteLines(raw)?.let { (lines, synced) ->
+            parseLrcToSuiteLines(raw)?.let { (lines, synced, rich) ->
                 NowPlayingScreenData.LyricsData(
                     lyrics = Lyrics(
                         error = false,
                         lines = lines,
-                        syncType = if (synced) "LINE_SYNCED" else "UNSYNCED",
+                        syncType = when {
+                            rich -> "RICH_SYNCED"
+                            synced -> "LINE_SYNCED"
+                            else -> "UNSYNCED"
+                        },
                     ),
                     translatedLyrics = null,
                     lyricsProvider = LyricsProvider.LRCLIB,

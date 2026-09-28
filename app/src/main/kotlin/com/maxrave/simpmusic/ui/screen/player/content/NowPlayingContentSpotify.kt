@@ -1886,6 +1886,14 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             }
         }
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+            // Echo player slider styles (PRD folder 4): DEFAULT keeps the
+            // Classic player's own Material slider; WAVY / SLIM / SQUIGGLY
+            // swap in the Echo renderers.
+            val playerSliderStyle by com.muso.music.utils.rememberEnumPreference(
+                key = com.muso.music.constants.SliderStyleKey,
+                defaultValue = com.muso.music.constants.SliderStyle.DEFAULT,
+            )
+            if (playerSliderStyle == com.muso.music.constants.SliderStyle.DEFAULT) {
             Slider(
                 // material3 1.5.0-alpha25 keeps a
                 // binary-compatibility overload of Slider that
@@ -1952,6 +1960,19 @@ internal fun ColumnScope.SpotifyPlaybackControls(
                     )
                 },
             )
+            } else {
+                com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
+                    style = playerSliderStyle,
+                    position = state.sliderValue / 100f,
+                    onSeek = { actions.onSliderChange(it * 100f) },
+                    onSeekFinished = { actions.onSliderChangeFinished() },
+                    accent = state.sliderTrackColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 3.dp)
+                        .align(Alignment.TopCenter),
+                )
+            }
         }
     }
     // Time Layout
