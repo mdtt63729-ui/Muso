@@ -235,7 +235,9 @@ class BottomSheetState(
     }
 
     fun performFling(velocity: Float, onDismiss: (() -> Unit)?) {
-        if (velocity > 250) {
+        // A deliberate swipe is well above 750; 250 let ordinary scrolls and
+        // stray gesture-nav flings pop the player open "by itself".
+        if (velocity > 750) {
             expand()
         } else if (velocity < -250) {
             if (value < collapsedBound && onDismiss != null) {
@@ -349,8 +351,15 @@ fun rememberBottomSheetState(
         }
 
         animatable.updateBounds(dismissedBound.coerceAtMost(expandedBound), expandedBound)
+        // SNAP, never animate: the bounds change whenever the navigation bar
+        // shows/hides per screen or the insets re-report during back
+        // navigation. Animating there slides an opaque grey plate (the
+        // rounded sheet surface) up over the glass bar - the "box below the
+        // player" glitch - and leaves the sheet between anchors, where the
+        // collapsed touch catcher eats taps meant for content. Snapping
+        // re-anchors invisibly and instantly.
         coroutineScope.launch {
-            animatable.animateTo(initialValue, NavigationBarAnimationSpec)
+            animatable.snapTo(initialValue)
         }
 
         BottomSheetState(

@@ -234,7 +234,16 @@ class MusicService : MediaLibraryService(),
                     // first frame from cache - the thumbnail stays until the
                     // video can really appear, then the crossfade swaps it.
                     // No black flash, no spinner, no stall.
-                    if (url != null && preloadCanvasSegment(url)) {
+                    if (url != null) {
+                        // Preload is best-effort: a failed warm-up must never cost
+                        // the user the video itself (that is why videos stopped
+                        // appearing at all - the old HTTP client used by the
+                        // preloader could not open googlevideo URLs behind the
+                        // proxy). Two quick tries with the proxied client, then
+                        // publish anyway: the player streams the rest fine.
+                        if (!preloadCanvasSegment(url) && !preloadCanvasSegment(url)) {
+                            android.util.Log.w("MusicService", "canvas preload failed; publishing unwarmed")
+                        }
                         videoStreamUrl.value = url
                     }
                 }
@@ -469,6 +478,16 @@ class MusicService : MediaLibraryService(),
                         )
                     )
                 }
+            }
+        }
+
+        // Full-song streaming cache (user request): every song that STARTS
+        // PLAYING is fully pulled into the player cache in the background, so
+        // it keeps playing offline and shows up in the library's Recently
+        // Played section. Skipped entirely in data saver mode.
+        currentMediaMetadata.distinctUntilChangedBy { it?.id }.collectLatest(scope) { mediaMetadata ->
+            if (mediaMetadata != null && !dataSaver) {
+                runCatching { downloadUtil.cacheSong(mediaMetadata.id) }
             }
         }
 
@@ -933,9 +952,13 @@ class MusicService : MediaLibraryService(),
                 val source = androidx.media3.datasource.cache.CacheDataSource.Factory()
                     .setCache(cache)
                     .setUpstreamDataSourceFactory(
-                        androidx.media3.datasource.DefaultHttpDataSource.Factory()
-                            .setConnectTimeoutMs(8_000)
-                            .setReadTimeoutMs(8_000),
+                        androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
+                            okhttp3.OkHttpClient.Builder()
+                                .proxy(com.zionhuang.innertube.YouTube.proxy)
+                                .connectTimeout(java.time.Duration.ofSeconds(8))
+                                .readTimeout(java.time.Duration.ofSeconds(8))
+                                .build()
+                        ),
                     )
                     .createDataSource()
                 source.open(androidx.media3.datasource.DataSpec(android.net.Uri.parse(url)))

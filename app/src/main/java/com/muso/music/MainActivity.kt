@@ -556,7 +556,10 @@ class MainActivity : ComponentActivity() {
                         // ended in a dead black strip under the mini player.
                         val behindFloatingGlass = translucentNavBar || liquidGlassNavBar
                         if (shouldShowNavigationBar && !behindFloatingGlass) bottom += NavigationBarHeight
-                        if (!playerBottomSheetState.isDismissed && !liquidGlassNavBar) bottom += MiniPlayerHeight
+                        // The floating pill mini player rides above the bar in BOTH
+                        // modes now (glass and flat), so content always reserves
+                        // its height - no list item hides behind the flat pill.
+                        if (!playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
                         windowsInsets
                             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                             .add(WindowInsets(top = AppBarHeight, bottom = bottom))
@@ -723,8 +726,9 @@ class MainActivity : ComponentActivity() {
                     // Liquid glass engine: the backdrop the floating bar and its
                     // MiniPlayer refract. Base colour must match the theme (white on
                     // light, black on dark) or the glass reads as a muddy overlay.
+                    val isSuiteDarkTheme = MaterialTheme.colorScheme.surface.luminance() <= 0.5f
                     val glassBackdrop = rememberBackdrop(
-                        if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.White else Color.Black,
+                        if (!isSuiteDarkTheme) Color.White else Color.Black,
                     )
                     CompositionLocalProvider(
                         // Motion System PRD §4.2/§7.1: one app-wide press
@@ -739,7 +743,20 @@ class MainActivity : ComponentActivity() {
                         LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
                         LocalDownloadUtil provides downloadUtil,
                         LocalShimmerTheme provides ShimmerTheme,
-                        LocalLiquidGlassEnabled provides liquidGlassNavBar
+                        LocalLiquidGlassEnabled provides liquidGlassNavBar,
+                        // Suite theme locals (the SimpMusic components read these
+                        // instead of MaterialTheme): they were never provided, so
+                        // LocalIsDarkTheme stayed on its static default TRUE - the
+                        // flat/glass navbar accents and the pill MiniPlayer always
+                        // took the DARK variant, which read as light/dark REVERSED
+                        // in light mode. Derive them from the live color scheme.
+                        com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme provides isSuiteDarkTheme,
+                        com.maxrave.simpmusic.ui.theme.LocalAppColors provides
+                            if (isSuiteDarkTheme) {
+                                com.maxrave.simpmusic.ui.theme.DarkAppColors
+                            } else {
+                                com.maxrave.simpmusic.ui.theme.LightAppColors
+                            },
                     ) {
                         NavHost(
                             // The content layer the glass surfaces sample; the bar and
@@ -997,7 +1014,10 @@ class MainActivity : ComponentActivity() {
                             state = playerBottomSheetState,
                             navController = navController,
                             // The glass bar draws its own MiniPlayer; avoid two of them.
-                            showCollapsedMiniPlayer = !liquidGlassNavBar,
+                            // Both modes get the floating pill from the navbar host
+                            // now (glass or flat variant); Muso's old strip mini
+                            // player is gone.
+                            showCollapsedMiniPlayer = false,
                         )
 
                         // === SimpMusic floating navigation bar (PRD section 12) ============

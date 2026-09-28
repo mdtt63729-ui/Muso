@@ -44,6 +44,7 @@ import com.muso.music.LocalDatabase
 import com.muso.music.LocalPlayerConnection
 import com.muso.music.R
 import com.muso.music.constants.DarkModeKey
+import com.muso.music.constants.MiniPlayerHeight
 import com.muso.music.constants.NavigationBarHeight
 import com.muso.music.constants.KeepScreenOnKey
 import com.muso.music.constants.PlayerStyle
@@ -129,12 +130,15 @@ fun BottomSheetPlayer(
         // Only while COLLAPSED, though: the sheet goes opaque again the moment
         // it leaves the collapsed anchor, or the expanded player would be see
         // -through - the feed showed through it and dragging it flickered.
-        backgroundColor = if (!showCollapsedMiniPlayer && state.isCollapsed) Color.Transparent
+        backgroundColor = if (!showCollapsedMiniPlayer && !state.isExpanded && state.value <= state.collapsedBound) Color.Transparent
         else backgroundColor,
         collapsedHitHeight = if (showCollapsedMiniPlayer) null
-        // Glass mode: the suite glass bar owns the bottom (capsule + FAB);
-        // the sheet keeps only the mini player zone above it interactive.
-        else state.collapsedBound - NavigationBarHeight,
+        // Glass mode: ONLY the mini player card itself is interactive. The
+        // old full-width strip (collapsedBound - NavigationBarHeight) also
+        // covered the 24dp above the card, so taps on list content scrolling
+        // behind the glass opened the player instead of the screen - felt
+        // like the player opened "automatically".
+        else MiniPlayerHeight,
         // Reference behaviour: dismissing (swiping away) the mini player is
         // purely visual - playback keeps running and the sheet returns when
         // the connection or queue changes. The old stop()+clearMediaItems()

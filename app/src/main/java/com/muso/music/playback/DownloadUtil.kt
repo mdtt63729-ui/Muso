@@ -19,8 +19,10 @@ import com.muso.music.constants.AudioQualityKey
 import com.muso.music.constants.DownloadQualityKey
 import com.muso.music.db.MusicDatabase
 import com.muso.music.db.entities.FormatEntity
+import com.muso.music.db.entities.LyricsEntity
 import com.muso.music.di.DownloadCache
 import com.muso.music.di.PlayerCache
+import com.muso.music.models.toMediaMetadata
 import com.muso.music.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,6 +54,7 @@ class DownloadUtil @Inject constructor(
     val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: SimpleCache,
     @PlayerCache val playerCache: SimpleCache,
+    private val lyricsHelper: com.muso.music.lyrics.LyricsHelper,
 ) {
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.HIGH)
@@ -101,6 +105,65 @@ class DownloadUtil @Inject constructor(
      * the URL cache shortcut; the download factory always resolves fresh so the two
      * qualities never fight over one cached URL.
      */
+    private val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val cachingSongs = ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Full-song cache-on-play (user request): pulls the ENTIRE audio stream of
+     * [songId] into the player cache through the SAME resolving data source
+     * the player streams with, so the cached bytes are byte-for-byte what
+     * playback itself reads (same itag, same key). After this completes the
+     * song is playable offline and appears in the cache. Songs already fully
+     * cached or already downloaded are skipped; one job per song at a time.
+     */
+    fun cacheSong(songId: String) {
+        if (downloadCache.isCached(songId, 0, Long.MAX_VALUE) ||
+            playerCache.isCached(songId, 0, Long.MAX_VALUE) ||
+            !cachingSongs.add(songId)
+        ) {
+            return
+        }
+        cacheScope.launch {
+            try {
+                runCatching {
+                    val dataSource = dataSourceFactory.createDataSource()
+                    val spec = DataSpec.Builder()
+                        .setUri("https://muso.internal/cache".toUri())
+                        .setKey(songId)
+                        .setPosition(0)
+                        .build()
+                    val buffer = ByteArray(64 * 1024)
+                    try {
+                        dataSource.open(spec)
+                        while (true) {
+                            val read = dataSource.read(buffer, 0, buffer.size)
+                            if (read == C.RESULT_END_OF_INPUT) break
+                        }
+                    } finally {
+                        runCatching { dataSource.close() }
+                    }
+                }
+            } finally {
+                cachingSongs.remove(songId)
+            }
+        }
+    }
+
+    /**
+     * Lyrics travel with the download (user request): once a download completes,
+     * its lyrics are fetched and stored in the local database, so an offline
+     * song carries offline lyrics too. Best-effort and silent on failure.
+     */
+    private suspend fun fetchLyricsForSong(songId: String) {
+        runCatching {
+            val song = database.song(songId).first() ?: return
+            if (database.lyrics(songId).first() == null) {
+                val lyrics = lyricsHelper.getLyrics(song.toMediaMetadata())
+                database.query { upsert(LyricsEntity(songId, lyrics)) }
+            }
+        }
+    }
+
     private fun createDataSourceFactory(quality: () -> AudioQuality, useUrlCache: Boolean) =
         ResolvingDataSource.Factory(
             CacheDataSource.Factory()
@@ -204,6 +267,9 @@ class DownloadUtil @Inject constructor(
                         map.toMutableMap().apply {
                             set(download.request.id, download)
                         }
+                    }
+                    if (download.state == Download.STATE_COMPLETED) {
+                        cacheScope.launch { fetchLyricsForSong(download.request.id) }
                     }
                 }
             }

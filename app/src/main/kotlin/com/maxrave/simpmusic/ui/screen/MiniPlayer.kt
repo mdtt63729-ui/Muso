@@ -411,6 +411,11 @@ fun MiniPlayer(
                                 modifier =
                                     Modifier
                                         .size(40.dp)
+                                        // The wavy progress ring paints slightly outside its
+                                        // circle at full amplitude; without the clip its green
+                                        // arc bled past the artwork and showed as a neon
+                                        // sliver at the glass bar's edge.
+                                        .clip(CircleShape)
                                         .align(Alignment.CenterVertically),
                                 contentAlignment = Alignment.Center,
                             ) {

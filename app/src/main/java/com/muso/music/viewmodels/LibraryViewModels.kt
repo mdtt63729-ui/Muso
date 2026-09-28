@@ -253,6 +253,18 @@ class LibraryMixViewModel @Inject constructor(
 
     val playlists = database.playlists(PlaylistSortType.CREATE_DATE, true)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** Count + content for the featured Liked card on the library home. */
+    val likedSongs = database.likedSongs(SongSortType.CREATE_DATE, true)
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** Songs by latest listen, one row per song - the library home's
+     * "Recently Played" section. Backed by the same streaming cache the
+     * user asked for: play a song and it shows up here, playable offline. */
+    val recentSongs = database.events()
+        .map { events -> events.mapNotNull { it.song }.distinctBy { it.id } }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 }
 
 /**
@@ -268,6 +280,14 @@ class AutoPlaylistViewModel @Inject constructor(
 
     val songs = when (playlist) {
         "liked" -> database.likedSongs(SongSortType.CREATE_DATE, true)
+        // "My top 50": the most-played songs from the listening history.
+        "top" -> database.events().map { events ->
+            events.groupBy { it.event.songId }
+                .map { (_, songEvents) -> songEvents.first().song to songEvents.size }
+                .sortedByDescending { it.second }
+                .take(50)
+                .map { it.first }
+        }.flowOn(Dispatchers.IO)
         else -> downloadUtil.downloads.flatMapLatest { downloads ->
             database.allSongs().map { songs ->
                 songs.filter { downloads[it.id]?.state == Download.STATE_COMPLETED }

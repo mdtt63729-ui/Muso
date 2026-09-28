@@ -35,7 +35,7 @@ data class AppColors(
     val overlayHeavy: Color,
 )
 
-private val DarkAppColors =
+val DarkAppColors =
     AppColors(
         favorite = favoriteColor,
         lyricActive = lyricActiveColor,
@@ -46,7 +46,9 @@ private val DarkAppColors =
     )
 
 // Overlays stay dark in both themes: they cover artwork, where content is always light.
-private val LightAppColors =
+// (Public: Muso's MainActivity provides these alongside LocalIsDarkTheme for the
+// hosted suite components, since the suite AppTheme never wraps them.)
+val LightAppColors =
     DarkAppColors.copy(
         shimmerBackground = shimmerBackgroundLight,
         shimmerLine = shimmerLineLight,

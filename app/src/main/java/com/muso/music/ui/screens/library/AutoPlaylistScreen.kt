@@ -63,6 +63,7 @@ fun AutoPlaylistScreen(
     val songs by viewModel.songs.collectAsState()
     val title = when (viewModel.playlist) {
         "liked" -> stringResource(R.string.liked)
+        "top" -> stringResource(R.string.my_top_50)
         else -> stringResource(R.string.offline)
     }
 

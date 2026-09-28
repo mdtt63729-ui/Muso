@@ -2,6 +2,9 @@ package com.muso.music.ui.player
 
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -9,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -71,6 +75,12 @@ fun BoxScope.MusoNavbarHost(
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
+            // Fade while the stack slides off-screen: without this the glass
+            // MiniPlayer (with its colored wavy progress ring) visibly sinks
+            // below the navigation bar on screens that hide the bar.
+            .graphicsLayer {
+                alpha = (visibleHeight / NavigationBarHeight).coerceIn(0f, 1f)
+            }
             .offset {
                 // The bar's full stack is capsule + glass MiniPlayer above it.
                 // When the player sheet expands, the WHOLE stack must slide off
@@ -100,12 +110,42 @@ fun BoxScope.MusoNavbarHost(
                 reloadDestinationIfNeeded = { onReloadTab() },
             )
         } else {
-            AppBottomNavigationBar(
-                navController = navController,
-                showAnalyticsTab = false,
-                showMixForYouTab = false,
-                reloadDestinationIfNeeded = { onReloadTab() },
-            )
+            // Liquid glass OFF: the SAME pill mini player, flat variant - round
+            // artwork, controls in filled circles, theme-surface card - riding
+            // above the flat capsule exactly like the glass one does. Reference
+            // (SimpMusic navbar files): light theme = white pill on the light
+            // theme, dark theme = dark pill on the dark theme.
+            // Same visibility rule the glass bar uses: no track, no pill.
+            val nowPlayingData by sharedViewModel.nowPlayingState.collectAsState()
+            val isShowMiniPlayer by androidx.compose.runtime.remember {
+                androidx.compose.runtime.derivedStateOf {
+                    val item = nowPlayingData?.mediaItem
+                    item != null && item != com.maxrave.domain.data.player.GenericMediaItem.EMPTY
+                }
+            }
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            ) {
+                if (isShowMiniPlayer) com.maxrave.simpmusic.ui.screen.MiniPlayer(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .height(56.dp),
+                    backdrop = backdrop,
+                    onClick = { playerBottomSheetState.expandSoft() },
+                    onClose = {
+                        sharedViewModel.stopPlayer()
+                        sharedViewModel.isServiceRunning = false
+                    },
+                )
+                AppBottomNavigationBar(
+                    navController = navController,
+                    showAnalyticsTab = false,
+                    showMixForYouTab = false,
+                    reloadDestinationIfNeeded = { onReloadTab() },
+                )
+            }
         }
     }
 }

@@ -2,6 +2,9 @@
     <!-- Bottom navigation -->
     <string name="home">Home</string>
     <string name="library">Library</string>
+    <string name="recently_played">Recently Played</string>
+    <string name="my_top_50">My top 50</string>
+    <string name="most_played">Most played</string>
     <string name="crash_report_title">Muso closed unexpectedly</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
@@ -458,6 +461,7 @@
     <string name="close">Close</string>
     <string name="liked">Liked</string>
     <string name="offline">Offline</string>
+    <string name="downloaded">Downloaded</string>
     <string name="mix_sort_date">Recent</string>
     <string name="mix_sort_name">Name</string>
     <string name="library_mix_empty">Nothing in your library yet</string>

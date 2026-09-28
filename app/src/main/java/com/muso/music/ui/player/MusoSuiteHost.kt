@@ -512,11 +512,29 @@ fun MusoSuiteBridge(
             runCatching {
                 val loader = SingletonImageLoader.get(contextBridge)
                 val result = loader.execute(
-                    ImageRequest.Builder(contextBridge).data(url).size(256).allowHardware(false).build()
+                    ImageRequest.Builder(contextBridge).data(url).size(1024).allowHardware(false).build()
                 )
                 (result as? SuccessResult)?.image?.toImageBitmap()
             }.getOrNull()?.let { bitmapBridge = it }
         }
+    }
+    // Per-player lyrics UI (motion of the lyrics follows the player style):
+    // the Apple Music player renders the Apple Music floating-card lyrics,
+    // the others the classic highlighted-line style. The user's own lyrics
+    // style preference (Apple Music) wins for every player when set.
+    val musoLyricsStyle by com.muso.music.utils.rememberEnumPreference(
+        com.muso.music.constants.LyricsStyleKey,
+        com.muso.music.constants.LyricsStyle.CLASSIC,
+    )
+    LaunchedEffect(musoLyricsStyle, musoPlayerStyle) {
+        dsmBridge.lyricsStyle.value =
+            if (musoLyricsStyle == com.muso.music.constants.LyricsStyle.APPLE_MUSIC ||
+                musoPlayerStyle == com.muso.music.constants.PlayerStyle.IMMERSIVE
+            ) {
+                com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_APPLE_MUSIC
+            } else {
+                com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_CLASSIC
+            }
     }
     val canvasUrlBridge by playerConnection.service.videoStreamUrl.collectAsState()
     val queueTitleBridge by playerConnection.queueTitle.collectAsState()

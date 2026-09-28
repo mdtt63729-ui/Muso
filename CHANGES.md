@@ -1,4 +1,96 @@
-## Round 135 (v0.5.150, code 157)
+## Round 138 (v0.5.153, code 160)
+
+Light/dark reversal fixed for the navbar buttons and the mini player
+(reference images 581031/581032), and glass-OFF now gets the real pill.
+
+## Root cause of the reversal
+The SimpMusic navbar/mini player components read LocalIsDarkTheme and
+LocalAppColors instead of MaterialTheme - and Muso never provided them, so
+LocalIsDarkTheme sat on its static default TRUE. Every suite surface (glass
+MiniPlayer text, flat/glass accents) therefore always took the DARK variant:
+in light mode the bar and pill rendered dark-styled - exactly the reversed
+look. MainActivity now derives both locals from the live color scheme.
+
+## Glass OFF = the flat pill (like the reference files)
+With liquid glass off, Muso used to fall back to its old strip mini player
+and a bare flat bar. Now the navbar host renders the same floating pill
+mini player (flat variant: round artwork, filled-circle controls,
+theme-surface card) above the flat capsule - white pill on light theme,
+dark pill on dark theme, matching the SimpMusic navbar files. Muso's old
+strip is retired; content insets and the collapsed-sheet hit area now
+treat the flat pill exactly like the glass one.
+
+# Round 137 (v0.5.152, code 159)
+
+Video fix, cache-on-play with lyrics, and the Material 3 library redesign.
+
+## 1. Canvas video never appearing
+The preloader used DefaultHttpDataSource, which cannot open googlevideo URLs
+behind the proxy the audio path uses - so every preload failed and the URL was
+never published. The preloader now rides the same proxied OkHttp client, gets
+two tries, and - if warming still fails - the URL is published anyway (the
+player streams it fine; only the instant-start warm-up is lost).
+
+## 2. Cache-on-play + lyrics travel with songs
+- Every song that STARTS PLAYING is fully pulled into the streaming cache in
+  the background (DownloadUtil.cacheSong), through the same resolving data
+  source playback uses - same itag, same key - so after one listen the song
+  plays offline. Skipped in data-saver mode and for songs already downloaded.
+- Lyrics were already fetched and stored in the local DB for every played
+  song; they now also get fetched when a download COMPLETES, so offline songs
+  carry offline lyrics.
+
+## 3. Library redesigned (reference image 581028, Material 3)
+- No search bar on top; filter chips stay above a wide rounded sort bar
+  (sort dropdown + direction toggle).
+- Full-width featured "Liked / MOST PLAYED" gradient card.
+- Big category cards: Downloaded, My top 50 (new - top 50 songs from
+  listening history), History.
+- The separate Cached section is GONE: scrolling down shows "Recently
+  Played" - every song the user has played (and that is now auto-cached),
+  newest first. Tapping a song plays it FROM that list (the list becomes
+  the queue).
+
+# Round 136 (v0.5.151, code 158)
+
+Runtime fixes from the v0.5.150 test screenshots (581018/581020/581022/581023).
+
+## 1. The "box below the player" after back navigation
+Root cause: the player sheet's bounds (collapsedBound = bottomInset +
+NavigationBarHeight + MiniPlayerHeight) are recomputed whenever the nav bar
+shows/hides per screen or the insets re-report during back navigation. The
+state was re-created with an ANIMATE to the new anchor, which slid the sheet's
+opaque, rounded surfaceContainer plate up over the glass bar - the grey box -
+and left the sheet between anchors, where its full-width touch catcher ate
+taps. Bounds re-creation now SNAPs (invisible, instant) and the glass-mode
+sheet stays transparent whenever it is at or below the collapsed anchor.
+
+## 2. Player opening "by itself"
+Two causes fixed: (a) the stuck-between-anchors state above left the touch
+catcher over content that scrolls behind the glass bar, so taps meant for
+lists opened the player; the catcher is now exactly the MiniPlayer card
+(MiniPlayerHeight) instead of the old full-width strip; (b) a stray fling of
+just 250px/s expanded the player - the threshold is 750 now, what a
+deliberate swipe produces.
+
+## 3. Green box sinking below the nav bar
+The glass stack (capsule + MiniPlayer with its green wavy progress ring)
+slid fully off-screen when a screen hid the bar; the ring also painted
+slightly outside its 40dp circle. The stack now fades out while sliding away
+and the ring is clipped to its circle.
+
+## 4. Lyrics UI per player
+The suite's lyrics style was stuck on CLASSIC because nothing fed it. The
+bridge now maps it: Apple Music player (or the user's Apple Music lyrics
+preference) -> the Apple Music floating-card lyrics; the others -> the
+classic highlighted-line style.
+
+## 5. Thumbnail sharpness
+The player's palette bitmap (which also backs the gradient background) was
+loaded at 256px - now 1024px. The big artwork and mini player already load
+the 2160px art URL.
+
+# Round 135 (v0.5.150, code 157)
 
 Fixes the two remaining error groups from the v0.5.149 CI log (paste-1-24).
 
