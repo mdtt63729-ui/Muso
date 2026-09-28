@@ -1,4 +1,12 @@
-## Round 149 (v0.5.166, code 173)
+## Round 150 (v0.5.167, code 174)
+
+CI compile fixes in EchoLyricsStyles.kt (Round 148's integration; everything
+else already compiled clean):
+- TextMeasurer / rememberTextMeasurer imported from androidx.compose.ui.text
+  (not foundation.text / runtime).
+- KARAOKE's horizontalGradient built with a spread vararg instead of a list.
+- Metro layout's wrap check compares Float to Float (Int width -> toFloat).
+# Round 149 (v0.5.166, code 173)
 
 The word-by-word animation default is now ECHOMUSIC_1 - the PRD's own
 default - so the Echo word-by-word look (floating rising words, bold active

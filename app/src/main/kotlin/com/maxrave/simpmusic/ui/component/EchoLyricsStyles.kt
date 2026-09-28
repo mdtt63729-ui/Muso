@@ -28,12 +28,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.text.TextMeasurer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberTextMeasurer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -41,6 +39,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.style.TextOverflow
@@ -198,7 +198,7 @@ private fun EchoWord(
                 val cut = (progress * 0.999f).coerceAtMost(1f)
                 renderedStyle = baseStyle.copy(
                     brush = Brush.horizontalGradient(
-                        colorStops = listOf(
+                        *arrayOf(
                             0f to EchoSungWordColor,
                             cut to EchoSungWordColor,
                             (cut + 0.001f).coerceAtMost(1f) to EchoPendingWordColor,
@@ -348,7 +348,7 @@ private fun measureMetroWords(
     words.forEachIndexed { index, word ->
         val text = if (index == words.size - 1) word.text else word.text + " "
         val layout = textMeasurer.measure(text = text, style = style, maxLines = 1)
-        if (x > 0f && x + layout.size.width > maxWidthPx) {
+        if (x > 0f && x + layout.size.width.toFloat() > maxWidthPx) {
             rows.add(MetroRow(y = y, words = current))
             current = mutableListOf()
             x = 0f
