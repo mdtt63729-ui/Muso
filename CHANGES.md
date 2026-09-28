@@ -1,4 +1,12 @@
-## Round 146 (v0.5.162, code 169)
+## Round 146 (continued, v0.5.163, code 170)
+
+Same content as v0.5.162 plus one import fix: the pull-down-to-player
+gesture in the Apple Music lyrics view imported
+androidx.compose.foundation.gestures (plural) - the singular "gesture"
+package does not exist and failed the build. Re-versioned so the zips
+cannot be mixed up.
+
+# Round 146 (v0.5.162, code 169)
 
 Three user reports with SimpMusic references.
 
