@@ -121,7 +121,7 @@ fun PlayerSettings(
         Spacer(Modifier.height(64.dp))
 
         // Audio quality (user request: must be reachable and findable).
-        PreferenceGroupTitle(text = stringResource(R.string.audio_quality))
+        PreferenceGroupTitle(title = stringResource(R.string.audio_quality))
         EnumListPreference(
             title = { Text(stringResource(R.string.streaming_quality)) },
             icon = { BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },

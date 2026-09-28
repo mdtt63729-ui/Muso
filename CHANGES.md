@@ -1,3 +1,12 @@
+# Round 157 (v0.5.174, code 181)
+
+CI fix for the v0.5.173 build log (paste-1-32):
+- BlobSettingIcon: missing import androidx.compose.ui.graphics.asAndroidPath
+  (the blob shadow path conversion) - unresolved reference.
+- PlayerSettings: PreferenceGroupTitle takes title =, not text =.
+Both were the only two errors; everything else (quality itag selection,
+requireHighQuality chain, innertube) compiled clean - innertube even
+compiles with just two cosmetic warnings on the new player code.
 # Round 156 (v0.5.173, code 180)
 
 High Opus / High AAC actually arriving (user report: works in SimpMusic,
