@@ -113,7 +113,7 @@ fun MusoSuiteHost(
         com.muso.music.constants.LyricsStyleKey, defaultValue = "1",
     )
     val lyricsPlayerStyle by com.muso.music.utils.rememberEnumPreference(
-        com.muso.music.constants.PlayerStyleKey, defaultValue = com.muso.music.constants.PlayerStyle.CLASSIC,
+        com.muso.music.constants.PlayerStyleKey, defaultValue = com.muso.music.constants.PlayerStyle.EXPRESSIVE,
     )
     androidx.compose.runtime.LaunchedEffect(lyricsStylePref, lyricsPlayerStyle) {
         dsm.lyricsStyle.value = when {
@@ -189,7 +189,7 @@ fun MusoSuiteHost(
     val context = LocalContext.current
     LaunchedEffect(mediaMetadata?.id, mediaMetadata?.thumbnailUrl) {
         artworkBitmap = null
-        val url = mediaMetadata?.thumbnailUrl
+        val url = hqYtThumb(mediaMetadata?.thumbnailUrl)
         if (url != null) {
             runCatching {
                 val loader = SingletonImageLoader.get(context)
@@ -268,7 +268,7 @@ fun MusoSuiteHost(
             artistName = md?.artists?.joinToString(", ") { it.name } ?: "",
             isVideo = canvasUrl != null,
             isExplicit = false,
-            thumbnailURL = md?.thumbnailUrl,
+            thumbnailURL = hqYtThumb(md?.thumbnailUrl),
             canvasData = canvasUrl?.let { NowPlayingScreenData.CanvasData(isVideo = true, url = it) },
             lyricsData = lyricsData,
             songInfoData = null,
@@ -509,7 +509,7 @@ fun MusoSuiteBridge(
     val dsmBridge: com.maxrave.domain.manager.DataStoreManager = org.koin.compose.koinInject()
     val musoPlayerStyle by com.muso.music.utils.rememberEnumPreference(
         com.muso.music.constants.PlayerStyleKey,
-        com.muso.music.constants.PlayerStyle.CLASSIC,
+        com.muso.music.constants.PlayerStyle.EXPRESSIVE,
     )
     LaunchedEffect(musoPlayerStyle) {
         dsmBridge.nowPlayingStyle.value = when (musoPlayerStyle) {
@@ -588,7 +588,7 @@ fun MusoSuiteBridge(
             artistName = md?.artists?.joinToString(", ") { it.name } ?: "",
             isVideo = canvasUrlBridge != null,
             isExplicit = false,
-            thumbnailURL = md?.thumbnailUrl,
+            thumbnailURL = hqYtThumb(md?.thumbnailUrl),
             canvasData = canvasUrlBridge?.let { NowPlayingScreenData.CanvasData(isVideo = true, url = it) },
             lyricsData = lyricsData,
             songInfoData = null,
@@ -800,4 +800,18 @@ private fun com.maxrave.domain.data.model.browse.album.Track.toMusMediaItem(): a
         explicit = isExplicit,
     )
     return metadata.toMediaItem()
+}
+
+// YouTube thumbnail URLs come in many low-res forms (w544, hqdefault, ...);
+// the highest-resolution variant of /vi/<id>/ art is maxresdefault. Upgrading
+// at the source means the player artwork, palette and every queue/list render
+// from the full-resolution image, not just the ones that pass through Coil's
+// interceptor.
+private fun hqYtThumb(url: String?): String? {
+    if (url == null) return null
+    val i = url.indexOf("i.ytimg.com/vi/")
+    if (i < 0) return url
+    val id = url.substringAfter("i.ytimg.com/vi/").substringBefore("/")
+    if (id.isBlank()) return url
+    return "https://i.ytimg.com/vi/$id/maxresdefault.jpg"
 }

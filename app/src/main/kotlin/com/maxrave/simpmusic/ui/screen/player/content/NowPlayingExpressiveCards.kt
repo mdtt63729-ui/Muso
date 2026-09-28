@@ -529,6 +529,28 @@ internal fun ExpressiveBelowTheFold(
     val uriHandler = LocalUriHandler.current
     var showShareLyricsSheet by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.padding(horizontal = 20.dp)) {
+        // While the lyrics fetch is running, the real lyrics card below is
+        // hidden (AnimatedVisibility drops it) - that left a hole in the
+        // below-the-fold content that read as broken. A tonal loading card
+        // keeps the fold the same height and makes the wait explicit.
+        if (state.screenData.lyricsData == null) {
+            Surface(
+                shape = ExpressiveCardShape,
+                color = colorScheme.surfaceContainer,
+                modifier = Modifier.padding(top = 10.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White.copy(alpha = 0.6f),
+                        strokeWidth = 2.dp,
+                    )
+                }
+            }
+        }
         // Lyrics card
         AnimatedVisibility(
             visible = state.screenData.lyricsData != null,
@@ -605,6 +627,7 @@ internal fun ExpressiveBelowTheFold(
                             Modifier
                                 .fillMaxWidth()
                                 .height(300.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         state.screenData.lyricsData?.let {
                             LyricsView(
@@ -615,7 +638,11 @@ internal fun ExpressiveBelowTheFold(
                                 },
                                 backgroundColor = colorScheme.surfaceContainer,
                             )
-                        }
+                        } ?: CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White.copy(alpha = 0.6f),
+                            strokeWidth = 2.dp,
+                        )
                     }
 
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {

@@ -541,6 +541,24 @@ class MainActivity : ComponentActivity() {
                     val (translucentNavBar, onTranslucentNavBarChange) = rememberPreference(TranslucentNavigationBarKey, defaultValue = false)
                     val liquidGlassNavBar by rememberPreference(LiquidGlassNavBarKey, defaultValue = true)
 
+                    // One-time: M3 Expressive is the default player style now (user
+                    // request). Only a stored CLASSIC (the old default) migrates; after
+                    // this runs once, whatever the user picks is respected.
+                    LaunchedEffect(Unit) {
+                        val prefs = androidx.compose.ui.platform.LocalContext.current.dataStore.data.first()
+                        if (prefs[com.muso.music.constants.PlayerStyleMigratedKey] != true) {
+                            androidx.compose.ui.platform.LocalContext.current.dataStore.edit {
+                                if (it[com.muso.music.constants.PlayerStyleKey] ==
+                                    com.muso.music.constants.PlayerStyle.CLASSIC.name
+                                ) {
+                                    it[com.muso.music.constants.PlayerStyleKey] =
+                                        com.muso.music.constants.PlayerStyle.EXPRESSIVE.name
+                                }
+                                it[com.muso.music.constants.PlayerStyleMigratedKey] = true
+                            }
+                        }
+                    }
+
                     val playerBottomSheetState = rememberBottomSheetState(
                         dismissedBound = 0.dp,
                         collapsedBound = bottomInset + (if (shouldShowNavigationBar) NavigationBarHeight else 0.dp) + MiniPlayerHeight,
@@ -1017,7 +1035,13 @@ class MainActivity : ComponentActivity() {
                             // Both modes get the floating pill from the navbar host
                             // now (glass or flat variant); Muso's old strip mini
                             // player is gone.
-                            showCollapsedMiniPlayer = false,
+                            // Settings and other navbar-hidden screens: the floating
+                            // pill rides the navigation bar, which is hidden there -
+                            // without this the collapsed sheet painted an EMPTY plate
+                            // (the grey box over Settings' last rows). The strip mini
+                            // player takes its place, exactly like the pre-NavbarHost
+                            // app did on those screens.
+                            showCollapsedMiniPlayer = !shouldShowNavigationBar,
                         )
 
                         // === SimpMusic floating navigation bar (PRD section 12) ============

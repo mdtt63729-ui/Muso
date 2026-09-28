@@ -1017,7 +1017,19 @@ class MusicService : MediaLibraryService(),
                 playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
             ) {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec
+                // Instant path ONLY when the WHOLE file is cached. A partial hit
+                // stranded the player at the cache boundary: the spec keeps its
+                // unresolved placeholder URI (no stream URL was resolved), so the
+                // moment playback crossed into uncached ranges the upstream fetch
+                // died - "resumes from cache, then stops". Partially cached songs
+                // fall through to the full resolve below, where the real URL makes
+                // the boundary fetch work; the cached ranges still play from cache.
+                val fullyCached =
+                    downloadCache.isCached(mediaId, 0, Long.MAX_VALUE) ||
+                        playerCache.isCached(mediaId, 0, Long.MAX_VALUE)
+                if (fullyCached) {
+                    return@Factory dataSpec
+                }
             }
 
             songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {

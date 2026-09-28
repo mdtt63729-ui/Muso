@@ -1282,6 +1282,7 @@ fun NowPlayingContentSpotify(
                                             Modifier
                                                 .fillMaxWidth()
                                                 .height(300.dp),
+                                        contentAlignment = Alignment.Center,
                                     ) {
                                         state.screenData.lyricsData?.let {
                                             LyricsView(
@@ -1290,6 +1291,15 @@ fun NowPlayingContentSpotify(
                                                 onLineClick = { f ->
                                                     actions.onUIEvent(UIEvent.UpdateProgress(f))
                                                 },
+                                            )
+                                        } ?: run {
+                                            // While the lyrics fetch is still running the
+                                            // section used to be a blank hole - now it reads as
+                                            // loading, and the page stays scrollable meanwhile.
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                color = Color.White.copy(alpha = 0.6f),
+                                                strokeWidth = 2.dp,
                                             )
                                         }
                                     }

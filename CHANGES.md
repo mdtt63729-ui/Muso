@@ -1,4 +1,47 @@
-## Round 142 (v0.5.157, code 164)
+## Round 143 (v0.5.158, code 165)
+
+Round of user reports on 0.5.157.
+
+## 1. Thumbnail quality - everywhere, for real this time
+The YouTube interceptor only upgraded (hq|mq|sd)default-style URLs: the
+w544-style URLs the database stores came back UNCHANGED, so every song
+thumbnail rendered low-res no matter what size was requested. The
+interceptor now rebuilds the URL from the /vi/<id>/ base and tries
+maxresdefault then hq720 for ANY low-res form, and the player bridge
+upgrades the artwork/thumbnail URL at the source too. Player artwork,
+palette, queue, mini player and lists all render from full-resolution art.
+
+## 2. Box overlay in Settings (navbar hidden screens)
+The floating pill mini player rides the navigation bar - which Settings
+hides - so there the collapsed sheet painted an EMPTY plate: the grey box
+over the last Settings rows. Navbar-hidden screens now show the strip mini
+player in the sheet instead (pre-NavbarHost behaviour).
+
+## 3. Box riding the collapse to mini player
+The sheet plate turned fully opaque from 25% expansion while the content
+was still half-faded - a bare plate visibly rode down with the collapsing
+player. The plate now fades in on the exact same curve as the content, so
+it is never visible on its own (except under the strip mini player, where
+it is the strip's surface).
+
+## 4. Lyrics loading UX
+While the lyrics fetch runs, the in-player lyrics section was a blank
+hole (Spotify) and the M3 Expressive lyrics card vanished from the fold.
+Both now show a small spinner; the page stays scrollable meanwhile.
+
+## 5. Resume from cache froze after the restart
+A partially cached song resumed straight from the cache path, which skips
+URL resolution - the dataSpec kept its placeholder URI, so the moment
+playback crossed the cache boundary the upstream fetch died and the song
+froze right after resuming. Only FULLY cached songs take the instant path
+now; partial caches resolve the real URL (cached ranges still play from
+cache).
+
+## 6. Default player style: M3 Expressive
+New default everywhere plus a one-time migration from the stored CLASSIC
+(the old default) - a deliberate later choice is respected.
+
+# Round 142 (v0.5.157, code 164)
 
 HOTFIX 2: the app froze after opening (nothing clickable, v0.5.156).
 

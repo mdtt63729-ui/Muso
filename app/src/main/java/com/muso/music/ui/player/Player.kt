@@ -135,8 +135,16 @@ fun BottomSheetPlayer(
         // content is alpha-0 there anyway), so a re-anchored or
         // between-insets frame can never flash the grey plate under the
         // glass bar - that was the "box below the navbar/player".
-        backgroundColor = if (!state.isExpanded && state.progress < 0.25f) Color.Transparent
-        else backgroundColor,
+        // The plate fades in on the SAME curve as the expanded content
+        // ((progress - 0.25) * 4). Sharing the curve, no frame ever shows a
+        // bare plate box riding down with the collapsing player - it used to
+        // turn fully opaque at 25% while the content was still half-faded.
+        // With the strip mini player (navbar-hidden screens like Settings)
+        // the plate IS the strip's surface, so it stays opaque there.
+        backgroundColor = if (showCollapsedMiniPlayer) backgroundColor
+        else backgroundColor.copy(
+            alpha = backgroundColor.alpha * ((state.progress - 0.25f) * 4f).coerceIn(0f, 1f),
+        ),
         collapsedHitHeight = if (showCollapsedMiniPlayer) null
         // Glass mode: ONLY the mini player card itself is interactive. The
         // old full-width strip (collapsedBound - NavigationBarHeight) also
@@ -161,7 +169,7 @@ fun BottomSheetPlayer(
             }
         },
     ) {
-        val playerStyle by rememberEnumPreference(PlayerStyleKey, PlayerStyle.CLASSIC)
+        val playerStyle by rememberEnumPreference(PlayerStyleKey, PlayerStyle.EXPRESSIVE)
 
         // === Real audio codec detection (Echo Music port): the player's currently
         // selected audio track, observed through onTracksChanged. Nothing is faked

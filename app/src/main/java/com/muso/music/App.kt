@@ -289,11 +289,20 @@ private class HqThumbnailInterceptor : Interceptor {
             if (data.contains("i.ytimg.com/vi/") &&
                 !data.contains("/maxresdefault") && !data.contains("/hq720")
             ) {
-                for (url in listOf(
-                    lowResPattern.replace(data, "/maxresdefault"),
-                    lowResPattern.replace(data, "/hq720")
-                )) {
-                    tryLoad(chain, url)?.let { return it }
+                // Rebuild from the /vi/<id>/ base instead of regex-replacing the
+                // filename: the old replace only matched (hq|mq|sd)default names,
+                // so w544-style URLs (what the database stores) came back
+                // UNCHANGED - every song thumbnail stayed low-res. The base is
+                // always /vi/<videoId>/ whatever the size suffix was.
+                val base = data.substring(0, data.indexOf("/vi/") + 4)
+                val id = data.substringAfter("/vi/").substringBefore("/")
+                if (id.isNotBlank()) {
+                    for (url in listOf(
+                        "${base}maxresdefault.jpg",
+                        "${base}hq720.jpg",
+                    )) {
+                        tryLoad(chain, url)?.let { return it }
+                    }
                 }
             }
         }
