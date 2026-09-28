@@ -351,6 +351,12 @@ fun rememberBottomSheetState(
     }
 
     val state = remember {
+        // Bounds are set HERE, synchronously, BEFORE the state is returned:
+        // the very first composition already reads state.isDismissed /
+        // progress (animatable.lowerBound!!/upperBound!!), and setting the
+        // bounds only in the LaunchedEffect below left them null for that
+        // first read - the instant crash on app open in v0.5.155.
+        animatable.updateBounds(dismissedBound.coerceAtMost(expandedBound), expandedBound)
         BottomSheetState(
             draggableState = DraggableState { delta ->
                 coroutineScope.launch {

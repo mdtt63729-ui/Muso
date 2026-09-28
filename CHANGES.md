@@ -1,4 +1,17 @@
-## Round 140 (v0.5.155, code 162)
+## Round 141 (v0.5.156, code 163)
+
+HOTFIX: crash on app open (v0.5.155 regression).
+
+The Round 140 sheet rewrite moved animatable.updateBounds() into the
+LaunchedEffect, which runs only AFTER the first composition. The very
+first frame reads state.isDismissed/progress (animatable.lowerBound!!/
+upperBound!!) while the bounds were still null - instant NullPointerException
+the moment the app opened. The bounds are now set synchronously inside the
+remember block, before the state is ever returned; the LaunchedEffect keeps
+handling later bounds changes and re-anchoring. Everything else from
+Round 140 is unchanged.
+
+# Round 140 (v0.5.155, code 162)
 
 Runtime polish round for the reports on 0.5.154.
 
