@@ -1,3 +1,16 @@
+# Round 172 (v0.5.184, code 191) — buildfix round 5: single remaining compile error
+
+Every module except :morideobfuscator now compiles (all lyrics providers,
+core, canvas, innertube, kizzy, lastfm, spotifycore, kugou, etc.).
+Fixed the last error:
+- :morideobfuscator YoutubeiHttpClient.kt readLimitedBody(): okhttp 4's
+  `Response.body` is nullable (AT targets okhttp 5 where it is not);
+  changed `val responseBody = body` to `val responseBody = body!!`.
+  Scanned all ported modules — no other raw okhttp `body` uses remain.
+
+Next CI run proceeds to :morideobfuscator + :app compilation (KSP/Room),
+then packaging.
+
 # Round 171 (v0.5.184, code 191) — buildfix round 4: first real compile errors
 
 The build now reaches Kotlin compilation (all modules configured OK).

@@ -294,7 +294,7 @@ internal class YoutubeiHttpClient(
         }
 
     private fun Response.readLimitedBody(maxBytes: Int): ByteArray {
-        val responseBody = body
+        val responseBody = body!!
         val declaredLength = responseBody.contentLength()
         require(declaredLength < 0L || declaredLength <= maxBytes)
         val output = ByteArrayOutputStream(minOf(maxBytes, 64 * 1024))
