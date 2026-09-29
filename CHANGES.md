@@ -1,3 +1,12 @@
+# Round 169 (v0.5.184, code 191) — buildfix round 2: version-catalog alias
+
+The build now failed at :app configuration: `implementation(libs.okhttp)`
+resolved to the OkhttpLibraryAccessors GROUP, because the toml had the
+okhttp VERSION and okhttp-dnsoverhttps LIBRARY but was missing the plain
+`okhttp` library alias. Added it (same leaf+children pattern as the
+existing media3 aliases). All libs.*/plugins.* references in every module
+build file re-validated against the catalog - zero unresolved.
+
 # Round 168 (v0.5.184, code 191) — GitHub build fix: ArchiveTune dependency closure
 
 The FossRelease build failed at (a) the manifest merger (accompanist lyrics-ui
