@@ -266,6 +266,7 @@ fun MediaPlayerViewWithSubtitle(
     context: Context,
     activity: ComponentActivity,
     playerName: String,
+    cropToBounds: Boolean = false,
     shouldPip: Boolean = false,
     shouldShowSubtitle: Boolean,
     shouldScaleDownSubtitle: Boolean = false,
@@ -494,14 +495,26 @@ fun MediaPlayerViewWithSubtitle(
                     player = player,
                     surfaceType = SURFACE_TYPE_SURFACE_VIEW,
                     modifier =
-                        Modifier
-                            .wrapContentSize()
-                            // The size the player already has, not a listener waiting for a change:
-                            // the Full build's session player is a CastPlayer, which only reports a
-                            // size that differs from its last one, so a view composed mid-video
-                            // (Now Playing reopened after fullscreen) never heard it and sat at 16:9.
-                            .aspectRatio(presentationState.videoSizeDp?.let { it.width / it.height } ?: 16f / 9)
-                            .align(Alignment.Center),
+                        if (cropToBounds) {
+                            // Full-bleed (user spec): center scale-to-cover the caller's frame,
+                            // same treatment the canvas backdrop uses - never letterboxed,
+                            // never stretched.
+                            Modifier
+                                .fillMaxSize()
+                                .resizeWithContentScale(
+                                    contentScale = ContentScale.Crop,
+                                    sourceSizeDp = presentationState.videoSizeDp,
+                                )
+                        } else {
+                            Modifier
+                                .wrapContentSize()
+                                // The size the player already has, not a listener waiting for a change:
+                                // the Full build's session player is a CastPlayer, which only reports a
+                                // size that differs from its last one, so a view composed mid-video
+                                // (Now Playing reopened after fullscreen) never heard it and sat at 16:9.
+                                .aspectRatio(presentationState.videoSizeDp?.let { it.width / it.height } ?: 16f / 9)
+                                .align(Alignment.Center)
+                        },
                 )
 
                 if (presentationState.coverSurface) {

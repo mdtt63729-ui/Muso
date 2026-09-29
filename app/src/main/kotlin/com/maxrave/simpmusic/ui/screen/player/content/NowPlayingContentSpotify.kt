@@ -1827,7 +1827,18 @@ internal fun ColumnScope.SpotifyPlaybackControls(
     actions: NowPlayingContentActions,
     sliderModifier: Modifier = Modifier,
 ) {
-    // Real Slider
+    // Real Slider. Style is read here ONCE, above the shell, because the
+    // buffer bar below and the slider itself both branch on it.
+    val playerSliderStyle by com.muso.music.utils.rememberEnumPreference(
+        key = com.muso.music.constants.SliderStyleKey,
+        defaultValue = com.muso.music.constants.SliderStyle.DEFAULT,
+    )
+    val isDefaultSliderStyle = playerSliderStyle == com.muso.music.constants.SliderStyle.DEFAULT
+    // Shell height per style: the Echo renderers draw at their own height
+    // (SQUIGGLY 48dp, WAVY with its thumb) and must not be clipped into the
+    // times row below.
+    val sliderShellHeight =
+        if (playerSliderStyle == com.muso.music.constants.SliderStyle.SQUIGGLY) 52.dp else 24.dp
     Box(
         Modifier
             .padding(
@@ -1839,10 +1850,13 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(24.dp),
+                    .height(sliderShellHeight),
             contentAlignment = Alignment.Center,
         ) {
-            Crossfade(state.timelineState.loading) {
+            // The buffered/indeterminate gray bar is the DEFAULT slider's buffer
+            // layer ONLY - under the Echo renderers it showed through as a second
+            // bar (user report: WAVY and SLIM both looked doubled).
+            if (isDefaultSliderStyle) Crossfade(state.timelineState.loading) {
                 if (it) {
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
                         LinearProgressIndicator(
@@ -1889,11 +1903,7 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             // Echo player slider styles (PRD folder 4): DEFAULT keeps the
             // Classic player's own Material slider; WAVY / SLIM / SQUIGGLY
             // swap in the Echo renderers.
-            val playerSliderStyle by com.muso.music.utils.rememberEnumPreference(
-                key = com.muso.music.constants.SliderStyleKey,
-                defaultValue = com.muso.music.constants.SliderStyle.DEFAULT,
-            )
-            if (playerSliderStyle == com.muso.music.constants.SliderStyle.DEFAULT) {
+            if (isDefaultSliderStyle) {
             Slider(
                 // material3 1.5.0-alpha25 keeps a
                 // binary-compatibility overload of Slider that
@@ -1975,6 +1985,33 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             }
         }
     }
+    // Real codec + bitrate under the progress bar (user request): a pill like
+    // the Apple style's badge, shown only when the setting is on AND the
+    // format is actually known - never a placeholder.
+    val codecBadgeLabel = state.audioCodecLabel
+    if (state.showCodecBadge && codecBadgeLabel != null) {
+        Row(
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(Color.White.copy(alpha = 0.16f))
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    text = codecBadgeLabel,
+                    style = typo().bodySmall.copy(color = Color.White.copy(alpha = 0.9f)),
+                )
+            }
+        }
+    }
+
     // Time Layout
     Row(
         Modifier

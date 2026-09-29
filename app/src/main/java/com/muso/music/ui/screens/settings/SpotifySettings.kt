@@ -189,7 +189,7 @@ fun SpotifySettings(
             PreferenceEntry(
                 title = { Text(stringResource(R.string.log_out_from_spotify)) },
                 description = stringResource(R.string.spotify_logged_in, displayName),
-                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.spotify)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.logout)) },
                 onClick = { showLogOutDialog = true },
             )
 

@@ -83,7 +83,7 @@ fun AboutScreen(
             Text(
                 text = stringResource(R.string.app_name),
                 // Brand wordmark: Gochi Hand, weight 400, no effects.
-                fontFamily = FontFamily(Font(R.font.gochi_hand)),
+                fontFamily = FontFamily(Font(R.font.josefin_sans)),
                 fontWeight = FontWeight.Normal,
                 fontSize = 30.sp,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
@@ -162,23 +162,6 @@ fun AboutScreen(
                 )
             }
 
-            IconButton(
-                onClick = { uriHandler.openUri("https://liberapay.com/zionhuang") }
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.liberapay),
-                    contentDescription = null
-                )
-            }
-
-            IconButton(
-                onClick = { uriHandler.openUri("https://www.buymeacoffee.com/zionhuang") }
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.buymeacoffee),
-                    contentDescription = null
-                )
-            }
         }
 
     }

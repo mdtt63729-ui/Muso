@@ -23,8 +23,8 @@ android {
         applicationId = "com.muso.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 181
-        versionName = "0.5.174"
+        versionCode = 191
+        versionName = "0.5.184"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -104,6 +104,19 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.navigation)
     implementation(libs.hilt.navigation)
+    // ArchiveTune settings kit (Phase 1)
+    implementation(libs.translator)
+    implementation(libs.markwon.core)
+    implementation(libs.markwon.ext.strikethrough)
+    implementation(libs.markwon.ext.tables)
+    implementation(libs.markwon.ext.tasklist)
+    implementation(libs.markwon.html)
+    implementation(libs.markwon.image)
+    implementation(libs.markwon.linkify)
+    implementation(libs.markwon.simple.ext)
+    implementation(libs.accompanist.lyrics.ui)
+    implementation(libs.accompanist.lyrics.core)
+    implementation(libs.androidsvg)
     implementation(libs.datastore)
     implementation(libs.work.runtime)
 

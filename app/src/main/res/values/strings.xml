@@ -217,6 +217,9 @@
     <string name="player_style_desc">Pick the fullscreen player design</string>
     <string name="player_style_classic">Classic</string>
     <string name="player_style_expressive">Expressive</string>
+    <string name="player_style_classic_v2">Classic V2</string>
+    <string name="player_style_m3_expressive">M3 Expressive</string>
+    <string name="player_style_immersive_nightly">Immersive Nightly</string>
     <string name="player_style_immersive">Immersive</string>
     <string name="mini_player_style">Mini player style</string>
     <string name="mini_player_style_glass">Glass</string>
@@ -228,6 +231,9 @@
     <string name="audio_quality_high_aac">High AAC - 256 kbps (YT Premium)</string>
     <string name="developer">Developer</string>
     <string name="streaming_quality">Streaming quality</string>
+    <string name="media_notification_previous">Previous</string>
+    <string name="media_notification_play_pause">Play or pause</string>
+    <string name="media_notification_next">Next</string>
     <string name="slim">Slim</string>
     <string name="word_by_word_animation_style">Word-by-word animation style</string>
     <string name="lyrics_style_flare">Flare</string>

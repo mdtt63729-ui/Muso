@@ -599,7 +599,14 @@ fun NowPlayingScreenContent(
         KeepScreenOn()
     }
     val state =
+        // The Show codec on player setting (Appearance), read here so every
+        // player style renders the badge from one source of truth.
+        val (showCodecOnPlayer) = com.muso.music.utils.rememberPreference(
+            key = com.muso.music.constants.ShowCodecOnPlayerKey,
+            defaultValue = true,
+        )
         NowPlayingContentState(
+            showCodecBadge = showCodecOnPlayer,
             screenData = screenDataState,
             controllerState = controllerState,
             timelineState = timelineState,
@@ -630,7 +637,14 @@ fun NowPlayingScreenContent(
             // `audio/webm; codecs="opus"` with a regex and stores the two halves in SEPARATE
             // columns: mimeType keeps "audio/webm", codecs keeps "opus". Asking mimeType for the
             // codec therefore never matched anything and the badge never rendered, on any track.
-            audioCodecLabel = formatState?.codecs.toAudioCodecLabel(),
+            // REAL codec + bitrate from the resolved stream's FormatEntity —
+            // e.g. "OPUS • 129 kbps". Null when unknown, so nothing fakes.
+            audioCodecLabel = formatState?.let { f ->
+                f.codecs.toAudioCodecLabel()?.let { codec ->
+                    val kbps = f.bitrate?.takeIf { it > 0 }?.let { b -> "${b / 1000} kbps" }
+                    if (kbps != null) "$codec • $kbps" else codec
+                }
+            },
             videoAspectRatio = rememberVideoAspectRatio(MAIN_PLAYER) ?: 16f / 9,
         )
     val actions =

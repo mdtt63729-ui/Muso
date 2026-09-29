@@ -534,7 +534,7 @@ internal fun AppleMusicTimesRow(
                 label = "appleMusicCrossfadeLabelAlpha",
             )
             val codecBadgeAlpha by animateFloatAsState(
-                targetValue = if (!state.timelineState.isCrossfading && codec != null) 1f else 0f,
+                targetValue = if (state.showCodecBadge && !state.timelineState.isCrossfading && codec != null) 1f else 0f,
                 label = "appleMusicCodecBadgeAlpha",
             )
             Box(modifier = Modifier.alpha(crossfadeLabelAlpha)) {
@@ -818,14 +818,43 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
     // Fixed 18dp shell: the track swells on touch, but inside a CONSTANT footprint —
     // otherwise the growing slider re-measures this whole column and the artwork above
     // it visibly jumps. It also gives the bar a real 18dp touch target instead of 7dp.
-    Box(modifier = Modifier.fillMaxWidth().height(18.dp), contentAlignment = Alignment.Center) {
-        AppleMusicThinSlider(
-            value = state.sliderValue / 100f,
-            activeColor = if (state.timelineState.isCrossfading) state.sliderTrackColor else AppleMusicTrackActive,
-            onValueChange = { actions.onSliderChange(it * 100f) },
-            onValueChangeFinished = actions.onSliderChangeFinished,
-            modifier = Modifier.fillMaxWidth(),
-        )
+    // Player slider styles now apply here too (user report: only the
+    // Spotify-style player honoured them). DEFAULT keeps Apple's own
+    // thin phồng slider; WAVY / SLIM / SQUIGGLY swap in the Echo
+    // renderers. The VOLUME slider above stays Apple-thin on purpose.
+    // Shell height per style: DEFAULT keeps the 18dp Apple shell; the Echo
+    // renderers draw taller (SQUIGGLY 48dp, WAVY with its thumb) and must not
+    // be clipped into the times row below (user report: slim/wavy looked
+    // wrong here too).
+    val playerSliderStyle by com.muso.music.utils.rememberEnumPreference(
+        key = com.muso.music.constants.SliderStyleKey,
+        defaultValue = com.muso.music.constants.SliderStyle.DEFAULT,
+    )
+    val sliderShellHeight =
+        when (playerSliderStyle) {
+            com.muso.music.constants.SliderStyle.SQUIGGLY -> 52.dp
+            com.muso.music.constants.SliderStyle.WAVY -> 32.dp
+            else -> 26.dp
+        }
+    Box(modifier = Modifier.fillMaxWidth().height(sliderShellHeight), contentAlignment = Alignment.Center) {
+        if (playerSliderStyle == com.muso.music.constants.SliderStyle.DEFAULT) {
+            AppleMusicThinSlider(
+                value = state.sliderValue / 100f,
+                activeColor = if (state.timelineState.isCrossfading) state.sliderTrackColor else AppleMusicTrackActive,
+                onValueChange = { actions.onSliderChange(it * 100f) },
+                onValueChangeFinished = actions.onSliderChangeFinished,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
+                style = playerSliderStyle,
+                position = state.sliderValue / 100f,
+                onSeek = { actions.onSliderChange(it * 100f) },
+                onSeekFinished = { actions.onSliderChangeFinished() },
+                accent = AppleMusicTrackActive,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
     AppleMusicTimesRow(state = state, typography = typography, modifier = Modifier.padding(top = 8.dp))
     Spacer(modifier = Modifier.height(12.dp))

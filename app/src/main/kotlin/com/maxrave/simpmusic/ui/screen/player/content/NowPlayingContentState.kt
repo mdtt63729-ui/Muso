@@ -109,6 +109,8 @@ class NowPlayingContentState(
     val dismissIcon: ImageVector,
     /** Current track's audio codec ("OPUS"/"AAC"), or null while unknown — see [toAudioCodecLabel]. */
     val audioCodecLabel: String? = null,
+    /** Whether the codec/quality badge may render — the Show codec on player setting. */
+    val showCodecBadge: Boolean = true,
     /**
      * Width / height of the video now playing, 16:9 until the player knows it. Every style sizes
      * its video frame from this one value, so a frame and the spacer that measures it cannot drift.

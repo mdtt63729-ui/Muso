@@ -1,11 +1,17 @@
 [versions]
+translator = "1.1.1"
+markwon = "4.6.2"
+accompanist = "1.0.19"
+accompanist-core = "0.4.7"
+androidsvg = "1.4"
+
 androidGradlePlugin = "9.2.1"
 annotation = "1.9.1"
 json = "20240303"
 kotlin = "2.4.20"
 compose = "1.12.0"
 lifecycle = "2.9.4"
-material3 = "1.5.0-alpha22"
+material3 = "1.5.0-alpha23"
 haze = "2.0.0"
 media3 = "1.11.1"
 room = "2.8.5"
@@ -15,6 +21,19 @@ ktor = "2.3.12"
 ksp = "2.3.9"
 
 [libraries]
+translator = { module = "com.github.therealbush:translator", version.ref = "translator" }
+markwon-core = { module = "io.noties.markwon:core", version.ref = "markwon" }
+markwon-ext-strikethrough = { module = "io.noties.markwon:ext-strikethrough", version.ref = "markwon" }
+markwon-ext-tables = { module = "io.noties.markwon:ext-tables", version.ref = "markwon" }
+markwon-ext-tasklist = { module = "io.noties.markwon:ext-tasklist", version.ref = "markwon" }
+markwon-html = { module = "io.noties.markwon:html", version.ref = "markwon" }
+markwon-image = { module = "io.noties.markwon:image", version.ref = "markwon" }
+markwon-linkify = { module = "io.noties.markwon:linkify", version.ref = "markwon" }
+markwon-simple-ext = { module = "io.noties.markwon:simple-ext", version.ref = "markwon" }
+accompanist-lyrics-ui = { module = "com.mocharealm.accompanist:lyrics-ui", version.ref = "accompanist" }
+accompanist-lyrics-core = { module = "com.mocharealm.accompanist:lyrics-core", version.ref = "accompanist-core" }
+androidsvg = { module = "com.caverock:androidsvg-aar", version.ref = "androidsvg" }
+
 androidx-constraintlayout-compose = { group = "androidx.constraintlayout", name = "constraintlayout-compose", version = "1.1.1" }
 annotation = { module = "androidx.annotation:annotation", version.ref = "annotation" }
 guava = { group = "com.google.guava", name = "guava", version = "33.0.0-android" }

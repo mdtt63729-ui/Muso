@@ -577,13 +577,14 @@ class MusicService : MediaLibraryService(),
     }
 
     private fun updateNotification() {
+        // Spotify-style five-button row (user request, reference video): like,
+        // previous, play/pause, next, shuffle - on EVERY surface the media
+        // session feeds (lock screen card, notification shade, quick settings
+        // carousel, Wear OS). The seekbar + timestamps come from the SEEK_TO
+        // command the notification controller already holds; these preferences
+        // replace the previous custom-only row so the transports are always
+        // present alongside the like button.
         val customLayout = listOf(
-                CommandButton.Builder()
-                    .setDisplayName(getString(if (currentSong.value?.song?.inLibrary != null) R.string.remove_from_library else R.string.add_to_library))
-                    .setIconResId(if (currentSong.value?.song?.inLibrary != null) R.drawable.library_add_check else R.drawable.library_add)
-                    .setSessionCommand(CommandToggleLibrary)
-                    .setEnabled(currentSong.value != null)
-                    .build(),
                 CommandButton.Builder()
                     .setDisplayName(getString(if (currentSong.value?.song?.liked == true) R.string.action_remove_like else R.string.action_like))
                     .setIconResId(if (currentSong.value?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border)
@@ -591,30 +592,26 @@ class MusicService : MediaLibraryService(),
                     .setEnabled(currentSong.value != null)
                     .build(),
                 CommandButton.Builder()
+                    .setDisplayName(getString(R.string.media_notification_previous))
+                    .setIconResId(R.drawable.skip_previous)
+                    .setPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS)
+                    .setEnabled(player.hasPreviousMediaItem())
+                    .build(),
+                CommandButton.Builder()
+                    .setDisplayName(getString(R.string.media_notification_play_pause))
+                    .setIconResId(if (player.isPlaying) R.drawable.pause else R.drawable.play)
+                    .setPlayerCommand(Player.COMMAND_PLAY_PAUSE)
+                    .build(),
+                CommandButton.Builder()
+                    .setDisplayName(getString(R.string.media_notification_next))
+                    .setIconResId(R.drawable.skip_next)
+                    .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT)
+                    .setEnabled(player.hasNextMediaItem())
+                    .build(),
+                CommandButton.Builder()
                     .setDisplayName(getString(if (player.shuffleModeEnabled) R.string.action_shuffle_off else R.string.action_shuffle_on))
                     .setIconResId(if (player.shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle)
                     .setSessionCommand(CommandToggleShuffle)
-                    .build(),
-                CommandButton.Builder()
-                    .setDisplayName(
-                        getString(
-                            when (player.repeatMode) {
-                                REPEAT_MODE_OFF -> R.string.repeat_mode_off
-                                REPEAT_MODE_ONE -> R.string.repeat_mode_one
-                                REPEAT_MODE_ALL -> R.string.repeat_mode_all
-                                else -> throw IllegalStateException()
-                            }
-                        )
-                    )
-                    .setIconResId(
-                        when (player.repeatMode) {
-                            REPEAT_MODE_OFF -> R.drawable.repeat
-                            REPEAT_MODE_ONE -> R.drawable.repeat_one_on
-                            REPEAT_MODE_ALL -> R.drawable.repeat_on
-                            else -> throw IllegalStateException()
-                        }
-                    )
-                    .setSessionCommand(CommandToggleRepeatMode)
                     .build()
         )
         // The custom layout is what pre-Android 13 notification actions read;
@@ -814,6 +811,11 @@ class MusicService : MediaLibraryService(),
                 }
             }
         }
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        // Keep the notification row's play/pause glyph in sync with the player.
+        updateNotification()
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

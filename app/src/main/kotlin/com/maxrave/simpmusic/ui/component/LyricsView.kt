@@ -55,6 +55,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -93,7 +95,7 @@ private const val TAG = "LyricsView"
 // and JvmMediaPlayerHandlerImpl both tick on `tickIntervalMs`). It is the ceiling on how far the interpolated
 // playhead below is allowed to run ahead of the last real tick, so a stalled tick — paused
 // playback, a wedged player — can never drift further than the granularity we already live with.
-private const val PLAYHEAD_TICK_MS = 50L
+private const val PLAYHEAD_TICK_MS = 300L
 
 // A rich-synced line followed by a silence at least this long gets a row of dots standing in for
 // the instrumental, the way Apple Music marks one. Rich sync only: it is the one format that knows
@@ -448,11 +450,10 @@ fun LyricsView(
     // rich-sync wipe; anything else swaps the line for the Echo renderer.
     val echoLyricsStyle by com.muso.music.utils.rememberEnumPreference(
         key = com.muso.music.constants.LyricsAnimationStyleKey,
-        // User request: Apple Music V2 (letter-by-letter) is the default — the
-        // two-layer masked fill from the kimi reference. Every other style,
-        // including the suite's own FLARE wipe, stays one tap away in
-        // Appearance -> Word-by-word animation style.
-        defaultValue = com.muso.music.constants.LyricsAnimationStyle.APPLE_V2,
+        // User request: FLARE - the suite's own rich-sync wipe - is the default
+        // again. The setting now lives with the other lyrics settings
+        // (Settings -> Player and audio, lyrics section).
+        defaultValue = com.muso.music.constants.LyricsAnimationStyle.FLARE,
     )
 
     // Read here rather than taken as a parameter: all four call sites (the fullscreen sheet and
@@ -843,9 +844,29 @@ fun LyricsLineItem(
             modifier = modifier,
         ) {
             Spacer(modifier = Modifier.height(12.dp))
+            // Settings -> Appearance -> Lyrics now applies here too (user report:
+            // "settings don't apply to the app"): text size, line spacing and
+            // text position from the classic lyrics screen drive the suite lyrics.
+            val (userTextSize, _) = com.muso.music.utils.rememberPreference(
+                com.muso.music.constants.LyricsTextSizeKey, 26)
+            val (userLineSpacing, _) = com.muso.music.utils.rememberPreference(
+                com.muso.music.constants.LyricsLineSpacingKey, 1.3f)
+            val userPosition by com.muso.music.utils.rememberEnumPreference(
+                com.muso.music.constants.LyricsTextPositionKey,
+                com.muso.music.constants.LyricsPosition.CENTER)
+            val baseLine = if (bold) typo().headlineLarge else typo().headlineMedium
             Text(
                 text = originalWords,
-                style = if (bold) typo().headlineLarge else typo().headlineMedium,
+                style = baseLine.copy(
+                    fontSize = userTextSize.sp,
+                    lineHeight = (userTextSize * userLineSpacing).sp,
+                    textAlign = when (userPosition) {
+                        com.muso.music.constants.LyricsPosition.LEFT -> TextAlign.Left
+                        com.muso.music.constants.LyricsPosition.CENTER -> TextAlign.Center
+                        com.muso.music.constants.LyricsPosition.RIGHT -> TextAlign.Right
+                    },
+                ),
+                modifier = Modifier.fillMaxWidth(),
                 color = if (bold && isCurrent) Color.White else DimOriginalColor,
             )
             if (romanizedWords != null) {
@@ -1045,9 +1066,17 @@ private fun AnimatedWord(
     // Null keeps Classic's DimRichPendingColor untouched.
     pendingColorOverride: Color? = null,
 ) {
+    // Settings -> Appearance -> Lyrics: the user's text size and line spacing
+    // apply to the word-by-word renderers too (Apple's layout keeps its own
+    // measured customFontSize).
+    val (userTextSize, _) = com.muso.music.utils.rememberPreference(
+        com.muso.music.constants.LyricsTextSizeKey, 26)
+    val (userLineSpacing, _) = com.muso.music.utils.rememberPreference(
+        com.muso.music.constants.LyricsLineSpacingKey, 1.3f)
     val style =
         typo().headlineLarge.copy(
-            fontSize = customFontSize ?: typo().headlineLarge.fontSize,
+            fontSize = customFontSize ?: userTextSize.sp,
+            lineHeight = (userTextSize * userLineSpacing).sp,
         )
 
     if (!isCurrent) {

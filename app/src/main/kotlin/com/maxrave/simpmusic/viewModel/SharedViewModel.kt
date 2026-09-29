@@ -35,7 +35,7 @@ class SharedViewModel(
         _lastPlayerViewTab.value = tabName
     }
 
-    val format: SharedFlow<NewFormatEntity?> = MutableSharedFlow()
+    val format = MutableSharedFlow<NewFormatEntity?>(replay = 1)
     val extractSource: StateFlow<String?> = MutableStateFlow(null)
 
     /**

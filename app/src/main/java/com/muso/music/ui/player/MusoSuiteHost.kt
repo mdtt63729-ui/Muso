@@ -181,6 +181,38 @@ fun MusoSuiteHost(
         if (timelineState.total > 0) timelineState.current.toFloat() / timelineState.total.toFloat() * 100f else 0f
     }
 
+    // ---------- real codec/bitrate for the player badge ----------
+    // The suite's NowPlayingScreen reads sharedViewModel.format for the codec
+    // badge, but nothing in this hybrid ever emitted into it, so the badge
+    // never rendered. Feed it from the muso FormatEntity the moment a track
+    // resolves its stream - REAL values, no fakes.
+    val formatViewModel: com.maxrave.simpmusic.viewModel.SharedViewModel = org.koin.compose.koinInject()
+    val formatDb = com.muso.music.LocalDatabase.current
+    LaunchedEffect(mediaMetadata?.id) {
+        val id = mediaMetadata?.id ?: return@LaunchedEffect
+        formatDb.format(id).collect { f ->
+            formatViewModel.format.emit(
+                f?.let {
+                    com.maxrave.domain.data.entities.NewFormatEntity(
+                        videoId = it.id,
+                        itag = it.itag,
+                        mimeType = it.mimeType,
+                        codecs = it.codecs,
+                        bitrate = it.bitrate,
+                        sampleRate = it.sampleRate,
+                        contentLength = it.contentLength,
+                        loudnessDb = it.loudnessDb?.toFloat(),
+                        lengthSeconds = null,
+                        playbackTrackingVideostatsPlaybackUrl = null,
+                        playbackTrackingAtrUrl = null,
+                        playbackTrackingVideostatsWatchtimeUrl = null,
+                        cpn = null,
+                    )
+                }
+            )
+        }
+    }
+
     // ---------- colors: live palette from the artwork ----------
     val startColor = remember { Animatable(Color(0xFF1DB954)) }
     val endColor = remember { Animatable(Color(0xFF101010)) }

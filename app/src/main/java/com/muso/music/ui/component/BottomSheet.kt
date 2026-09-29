@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -170,6 +171,15 @@ fun BottomSheet(
 }
 
 @Stable
+/** Process-wide one-shot: only the FIRST sheet creation of a process clamps
+ * a restored expanded anchor; later recreations (rotation) keep the anchor. */
+private object PlayerSheetBootState {
+    var corrected = false
+    /** Set by expand()/expandSoft() - the ONLY user-driven ways the sheet grows. */
+    var userExpanded = false
+    var bootGuarded = false
+}
+
 class BottomSheetState(
     draggableState: DraggableState,
     private val coroutineScope: CoroutineScope,
@@ -209,6 +219,7 @@ class BottomSheetState(
     }
 
     fun expand(animationSpec: AnimationSpec<Dp>) {
+        PlayerSheetBootState.userExpanded = true
         onAnchorChanged(expandedAnchor)
         coroutineScope.launch {
             animatable.animateTo(animatable.upperBound!!, animationSpec)
@@ -351,6 +362,16 @@ fun rememberBottomSheetState(
         mutableIntStateOf(initialAnchor)
     }
 
+    // Blank fullscreen player on cold start (user report): rememberSaveable
+    // restored the sheet as EXPANDED from the previous session, so the app
+    // opened straight into an empty player. Only ever restore expanded
+    // within a process (rotation/config change); a fresh process always
+    // starts at the mini player.
+    val bootCorrected = remember { PlayerSheetBootState.corrected }
+    if (!bootCorrected && previousAnchor == expandedAnchor) {
+        previousAnchor = collapsedAnchor
+    }
+    PlayerSheetBootState.corrected = true
     val initialValue = when (previousAnchor) {
         expandedAnchor -> expandedBound
         collapsedAnchor -> collapsedBound
@@ -369,6 +390,26 @@ fun rememberBottomSheetState(
     val animatable = remember(initialValue, dismissedBound, expandedBound) {
         Animatable(initialValue, Dp.VectorConverter).apply {
             updateBounds(dismissedBound.coerceAtMost(expandedBound), expandedBound)
+        }
+    }
+
+    // HARD boot guard (user report, video Record_2026-09-29-04-10-22: splash
+    // went STRAIGHT to a blank expanded player, home never appeared): whatever
+    // restored the sheet as expanded - saved anchor, animatable state, bounds
+    // churn, any path - a fresh process NEVER opens expanded. User expansion
+    // always goes through expand()/expandSoft() (which set the flag above);
+    // anything else that lands expanded on the first frames of a process is a
+    // restore artifact and gets snapped back to the mini player.
+    LaunchedEffect(animatable, expandedBound, collapsedBound) {
+        if (!PlayerSheetBootState.bootGuarded) {
+            PlayerSheetBootState.bootGuarded = true
+            withFrameNanos { }
+            withFrameNanos { }
+            if (!PlayerSheetBootState.userExpanded &&
+                animatable.value >= expandedBound - 1.dp
+            ) {
+                animatable.snapTo(collapsedBound)
+            }
         }
     }
 

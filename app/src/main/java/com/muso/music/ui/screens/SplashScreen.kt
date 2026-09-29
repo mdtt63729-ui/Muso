@@ -97,7 +97,7 @@ private const val T_EXIT_END = 1.95f
 
 /** After the animation completes, the whole overlay fades out over this duration
  * so the home screen appears through a smooth transition, never a hard cut. */
-private const val SPLASH_HANDOFF = 0.25f
+private const val SPLASH_HANDOFF = 0.18f
 private const val WAVE_DELAY = 0.035f
 
 // ---------- Original logo geometry (heights relative to the center bar) ----------
@@ -119,7 +119,7 @@ private const val GLOW_PEAK = 0.38f
 private const val GLOW_SETTLE = 0.12f
 
 // The wordmark font, created ONCE (rebuilding a FontFamily every frame was pure waste).
-private val WordmarkFontFamily = FontFamily(Font(R.font.gochi_hand))
+private val WordmarkFontFamily = FontFamily(Font(R.font.josefin_sans))
 
 // ---------- Centralized state machine ----------
 internal enum class SplashPhase {
@@ -341,7 +341,12 @@ internal fun MusoSplash(
         // then runs underneath the fade/handoff where a hitch is invisible,
         // instead of starving the animation's own frames. With reduced motion
         // the screen is static, so the UI can start composing immediately.
-        val contentRequestT = if (reduced) 0.20f else T_SETTLE_END
+        // Warm the main UI up EARLIER (user report: the splash->home handoff
+        // felt laggy): the heavy startup composition now runs during the calm
+        // settle phase instead of after the animation, so the exit fade has
+        // real rendered frames underneath it and the handoff reads as one
+        // continuous motion.
+        val contentRequestT = if (reduced) 0.20f else 1.45f
         var contentRequested = false
         withTimeoutOrNull(SPLASH_SAFETY_TIMEOUT_MS) {
             while (true) {

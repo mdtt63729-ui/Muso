@@ -7,7 +7,7 @@
     <style name="MusoSplashTheme" parent="@style/Theme.InnerTune">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:windowSplashScreenBackground">@android:color/black</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_bars</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_transparent</item>
         <item name="android:windowSplashScreenAnimationDuration">0</item>
     </style>
 </resources>

@@ -134,7 +134,7 @@ fun AudioEffectsSettings(
         PreferenceEntry(
             title = { Text(stringResource(R.string.open_system_equalizer)) },
             description = stringResource(R.string.open_system_equalizer_desc),
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.equalizer)) },
             onClick = {
                 runCatching {
                     systemEqContext.startActivity(
@@ -148,7 +148,7 @@ fun AudioEffectsSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.audio_effects)) },
             description = stringResource(R.string.audio_effects_desc),
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.equalizer)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.settings)) },
             checked = enabled,
             onCheckedChange = onEnabledChange,
         )
@@ -158,13 +158,13 @@ fun AudioEffectsSettings(
         if (eqInfo == null) {
             PreferenceEntry(
                 title = { Text(stringResource(R.string.equalizer_unavailable)) },
-                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.equalizer)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.error)) },
             )
         } else {
             SwitchPreference(
                 title = { Text(stringResource(R.string.equalizer)) },
                 description = stringResource(R.string.equalizer_desc),
-                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.equalizer)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.volume_up)) },
                 checked = eqEnabled,
                 onCheckedChange = onEqEnabledChange,
                 isEnabled = enabled,
@@ -227,7 +227,7 @@ fun AudioEffectsSettings(
         PreferenceGroupTitle(title = stringResource(R.string.bass_boost))
         PreferenceEntry(
             title = { Text("${bassLevel / 10}%") },
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.volume_down)) },
             isEnabled = enabled,
             content = {
                 Slider(
@@ -243,7 +243,7 @@ fun AudioEffectsSettings(
         PreferenceGroupTitle(title = stringResource(R.string.virtualizer))
         PreferenceEntry(
             title = { Text("${virtualizerLevel / 10}%") },
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.graphic_eq)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.radio)) },
             isEnabled = enabled,
             content = {
                 Slider(

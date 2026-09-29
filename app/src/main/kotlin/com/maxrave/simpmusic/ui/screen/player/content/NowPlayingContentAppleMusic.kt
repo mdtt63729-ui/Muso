@@ -844,10 +844,18 @@ private fun AppleMusicArtworkPage(
                                     interactionSource = remember { MutableInteractionSource() },
                                 ) { onToggleVideoOverlay() },
                     ) {
-                        val ratio = state.videoAspectRatio
-                        val frameHeight = minOf(maxWidth / ratio, (maxHeight - topChrome).coerceAtLeast(0.dp))
-                        val frameWidth = frameHeight * ratio
-                        val frameTop = maxOf((maxHeight - frameHeight) / 2, topChrome)
+                        // Full-bleed (user spec, screenshot 581377): the video COVERS the
+                        // whole region above the controls - edge to edge, top to bottom -
+                        // cropping (never letterboxing) whatever the aspect ratio is.
+                        // The old centered min(maxWidth / ratio, ...) fit left black bands
+                        // above and below the picture.
+                        val frameHeight = maxHeight
+                        val frameWidth = maxWidth
+                        val frameTop = 0.dp
+                        // Rich-synced lyrics get the app's Apple Music V2 word-by-word
+                        // animation over the video (below); the plain bottom subtitle stays
+                        // only for non-rich lyrics.
+                        val overlayLyrics = state.screenData.lyricsData?.lyrics
                         // THE VIDEO FRAME. Everything over-video — the surface, the subtitle and
                         // the whole control overlay — is anchored to THIS box, so the fullscreen
                         // button sits on the video's own top-right corner and the subtitle button
@@ -859,17 +867,16 @@ private fun AppleMusicArtworkPage(
                                 Modifier
                                     .align(Alignment.TopCenter)
                                     .padding(top = frameTop)
-                                    .size(width = frameWidth, height = frameHeight)
-                                    // A vertical video stands clear of the screen edges, so it is rounded
-                                    // like a card; wide ones run edge to edge and stay square.
-                                    .then(if (ratio < 1f) Modifier.clip(RoundedCornerShape(12.dp)) else Modifier),
+                                    .size(width = frameWidth, height = frameHeight),
                         ) {
                         MediaPlayerViewWithSubtitle(
                             playerName = MAIN_PLAYER,
-                            // fillMaxWidth, never fillMaxSize: a free height lets the surface's
-                            // own aspect ratio apply, which is what stops it being stretched.
-                            modifier = Modifier.fillMaxWidth().align(Alignment.Center),
-                            shouldShowSubtitle = showSubtitle,
+                            // Full-bleed: crop-to-cover the whole frame, never letterboxed
+                            // and never stretched (same treatment the canvas backdrop uses).
+                            cropToBounds = true,
+                            modifier = Modifier.fillMaxSize(),
+                            shouldShowSubtitle = showSubtitle &&
+                                (overlayLyrics == null || overlayLyrics.syncType != "RICH_SYNCED"),
                             shouldPip = false,
                             shouldScaleDownSubtitle = true,
                             timelineState = state.timelineState,
@@ -941,6 +948,32 @@ private fun AppleMusicArtworkPage(
                                 }
                             }
                         }
+                        }
+
+                        // Apple Music V2 lyrics over the video (user spec): while the video
+                        // plays, the current lyric line is rendered with the SAME word-by-word
+                        // animation the app's lyrics view uses - only here, on the video
+                        // screen. Sits over a bottom scrim so it stays readable on any frame.
+                        if (showSubtitle && overlayLyrics != null && overlayLyrics.syncType == "RICH_SYNCED") {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                                            listOf(
+                                                androidx.compose.ui.graphics.Color.Transparent,
+                                                androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f),
+                                            ),
+                                        ),
+                                    )
+                                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                            ) {
+                                com.maxrave.simpmusic.ui.component.VideoEchoLyricsOverlay(
+                                    lyrics = overlayLyrics,
+                                    currentMs = state.timelineState.current,
+                                )
+                            }
                         }
                     }
                 } else {

@@ -101,7 +101,7 @@ fun BackupAndRestore(
         SwitchPreference(
             title = { Text(stringResource(R.string.auto_backup)) },
             description = stringResource(R.string.auto_backup_desc),
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.update)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.schedule)) },
             checked = autoBackup,
             onCheckedChange = onAutoBackupChange
         )
@@ -109,7 +109,7 @@ fun BackupAndRestore(
         if (autoBackup) {
             EnumListPreference(
                 title = { Text(stringResource(R.string.backup_frequency)) },
-                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.update)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.repeat)) },
                 selectedValue = backupFrequency,
                 onValueSelected = onBackupFrequencyChange,
                 valueText = {

@@ -330,10 +330,13 @@ fun MiniPlayer(
                                     },
                                     onVerticalDrag = { change: PointerInputChange, dragAmount: Float ->
                                         if (offsetY.value + dragAmount > 0) {
+                                            // Consume SYNCHRONOUSLY (the old launch{} consumed
+                                            // one event late, so a scrolling parent could steal
+                                            // the gesture) and track with snapTo so the pill
+                                            // follows the finger 1:1 with no animated chase.
+                                            change.consume()
                                             coroutineScope.launch {
-                                                change.consume()
-                                                offsetY.animateTo(offsetY.value + 2 * dragAmount)
-                                                Logger.w("MiniPlayer", "Dragged ${offsetY.value}")
+                                                offsetY.snapTo((offsetY.value + 2 * dragAmount).coerceAtLeast(0f))
                                             }
                                         }
                                     },
@@ -343,9 +346,13 @@ fun MiniPlayer(
                                         }
                                     },
                                     onDragEnd = {
-                                        Logger.w("MiniPlayer", "Drag Ended")
                                         coroutineScope.launch {
-                                            if (offsetY.value > 70) {
+                                            // Swipe far enough down: stop playback AND remove
+                                            // the mini player (the onClose callbacks in
+                                            // MusoNavbarHost / the glass navbar both call
+                                            // stopPlayer, which empties the now-playing data
+                                            // and hides the pill).
+                                            if (offsetY.value > 90) {
                                                 onClose()
                                             }
                                             offsetY.animateTo(0f)

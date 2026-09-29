@@ -31,7 +31,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -62,6 +68,37 @@ private val EchoGlowColor = Color(0xAAFFFFFF)
 
 private fun smoothstep(p: Float): Float = p * p * (3f - 2f * p)
 
+/** The player publishes its position every 50 ms; the sweep must move per frame. */
+private const val ECHO_PLAYHEAD_TICK_MS = 300L
+
+/**
+ * HTML-parity timing (user report: the word sweeps felt laggy and steppy).
+ * The kimi reference's sync loop runs off requestAnimationFrame reading
+ * audio.currentTime, so its word fill advances once per DISPLAY FRAME; a
+ * player that ticks every 50 ms gives a fill that jumps 20 times a second.
+ * This carries the ticked position forward between ticks so the playhead
+ * advances once per frame, corrected to the truth on every real tick.
+ */
+@Composable
+private fun rememberEchoPlayhead(rawMs: Long, enabled: Boolean): State<Long> {
+    val playhead = remember { mutableLongStateOf(rawMs) }
+    LaunchedEffect(rawMs, enabled) {
+        if (!enabled) {
+            playhead.longValue = rawMs
+            return@LaunchedEffect
+        }
+        var baseNanos = -1L
+        while (true) {
+            withFrameNanos { frameNanos ->
+                if (baseNanos < 0L) baseNanos = frameNanos
+                val elapsedMs = (frameNanos - baseNanos) / 1_000_000L
+                playhead.longValue = rawMs + elapsedMs.coerceIn(0L, ECHO_PLAYHEAD_TICK_MS)
+            }
+        }
+    }
+    return playhead
+}
+
 /**
  * One Echo-styled rich-sync line: a drop-in alternative for
  * [RichSyncLyricsLineItem] inside LyricsView's RICH_SYNCED branch. The
@@ -76,13 +113,18 @@ fun EchoLyricsLine(
     currentTimeMs: Long,
     isCurrent: Boolean,
     style: LyricsAnimationStyle,
+    modifier: Modifier = Modifier,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    // Frame-smooth playhead (see rememberEchoPlayhead) - and read through
+    // derivedStateOf per word, so at 60 Hz only the word being sung
+    // recomposes, not the whole line.
+    val playhead = rememberEchoPlayhead(currentTimeMs, enabled = isCurrent)
+    Column(modifier = modifier.then(Modifier.fillMaxWidth())) {
         Spacer(modifier = Modifier.height(12.dp))
         if (style == LyricsAnimationStyle.METRO_LYRICS) {
             MetroEchoLine(
                 parsedLine = parsedLine,
-                currentTimeMs = currentTimeMs,
+                playhead = playhead,
                 isCurrent = isCurrent,
             )
         } else {
@@ -99,27 +141,16 @@ fun EchoLyricsLine(
                         words.getOrNull(index + 1)?.startTimeMs
                             ?: parsedLine.lineEndTimeMs.coerceAtLeast(startMs + 1L)
                     val duration = (endMs - startMs).coerceAtLeast(1L)
-                    val progress =
-                        ((currentTimeMs - startMs).toFloat() / duration).coerceIn(0f, 1f)
-                    if (style == LyricsAnimationStyle.APPLE_V2) {
-                        // Letter-by-letter two-layer fill (see AppleV2EchoWord).
-                        AppleV2EchoWord(
-                            text = word.text,
-                            progress = progress,
-                            isLineCurrent = isCurrent,
-                            isLast = index == last,
-                        )
-                    } else {
-                    EchoWord(
+                    EchoAnimatedWord(
                         text = word.text,
-                        progress = progress,
-                        isLineCurrent = isCurrent,
-                        isWordActive = isCurrent && currentTimeMs >= startMs && currentTimeMs < endMs,
-                        isWordComplete = currentTimeMs >= endMs,
+                        startMs = startMs,
+                        endMs = endMs,
+                        duration = duration,
+                        isCurrent = isCurrent,
                         style = style,
                         isLast = index == last,
+                        playhead = playhead,
                     )
-                    }
                 }
             }
         }
@@ -138,6 +169,55 @@ fun EchoLyricsLine(
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+/**
+ * One word, deriving its progress/active/complete state from the
+ * frame-smooth playhead. derivedStateOf means the line body above never
+ * recomposes at frame rate: a word whose derived values did not change
+ * (everything except the word being sung) is skipped entirely.
+ */
+@Composable
+private fun EchoAnimatedWord(
+    text: String,
+    startMs: Long,
+    endMs: Long,
+    duration: Long,
+    isCurrent: Boolean,
+    style: LyricsAnimationStyle,
+    isLast: Boolean,
+    playhead: State<Long>,
+) {
+    val progress by remember(startMs, endMs, isCurrent) {
+        derivedStateOf {
+            ((playhead.value - startMs).toFloat() / duration).coerceIn(0f, 1f)
+        }
+    }
+    val isWordActive by remember(startMs, endMs, isCurrent) {
+        derivedStateOf { isCurrent && playhead.value >= startMs && playhead.value < endMs }
+    }
+    val isWordComplete by remember(endMs, isCurrent) {
+        derivedStateOf { playhead.value >= endMs }
+    }
+    if (style == LyricsAnimationStyle.APPLE_V2) {
+        // Letter-by-letter two-layer fill (see AppleV2EchoWord).
+        AppleV2EchoWord(
+            text = text,
+            progress = progress,
+            isLineCurrent = isCurrent,
+            isLast = isLast,
+        )
+    } else {
+        EchoWord(
+            text = text,
+            progress = progress,
+            isLineCurrent = isCurrent,
+            isWordActive = isWordActive,
+            isWordComplete = isWordComplete,
+            style = style,
+            isLast = isLast,
+        )
     }
 }
 
@@ -167,11 +247,11 @@ private fun EchoWord(
         animationSpec = tween(durationMillis = 350),
         label = "echoWordRise",
     )
-    val slideProgress by animateFloatAsState(
-        targetValue = if (isLineCurrent) progress else 1f,
-        animationSpec = tween(durationMillis = 120),
-        label = "echoWordSlide",
-    )
+    // No animated chase: the sweep now tracks the frame-smooth playhead
+    // directly. The reference sets the word's progress every rAF tick with
+    // no transition, and a tweened follow of a 20-times-a-second target was
+    // exactly the "fill lags behind the song" feel.
+    val slideProgress = progress
 
     var color = EchoPendingWordColor
     var alpha = 1f
@@ -360,7 +440,7 @@ private fun AppleV2EchoWord(
 @Composable
 private fun MetroEchoLine(
     parsedLine: ParsedRichSyncLine,
-    currentTimeMs: Long,
+    playhead: State<Long>,
     isCurrent: Boolean,
 ) {
     val textMeasurer = rememberTextMeasurer()
@@ -379,7 +459,9 @@ private fun MetroEchoLine(
         layout.rows.forEach { row ->
             var x = 0f
             row.words.forEach { slot ->
-                val t = currentTimeMs
+                // Draw-phase state read: the Canvas redraws per frame with no
+                // recomposition, exactly like the reference's rAF render.
+                val t = playhead.value
                 val progress = ((t - slot.startMs).toFloat() / (slot.endMs - slot.startMs).coerceAtLeast(1L))
                     .coerceIn(0f, 1f)
                 val paint =
@@ -465,4 +547,66 @@ private fun measureMetroWords(
     if (current.isNotEmpty()) rows.add(MetroRow(y = y, words = current))
     val heightDp = with(density) { ((y + lineHeightPx) / density.density).dp }
     return MetroLayout(rows = rows, heightDp = heightDp, spacePx = spacePx)
+}
+
+
+/**
+ * The Apple Music V2 word-by-word lyric line, rendered OVER a playing video
+ * (user spec): while a video track plays, the lyric overlay on the screen uses
+ * the SAME animation the app's lyrics view uses - not a plain subtitle.
+ * Shows only the CURRENT line, so it stays a caption, not a lyrics sheet.
+ */
+@Composable
+fun VideoEchoLyricsOverlay(
+    lyrics: com.maxrave.domain.data.model.metadata.Lyrics?,
+    currentMs: Long,
+    modifier: Modifier = Modifier,
+) {
+    if (lyrics == null) return
+    val lines = lyrics.lines ?: return
+
+    // Same audio-delay correction every other lyrics surface applies.
+    val lyricsOffsetMs by org.koin.compose.koinInject<com.maxrave.domain.manager.DataStoreManager>()
+        .lyricsOffsetMs.collectAsState(0)
+    val nowMs = currentMs - lyricsOffsetMs
+
+    // Current line: the last one that started before now (lines are sorted).
+    var lineIndex = -1
+    for (i in lines.indices) {
+        if (lines[i].startTimeMs.toLong() <= nowMs) lineIndex = i else break
+    }
+    if (lineIndex < 0) return
+    val line = lines[lineIndex]
+
+    val parsed = remember(line) {
+        com.maxrave.simpmusic.extension.parseRichSyncWords(
+            line.words,
+            line.startTimeMs,
+            line.endTimeMs,
+        )
+    }
+    if (parsed != null) {
+        EchoLyricsLine(
+            parsedLine = parsed,
+            translatedWords = null,
+            romanizedWords = null,
+            currentTimeMs = nowMs,
+            isCurrent = true,
+            style = LyricsAnimationStyle.APPLE_V2,
+            modifier = modifier,
+        )
+    } else {
+        // Not rich-synced: still show the current line over the video.
+        Text(
+            text = line.words,
+            color = Color.White,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color.Black.copy(alpha = 0.75f),
+                    blurRadius = 8f,
+                ),
+            ),
+            modifier = modifier,
+        )
+    }
 }

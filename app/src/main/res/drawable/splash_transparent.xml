@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fully transparent: the Android 12+ system splash shows ONLY the black
+     background, so the app opens straight into MusoSplash's animation with
+     no static logo and no perceived delay (user request). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle" />

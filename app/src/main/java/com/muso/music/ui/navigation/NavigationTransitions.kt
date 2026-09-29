@@ -72,13 +72,11 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.iosEnter(
         return fadeIn(tween(TAB_MS, easing = IosEasing)) +
             scaleIn(tween(TAB_MS, easing = IosEasing), initialScale = 0.98f)
     }
-    val slide = slideInHorizontally(tween(PUSH_MS, easing = IosEasing)) { it }
-    return if (glass) {
-        slide + fadeIn(tween(PUSH_MS, easing = IosEasing), initialAlpha = 0.60f)
-    } else {
-        slide + fadeIn(tween(PUSH_MS, easing = IosEasing)) +
-            scaleIn(tween(PUSH_MS, easing = IosEasing), initialScale = 0.96f)
-    }
+    // Perf (user report: page changes lagged): alpha-blending two fullscreen
+    // pages - plus a scale re-render - is the expensive part of a nav
+    // transition, not the slide. The incoming page now slides in fully
+    // opaque, so only ONE moving, non-blended layer renders per frame.
+    return slideInHorizontally(tween(PUSH_MS, easing = IosEasing)) { it }
 }
 
 /** Push: the old page parks 30% left, dimmed. */
@@ -88,14 +86,9 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.iosExit(
 ): ExitTransition {
     if (!animationsEnabled) return fadeOut(snap())
     if (isTabSwitch()) return fadeOut(tween(TAB_MS, easing = IosEasing))
-    val parallax =
-        slideOutHorizontally(tween(PUSH_MS, easing = IosEasing)) { -it * PARALLAX_NUM / PARALLAX_DEN }
-    return if (glass) {
-        parallax + fadeOut(tween(PUSH_MS, easing = IosEasing), targetAlpha = 0.86f)
-    } else {
-        parallax + fadeOut(tween(PUSH_MS, easing = IosEasing), targetAlpha = 0.72f) +
-            scaleOut(tween(PUSH_MS, easing = IosEasing), targetScale = 0.96f)
-    }
+    // Same perf pass: the outgoing page parks with a small parallax and NO
+    // fade / NO scale - opaque layers only.
+    return slideOutHorizontally(tween(PUSH_MS, easing = IosEasing)) { -it * PARALLAX_NUM / PARALLAX_DEN }
 }
 
 /** Pop: the page we return to slides back in from -30%. */
@@ -108,10 +101,7 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.iosPopEnter(
         return fadeIn(tween(TAB_MS, easing = IosEasing)) +
             scaleIn(tween(TAB_MS, easing = IosEasing), initialScale = 0.98f)
     }
-    val parallax =
-        slideInHorizontally(tween(POP_MS, easing = IosEasing)) { -it * PARALLAX_NUM / PARALLAX_DEN }
-    val initialAlpha = if (glass) 0.60f else 0.72f
-    return parallax + fadeIn(tween(POP_MS, easing = IosEasing), initialAlpha = initialAlpha)
+    return slideInHorizontally(tween(POP_MS, easing = IosEasing)) { -it * PARALLAX_NUM / PARALLAX_DEN }
 }
 
 /** Pop: the leaving page exits to 100% width on the right. */
@@ -121,6 +111,5 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.iosPopExit(
 ): ExitTransition {
     if (!animationsEnabled) return fadeOut(snap())
     if (isTabSwitch()) return fadeOut(tween(TAB_MS, easing = IosEasing))
-    return slideOutHorizontally(tween(POP_MS, easing = IosEasing)) { it } +
-        fadeOut(tween(POP_MS, easing = IosEasing))
+    return slideOutHorizontally(tween(POP_MS, easing = IosEasing)) { it }
 }

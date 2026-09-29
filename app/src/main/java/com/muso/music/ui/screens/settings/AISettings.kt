@@ -204,14 +204,14 @@ fun AISettings(
         PreferenceEntry(
             title = { Text(stringResource(R.string.ai_api_key)) },
             description = if (apiKey.isEmpty()) null else "••••••••",
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.security)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.key)) },
             onClick = { showApiKeyDialog = true },
         )
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.ai_custom_model)) },
             description = customModel.ifEmpty { null },
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.tune)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.memory)) },
             onClick = { showModelDialog = true },
         )
 
@@ -219,14 +219,14 @@ fun AISettings(
             PreferenceEntry(
                 title = { Text(stringResource(R.string.ai_base_url)) },
                 description = customBaseUrl.ifEmpty { "https://api.openai.com/v1/" },
-                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.language)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.link)) },
                 onClick = { showBaseUrlDialog = true },
             )
         }
 
         ListPreference(
             title = { Text(stringResource(R.string.ai_translation_language)) },
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.translate)) },
+            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.speech)) },
             selectedValue = targetLanguage,
             values = AITranslator.TARGET_LANGUAGES.map { it.first },
             valueText = { code ->

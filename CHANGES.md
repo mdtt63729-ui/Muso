@@ -1,3 +1,202 @@
+# Round 167 (v0.5.184, code 191) — ArchiveTune settings port, Phases 3-6 complete
+
+Phase 3 — every kept muso setting now lives inside the ArchiveTune settings
+UI and writes the real muso preferences (so it actually applies): theme
+(color/dark/pure black/liquid glass/refresh rate), player style renamed to
+Classic V2 / M3 Expressive / Immersive Nightly, mini player, slider (with
+live previews), video quality + show video in player, streaming/download
+quality (itags), all audio + queue + misc playback toggles, the complete
+lyrics set (style, word-by-word, size, spacing, position, auto scroll, blur,
+romanize, offset, providers), content language/country (applies live),
+account, proxy, cache sizes, privacy, storage. Old muso settings screens
+removed; muso features (audio effects, backup, Discord, Spotify, AI,
+listening history) are linked from the new kit screens.
+
+Phase 4 — ArchiveTune onboarding now shows after the splash on first launch
+(stored in the kit DB; once per install), with muso's own login flow.
+
+Phase 5 — application strategy: overlapping settings render as muso-backed
+rows directly in the kit UI (no dead kit rows for anything muso supports);
+kit-only rows that duplicate muso behavior were pruned.
+
+Phase 6 — full static verification of all edited files.
+# Round 166 (v0.5.183, code 190) — ArchiveTune settings integration, Phase 2
+
+- The settings entry (navbar / SearchBar gear -> "settings") now opens the
+  ArchiveTune settings hub with all ~28 kit routes wired: appearance (theme
+  creator, palette picker, app icons, AOD, lyrics animations), content,
+  lyrics, internet, player, canvas, android_auto, storage, privacy,
+  backup_restore, discord (+experimental), integration, ai_integration,
+  music_together, lastfm, misc/debug, logcat, update, changelog,
+  hidden_playlists, customize_background.
+- OUR About page stays on settings/about (user spec).
+- settings/account opens muso's own YouTube login.
+- moe.rukamori.archivetune.BuildConfig shim object added for the kit.
+Old muso settings screens still exist but are now unreachable dead code;
+Phase 3 removes them and integrates the kept settings (player styles,
+video, mini player, lyrics styles, quality) into the kit UI.
+# Round 165 (v0.5.182, code 189) — ArchiveTune settings integration, Phase 1
+
+Phase 1 of the ArchiveTune Settings + Onboarding integration (see
+INTEGRATION_PLAN.md in the zip root):
+- All 224 kit Kotlin sources dropped in as-is at
+  app/src/main/kotlin/moe/rukamori/archivetune/ (package preserved).
+- di/ (AppModule - DatabaseProvider clash pruned, NetworkModule,
+  LyricsHelperEntryPoint) and utils/DataStore.kt pulled from the full repo;
+  kit DataStore file renamed to "archivetune_settings" so it can never
+  collide with muso's "settings" store.
+- Room auto-migration schemas (27) under app/schemas/.
+- Variant files: gms -> full flavor, foss -> foss flavor, automotive parked.
+- R references remapped to com.muso.music.R.
+- 157 kit icons (overwrite), poppins font, kit strings dedup-merged into
+  values/archivetune_settings_strings.xml, styles + media3 drawable aliases.
+- Gradle: translator, markwon x9, accompanist-lyrics ui/core, androidsvg.
+Old settings UI is still in place and unchanged - it is removed in Phase 3.
+CI compile of this drop-in is the gate for Phase 2.
+# Round 164 (v0.5.181, code 188)
+
+User feedback round (screenshots 580851-580853, OpenTune reference):
+- SETTINGS ICONS, full pass: every settings row now carries its OWN icon,
+  distinct from every other row (104 rows, 104 different icons) - 21 new
+  vector glyphs added (key, memory, link, speech, text_fields, water_drop,
+  pip, account_circle, schedule, bolt, image, swap_horiz, blur_on,
+  high_quality, cloud, record_voice_over, brush, swap_vert, timer, wifi,
+  logout) and every duplicate (play x6, graphic_eq x10, tune x4, ...) is
+  gone. Container restyled to the OpenTune reference: a uniform CIRCULAR
+  charcoal disc one shade lighter than the row, off-white glyph, 40dp.
+- WORD-BY-WORD ANIMATION STYLE: default is FLARE again (user spec), and
+  the setting moved from Appearance into the lyrics section of Settings ->
+  Player and audio, next to Preload lyrics.
+- LIBRARY SEARCH: the search bar on the Library tab now searches ONLY the
+  local library (live results as you type, the source toggle is hidden
+  there, and submitting never goes online). The navbar Search button always
+  opens ONLINE search. Other tabs keep the LOCAL/ONLINE toggle.
+# Round 163 (v0.5.180, code 187)
+
+User feedback round (screenshot 581377):
+- VIDEO FULL-BLEED: the video track's frame now COVERS the whole region
+  above the controls - edge to edge, top to bottom - with crop-to-cover
+  (resizeWithContentScale(Crop)), instead of the centered letterboxed fit
+  that left black bands above and below the picture. Applied via a new
+  cropToBounds parameter on MediaPlayerViewWithSubtitle.
+- LYRICS OVER THE VIDEO = Apple Music V2: while a video plays, the current
+  lyric line renders over the video with the SAME word-by-word animation
+  the app's lyrics view uses (EchoLyricsLine, APPLE_V2 style) on a bottom
+  scrim - not a plain subtitle. Non-rich-synced lyrics keep the plain
+  subtitle. The subtitle button in the video overlay toggles it.
+- SLIDER DOUBLE-BAR FIXED: the Spotify player drew a gray buffered
+  LinearProgressIndicator behind EVERY slider style - under WAVY and SLIM it
+  showed through as a second bar (the "same problem as wavy" with slim).
+  It is now the DEFAULT slider's buffer layer only. Both the Spotify and
+  Apple shells also size themselves per style (SQUIGGLY 52dp, WAVY 32dp,
+  SLIM 24-26dp) so the Echo renderers are never clipped into the times row.
+# Round 162 (v0.5.179, code 186)
+
+User feedback round - two honest corrections:
+- The player sliders are now a FAITHFUL port of the files the user provided
+  (Echo 4-player-slider-styles), replacing my own canvas approximation:
+  WavySlider is Material3 Expressive's LinearWavyProgressIndicator with
+  the animated amplitude (calms flat when paused), the thumb gap and the
+  thumb circle; SquigglySlider is the full travelling-phase squiggle -
+  the wave phase advances every frame while playing, flattens on pause or
+  drag, active segment in the accent color, dimmed remainder, and the
+  vertical progress bar riding the wave front. Same colors object
+  (PlayerSliderColors: active = accent, inactive = white 40%). Every player
+  surface and the settings picker render these exact components.
+- Blank fullscreen player at launch: the previous anchor clamp was not
+  enough - the video shows the splash going STRAIGHT to the expanded
+  player without home ever appearing. Added a HARD boot guard: on the
+  first frames of a fresh process, any expanded sheet that was not opened
+  through expand()/expandSoft() (the only user-driven paths, now flagged)
+  is snapped back to the mini player - regardless of how the expansion
+  was restored.
+# Round 161 (v0.5.178, code 185)
+
+Launch + mini player round (video Record_2026-09-29-04-10-22):
+- Cold start now goes straight into the splash animation: the Android 12+
+  system splash icon is a fully transparent drawable, so nothing static
+  renders before MusoSplash - just the black background the animation sits
+  on. No wrong logo, no perceived delay.
+- Splash -> home handoff smoother: the main UI is warmed up during the calm
+  settle phase (1.70s -> 1.45s) so the exit fade has real rendered frames
+  under it, and the handoff fade itself is quicker (0.25s -> 0.18s).
+- Mini player swipe-down made solid: the drag consume now happens
+  synchronously (the old one-event-late consume let scrolling parents steal
+  the gesture) and the pill tracks the finger with snapTo instead of an
+  animated chase. Crossing 90px calls the same close path as the pill's
+  close button: playback STOPS and the mini player disappears - on every
+  pill variant (navbar-integrated glass, standalone glass, flat).
+- Slider style picker: the SQUIGGLY preview now renders the exact component
+  the player uses (PlayerSliderByStyle's squiggle branch) instead of the
+  squiggles-lib default, so every preview is pixel-identical to what plays.
+- The blank fullscreen player at cold start was already fixed in v0.5.176
+  (restored expanded sheet anchor clamped to the mini player on fresh
+  launches); the video was recorded on an older build.
+# Round 160 (v0.5.177, code 184)
+
+Spotify-style media notification (reference video: like / previous /
+play-pause circle / next / plus row):
+- The media button preferences are now a five-slot Spotify-shaped row:
+  LIKE, PREVIOUS, PLAY/PAUSE, NEXT, SHUFFLE - on the lock screen card, the
+  notification shade and the quick settings carousel alike. Previously the
+  row was library/like/shuffle/repeat with no transports.
+- The transport buttons are real player commands (COMMAND_SEEK_TO_PREVIOUS
+  / PLAY_PAUSE / SEEK_TO_NEXT), so the system renders and toggles them
+  natively; like and shuffle stay app session commands.
+- The play/pause glyph refreshes on isPlaying changes.
+- The seekbar + elapsed/total timestamps (like the reference's 02:34 /
+  04:22) come from the SEEK_TO command already granted to the platform
+  controller.
+- Note: the bottom "suggested tracks" thumbnail strip in the reference is
+  Spotify-proprietary (custom notification views); Android 13+ renders
+  system media cards only, so that strip is the one element not
+  reproducible through the platform media session.
+# Round 159 (v0.5.176, code 183)
+
+Six-part round:
+- Lyrics still steppy (user report): the host's timeline ticks every 250 ms
+  but the frame playhead clamped its carry-forward at 50 ms - the sweep
+  advanced 50 ms then froze for 200 ms, four visible steps a second. Both
+  playhead clamps (Echo + FLARE) now match the real tick budget (300 ms),
+  so the sweep runs at display frame rate between ticks and is corrected by
+  every real tick.
+- Blank fullscreen player at cold start: rememberSaveable restored the
+  player sheet as EXPANDED from the previous session, launching straight
+  into an empty player. A process-wide one-shot now clamps a restored
+  expanded anchor to the mini player on fresh launches only - rotation
+  keeps the anchor.
+- Page-to-page transitions: dropped every alpha fade and scale from
+  push/pop - blending two fullscreen pages was the lag. Pure opaque slides
+  now; only one moving, non-blended layer per frame.
+- Real codec + kbps under the progress bar on every player style: the
+  suite's format flow was never fed in this hybrid, so the badge never
+  rendered. MusoSuiteHost now emits the resolved stream's FormatEntity
+  (codec + bitrate from the REAL stream) into it; the badge shows e.g.
+  "OPUS • 129 kbps" below the progress bar (Apple keeps its pill in the
+  time row), gated by the Show codec on player setting.
+- Apple-style player now honours the player slider style too (WAVY / SLIM /
+  SQUIGGLY); the volume slider stays Apple-thin.
+- Brand wordmark "Muso" everywhere now in Josefin Sans (splash, app
+  header, About). About keeps ONLY the GitHub button - Buy Me a Coffee and
+  Liberapay removed.
+# Round 158 (v0.5.175, code 182)
+
+Word-by-word lyrics smoothness - HTML reference parity (user report: every
+lyrics animation lagged behind the music, felt slow):
+- Root cause 1: the Echo word sweep was driven by the player's 50 ms
+  position ticks (20 steps per second) instead of the display frame rate -
+  the kimi reference runs its sync loop on requestAnimationFrame reading
+  audio.currentTime. Every Echo line now carries the ticked position
+  forward between ticks (withFrameNanos), so the fill advances once per
+  frame and is corrected to the player's truth on every tick.
+- Root cause 2: the sweep chased its target through a 120 ms tween
+  (animateFloatAsState), so it was always behind the beat AND steppy. The
+  tween is gone - progress tracks the playhead directly, exactly like the
+  reference writing --p each frame.
+- Recomposition discipline: per-word progress/active/complete read the
+  playhead through derivedStateOf, so at 60 Hz only the word being sung
+  recomposes; Metro's canvas reads the playhead in the draw phase (redraw
+  per frame, zero recomposition).
 # Round 157 (v0.5.174, code 181)
 
 CI fix for the v0.5.173 build log (paste-1-32):

@@ -44,6 +44,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -503,10 +505,18 @@ class MainActivity : ComponentActivity() {
                     }
                     var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
 
+                    // User spec: the search bar ON THE LIBRARY TAB searches ONLY the
+                    // local library; everywhere else (including the navbar's Search
+                    // button, which resets to ONLINE below) the chosen source applies.
+                    val onLibraryTab = navBackStackEntry?.destination?.hasRoute(LibraryDestination::class) == true
+                    val effectiveSearchSource = if (onLibraryTab) SearchSource.LOCAL else searchSource
+
                     val searchBarFocusRequester = remember { FocusRequester() }
 
                     val onSearch: (String) -> Unit = {
-                        if (it.isNotEmpty()) {
+                        // LOCAL search (library tab, or the user's own LOCAL choice):
+                        // results are already live below; submitting never goes online.
+                        if (it.isNotEmpty() && effectiveSearchSource == SearchSource.ONLINE) {
                             onActiveChange(false)
                             navController.navigate("search/${it.urlEncode()}")
                             if (dataStore[PauseSearchHistoryKey] != true) {
@@ -825,6 +835,9 @@ class MainActivity : ComponentActivity() {
                                 onOpenSearch = {
                                     // Exactly what the old bar's Search entry did: open the
                                     // SearchBar overlay and pull the keyboard up once it settles.
+                                    // The Search BUTTON always means ONLINE search (user spec) -
+                                    // the library tab still forces LOCAL through onLibraryTab.
+                                    searchSource = SearchSource.ONLINE
                                     onActiveChange(true)
                                     coroutineScope.launch {
                                         withFrameNanos { }
@@ -851,7 +864,7 @@ class MainActivity : ComponentActivity() {
                                     Text(
                                         text = stringResource(
                                             if (!active) R.string.search
-                                            else when (searchSource) {
+                                            else when (effectiveSearchSource) {
                                                 SearchSource.LOCAL -> R.string.search_library
                                                 SearchSource.ONLINE -> R.string.search_yt_music
                                             }
@@ -905,7 +918,8 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                         }
-                                        IconButton(
+                                        // Library tab: library-only search, no source toggle.
+                                        if (!onLibraryTab) IconButton(
                                             onClick = {
                                                 searchSource = searchSource.toggle()
                                             }
@@ -957,8 +971,8 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxSize()
                                         .padding(bottom = if (!playerBottomSheetState.isDismissed) MiniPlayerHeight else 0.dp)
                                         .navigationBarsPadding()
-                                ) { searchSource ->
-                                    when (searchSource) {
+                                ) { effectiveSearchSource ->
+                                    when (effectiveSearchSource) {
                                         SearchSource.LOCAL -> LocalSearchScreen(
                                             query = query.text,
                                             navController = navController,
@@ -1008,7 +1022,7 @@ class MainActivity : ComponentActivity() {
                                 Text(
                                     text = "Muso",
                                     // Brand wordmark: Gochi Hand, weight 400, no effects.
-                                    fontFamily = FontFamily(Font(R.font.gochi_hand)),
+                                    fontFamily = FontFamily(Font(R.font.josefin_sans)),
                                     fontWeight = FontWeight.Normal,
                                     fontSize = 32.sp,
                                     modifier = Modifier.weight(1f),
@@ -1187,8 +1201,37 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     }
+                    // --- ArchiveTune onboarding (Phase 4, kit port) ---------------
+                    // First-launch welcome shown ON TOP of the freshly composed
+                    // main UI, right after the splash hands off. Completion is
+                    // stored in the kit database: it only ever appears once per
+                    // install.
+                    val onboardingViewModel: moe.rukamori.archivetune.onboarding.OnboardingViewModel =
+                        hiltViewModel()
+                    val onboardingState by onboardingViewModel.screenState.collectAsStateWithLifecycle()
+                    val showOnboarding =
+                        when (val state = onboardingState) {
+                            moe.rukamori.archivetune.onboarding.OnboardingScreenState.Loading -> false
+                            moe.rukamori.archivetune.onboarding.OnboardingScreenState.Empty -> true
+                            moe.rukamori.archivetune.onboarding.OnboardingScreenState.Error -> false
+                            is moe.rukamori.archivetune.onboarding.OnboardingScreenState.Success ->
+                                state.uiState.shouldShowOnboarding
+                        }
+                    if (showOnboarding) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(androidx.compose.ui.graphics.Color.Black),
+                        ) {
+                            moe.rukamori.archivetune.ui.screens.onboarding.OnboardingRoute(
+                                viewModel = onboardingViewModel,
+                                onLoginRequested = { navController.navigate("login") },
+                            )
+                        }
+                    }
                 }
             }
+
             } // composeMainUi
 
             // The splash overlay composes OUTSIDE the app's UI tree: it never competes
