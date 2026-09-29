@@ -169,7 +169,12 @@ abstract class InternalDatabase : RoomDatabase() {
     abstract val dao: DatabaseDao
 
     companion object {
-        const val DB_NAME = "song.db"
+        // Muso port: AT's database is also called "song.db", which is muso's
+        // MAIN database (com.muso.music.db.MusicDatabase). Sharing the file
+        // made the two Room schemas fight over it at every launch (identity
+        // hash mismatch -> repair -> delete -> the app's library DB got wiped
+        // or the open crashed). The kit keeps its own internal data here.
+        const val DB_NAME = "archivetune_kit.db"
 
         fun newInstance(context: Context): MusicDatabase {
             val universalMigrations =

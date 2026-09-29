@@ -1,3 +1,30 @@
+# Round 181 (v0.5.184, code 191) — launch crash fix: database file collision
+
+SYMPTOM: APK builds green but crashes immediately on open.
+
+ROOT CAUSE: the kit's Room database (moe.rukamori.archivetune.db.MusicDatabase)
+declared DB_NAME = "song.db" — the same file as muso's OWN main database
+(com.muso.music.db.MusicDatabase, DB_NAME "song.db"). At launch both open the
+same file with different schemas/versions: Room's identity-hash check fails,
+the kit's newInstance() recovery tries schema repair and then
+deleteDatabase("song.db"), destroying muso's library database, and/or the
+open throws ("Room cannot verify the data integrity" / "migration didn't
+properly handle"). This also explains a persistent crash on every subsequent
+start (muso's DB then opening a file with the kit's schema).
+
+FIX: renamed the kit database to its own file "archivetune_kit.db". The kit
+DB starts empty (by design for this port); muso's song.db is untouched.
+
+Also audited for the same class of bug: DataStore files are already distinct
+(muso "settings" vs kit "archivetune_settings"); media3 caches are LazyCache
+and only instantiated by kit playback/download paths that muso never calls
+(the StorageSettings screen only lists/clears files, which is the intended
+behaviour since those ARE the app's real cache folders).
+
+NOTE for users upgrading from the crashing build: the crashing version may
+have deleted or recreated song.db — if the library appears empty after this
+fix, re-sync it (that damage was done by the crashing build, not this one).
+
 # Round 180 (v0.5.184, code 191) — buildfix round 13: R8 missing-class rules
 
 Hilt component compiles; the build now reaches minifyFossReleaseWithR8.
