@@ -1,3 +1,14 @@
+# Round 178 (v0.5.184, code 191) — buildfix round 11: NOTICE.md duplicate
+
+Same merge task, next conflict: META-INF/NOTICE.md ships in both
+kuromoji-ipadic 0.9.0 and jakarta.inject-api 2.0.1 (dagger transitive).
+Added it to the packaging excludes. Audited every jar added by the kit port
+(ktor client/server, commons-lang3, okhttp, re2j, protobuf-javalite,
+NewPipeExtractor, kuromoji, jakarta.inject) — the .txt license/notice
+variants are covered by AGP's built-in default excludes, and no other
+.md files overlap between two inputs, so no further conflicts of this
+class are expected.
+
 # Round 177 (v0.5.184, code 191) — buildfix round 10: :app compile PASSED, packaging duplicate
 
 compileFossReleaseKotlin + JavaWithJavac now pass. Build failed at

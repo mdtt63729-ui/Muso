@@ -83,6 +83,7 @@ android {
             excludes += setOf(
                 "META-INF/CONTRIBUTORS.md",
                 "META-INF/LICENSE.md",
+                "META-INF/NOTICE.md",
             )
         }
     }
