@@ -207,6 +207,15 @@ dependencies {
     implementation(projects.unison)
 
     implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.websockets)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.compose.material.icons.extended)
+    implementation(libs.lifecycle.process)
+    implementation("androidx.compose.material3.adaptive:adaptive:1.3.0-rc01")
 
     coreLibraryDesugaring(libs.desugaring)
 
@@ -220,4 +229,18 @@ dependencies {
     "fullImplementation"(libs.opencc4j)
 
     implementation(libs.timber)
+}
+
+// ArchiveTune kit sources rely on these opt-ins (AT's :app sets the same list).
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
+        optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
+        optIn.add("androidx.compose.foundation.ExperimentalFoundationApi")
+        optIn.add("androidx.compose.foundation.layout.ExperimentalLayoutApi")
+        optIn.add("androidx.compose.material.ExperimentalMaterialApi")
+        freeCompilerArgs.addAll(
+            "-opt-in=kotlin.RequiresOptIn",
+        )
+    }
 }

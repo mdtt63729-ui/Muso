@@ -598,13 +598,13 @@ fun NowPlayingScreenContent(
     if (screenDataState.lyricsData != null && controllerState.isPlaying) {
         KeepScreenOn()
     }
+    // The Show codec on player setting (Appearance), read here so every
+    // player style renders the badge from one source of truth.
+    val (showCodecOnPlayer) = com.muso.music.utils.rememberPreference(
+        key = com.muso.music.constants.ShowCodecOnPlayerKey,
+        defaultValue = true,
+    )
     val state =
-        // The Show codec on player setting (Appearance), read here so every
-        // player style renders the badge from one source of truth.
-        val (showCodecOnPlayer) = com.muso.music.utils.rememberPreference(
-            key = com.muso.music.constants.ShowCodecOnPlayerKey,
-            defaultValue = true,
-        )
         NowPlayingContentState(
             showCodecBadge = showCodecOnPlayer,
             screenData = screenDataState,

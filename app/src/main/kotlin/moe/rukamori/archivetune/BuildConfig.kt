@@ -17,7 +17,9 @@ object BuildConfig {
     val DEBUG: Boolean = com.muso.music.BuildConfig.DEBUG
     val VERSION_NAME: String = com.muso.music.BuildConfig.VERSION_NAME
     val VERSION_CODE: Int = com.muso.music.BuildConfig.VERSION_CODE
-    val DISTRIBUTION: String = com.muso.music.BuildConfig.DISTRIBUTION
+    // Muso has no distribution flavors; anything other than "gms" keeps the kit's
+    // Play-only paths disabled.
+    const val DISTRIBUTION: String = "foss"
 
     // Runtime device info (logcat / debug screens).
     val DEVICE: String = android.os.Build.DEVICE

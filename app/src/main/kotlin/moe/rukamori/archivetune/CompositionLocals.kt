@@ -21,7 +21,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.hilt.EntryPointAccessors
+import dagger.hilt.android.EntryPointAccessors
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.playback.DownloadUtil
 import moe.rukamori.archivetune.playback.PlayerConnection

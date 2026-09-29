@@ -1223,7 +1223,7 @@ class MainActivity : ComponentActivity() {
                         when (val state = onboardingState) {
                             moe.rukamori.archivetune.onboarding.OnboardingScreenState.Loading -> false
                             moe.rukamori.archivetune.onboarding.OnboardingScreenState.Empty -> true
-                            moe.rukamori.archivetune.onboarding.OnboardingScreenState.Error -> false
+                            is moe.rukamori.archivetune.onboarding.OnboardingScreenState.Error -> false
                             is moe.rukamori.archivetune.onboarding.OnboardingScreenState.Success ->
                                 state.uiState.shouldShowOnboarding
                         }

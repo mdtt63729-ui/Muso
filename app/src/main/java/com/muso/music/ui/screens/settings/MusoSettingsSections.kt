@@ -199,6 +199,7 @@ private const val THEME_COLOR_MODE_CUSTOM = "custom"
 // Theme rows (inside the kit AppearanceSettings theme group).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoThemeRows() {
     val (dynamicTheme, onDynamicThemeChange) = rememberPreference(key = DynamicThemeKey, defaultValue = true)
     val (customThemeColor, onCustomThemeColorChange) = rememberPreference(key = com.muso.music.constants.CustomThemeColorKey, defaultValue = 0)
@@ -361,6 +362,7 @@ fun PreferenceGroupScope.musoThemeRows() {
 // group).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoPlayerStyleRows() {
     val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(key = PlayerStyleKey, defaultValue = PlayerStyle.EXPRESSIVE)
     val (miniPlayerStyle, onMiniPlayerStyleChange) = rememberEnumPreference(key = MiniPlayerStyleKey, defaultValue = MiniPlayerStyle.GLASS)
@@ -632,6 +634,7 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
 // Video rows (player group of kit AppearanceSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoVideoRows() {
     val (videoQuality, onVideoQualityChange) = rememberEnumPreference(VideoQualityKey, defaultValue = VideoQuality.Q720)
     val (showVideoInPlayer, onShowVideoInPlayerChange) = rememberPreference(ShowVideoInPlayerKey, defaultValue = true)
@@ -666,6 +669,7 @@ fun PreferenceGroupScope.musoVideoRows() {
 // Layout + auto playlists rows (misc group of kit AppearanceSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoLayoutRows() {
     val (defaultOpenTab, onDefaultOpenTabChange) = rememberEnumPreference(key = DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
     val (gridCellSize, onGridCellSizeChange) = rememberEnumPreference(key = GridCellSizeKey, defaultValue = GridCellSize.SMALL)
@@ -740,6 +744,7 @@ fun PreferenceGroupScope.musoLayoutRows() {
 // Streaming quality rows (player group of kit PlayerSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoAudioQualityRows() {
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(AudioQualityKey, defaultValue = AudioQuality.HIGH_OPUS)
     val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(key = DownloadQualityKey, defaultValue = AudioQuality.MEDIUM)
@@ -782,6 +787,7 @@ fun PreferenceGroupScope.musoAudioQualityRows() {
 // Audio behaviour rows (player group of kit PlayerSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoAudioBehaviourRows() {
     val (skipSilence, onSkipSilenceChange) = rememberPreference(SkipSilenceKey, defaultValue = false)
     val (audioNormalization, onAudioNormalizationChange) = rememberPreference(AudioNormalizationKey, defaultValue = false)
@@ -952,6 +958,7 @@ fun PreferenceGroupScope.musoAudioBehaviourRows() {
 // Audio effects row (player group of kit PlayerSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoAudioEffectsRow(navController: NavController) {
     item {
         PreferenceEntry(
@@ -967,6 +974,7 @@ fun PreferenceGroupScope.musoAudioEffectsRow(navController: NavController) {
 // Queue rows (queue group of kit PlayerSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoQueueRows() {
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(PersistentQueueKey, defaultValue = true)
     val (autoLoadMore, onAutoLoadMoreChange) = rememberPreference(AutoLoadMoreKey, defaultValue = true)
@@ -1015,6 +1023,7 @@ fun PreferenceGroupScope.musoQueueRows() {
 // Misc player rows (misc group of kit PlayerSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoMiscPlayerRows() {
     val (stopMusicOnTaskClear, onStopMusicOnTaskClearChange) = rememberPreference(StopMusicOnTaskClearKey, defaultValue = false)
     val (pauseOnMute, onPauseOnMuteChange) = rememberPreference(PauseOnMuteKey, defaultValue = false)
@@ -1119,6 +1128,7 @@ fun PreferenceGroupScope.musoMiscPlayerRows() {
 // Lyrics rows (display group of kit LyricsSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoLyricsRows() {
     val (lyricsStyle, onLyricsStyleChange) = rememberEnumPreference(key = LyricsStyleKey, defaultValue = LyricsStyle.APPLE_MUSIC)
     val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.FLARE)
@@ -1278,6 +1288,7 @@ fun PreferenceGroupScope.musoLyricsRows() {
 // Lyrics provider rows (providers group of kit LyricsSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoLyricsProviderRows() {
     val defaultProviderOrder = remember { LyricsProviderRegistry.serializeProviderOrder(LyricsProviderRegistry.getDefaultProviderOrder()) }
     val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(key = LyricsProviderOrderKey, defaultValue = defaultProviderOrder)
@@ -1364,6 +1375,7 @@ fun PreferenceGroupScope.musoLyricsProviderRows() {
 // Content rows (general group of kit ContentSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoContentRows(navController: NavController) {
     val context = LocalContext.current
     val accountName by rememberPreference(AccountNameKey, "")
@@ -1530,6 +1542,7 @@ fun PreferenceGroupScope.musoContentRows(navController: NavController) {
 // Storage rows (a group of kit StorageSettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoStorageRows() {
     val (maxImageCacheSize, onMaxImageCacheSizeChange) = rememberPreference(key = MaxImageCacheSizeKey, defaultValue = 512)
     val (maxSongCacheSize, onMaxSongCacheSizeChange) = rememberPreference(key = MaxSongCacheSizeKey, defaultValue = 1024)
@@ -1582,6 +1595,7 @@ fun PreferenceGroupScope.musoStorageRows() {
 // Privacy rows (a group of kit PrivacySettings).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoPrivacyRows() {
     val (pauseListenHistory, onPauseListenHistoryChange) = rememberPreference(key = PauseListenHistoryKey, defaultValue = false)
     val (pauseSearchHistory, onPauseSearchHistoryChange) = rememberPreference(key = PauseSearchHistoryKey, defaultValue = false)
@@ -1629,6 +1643,7 @@ fun PreferenceGroupScope.musoPrivacyRows() {
 // muso features linked from the kit Integration and Backup screens).
 // ---------------------------------------------------------------------------
 
+@Composable
 fun PreferenceGroupScope.musoIntegrationRows(navController: NavController) {
     item {
         PreferenceEntry(
@@ -1664,6 +1679,7 @@ fun PreferenceGroupScope.musoIntegrationRows(navController: NavController) {
     }
 }
 
+@Composable
 fun PreferenceGroupScope.musoBackupRows(navController: NavController) {
     item {
         PreferenceEntry(

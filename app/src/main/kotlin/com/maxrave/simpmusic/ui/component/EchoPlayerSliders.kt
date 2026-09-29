@@ -21,7 +21,7 @@ package com.maxrave.simpmusic.ui.component
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.ProgressIndicatorDefaults
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas

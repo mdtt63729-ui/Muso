@@ -261,7 +261,7 @@ class AiContentFilterRepository
                 Timber.w("AI content filter request failed with HTTP %d", response.code)
                 return null
             }
-            val body = response.body
+            val body = response.body!!
             val contentLength = body.contentLength()
             if (contentLength > MAX_RESPONSE_BYTES) {
                 Timber.w("AI content filter response exceeded the size limit")

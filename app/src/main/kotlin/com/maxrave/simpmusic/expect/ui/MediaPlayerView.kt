@@ -39,6 +39,7 @@ fun rememberVideoAspectRatio(playerName: String): Float? = com.maxrave.media3.ui
 fun MediaPlayerViewWithSubtitle(
     modifier: Modifier,
     playerName: String,
+    cropToBounds: Boolean = false,
     shouldPip: Boolean,
     shouldShowSubtitle: Boolean,
     shouldScaleDownSubtitle: Boolean,
@@ -52,6 +53,7 @@ fun MediaPlayerViewWithSubtitle(
     MediaPlayerViewWithSubtitle(
         playerName = playerName,
         modifier = modifier,
+        cropToBounds = cropToBounds,
         shouldShowSubtitle = shouldShowSubtitle,
         shouldPip = shouldPip,
         shouldScaleDownSubtitle = shouldScaleDownSubtitle,

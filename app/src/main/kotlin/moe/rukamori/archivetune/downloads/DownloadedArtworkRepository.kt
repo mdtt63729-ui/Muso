@@ -290,7 +290,7 @@ class DownloadedArtworkRepository
                 Timber.w("Downloaded artwork request failed with HTTP %d", response.code)
                 return false
             }
-            val body = response.body
+            val body = response.body!!
             val contentLength = body.contentLength()
             if (contentLength > MAX_ARTWORK_BYTES) {
                 Timber.w("Downloaded artwork exceeded the size limit")

@@ -1,3 +1,57 @@
+# Round 174 (v0.5.184, code 191) — buildfix round 7: first :app compile wave (484 errors)
+
+KSP/Hilt now passes; :app compileFossReleaseKotlin ran for the first time.
+Errors were systematic, all fixed:
+
+Missing kit subsystem (bulk of the errors):
+- Ported AT's whole `together/` package (14 files: TogetherClient/Server/
+  OnlineHost/OnlineApi/OnlineEndpoint/Messages/Models/Clock/Link/Json/
+  PlaybackSync/GuestPlaybackPlanner/MusicTogetherRepository/UseCases) and
+  `utils/ScrobbleManager.kt` — Music Together + scrobbling symbols
+  (TogetherClient/Server/ClientEvent/ServerEvent/OnlineApi/Endpoint/
+  ControlAction/AddTrackMode/HostTransferred/ScrobbleManager/useNowPlaying/...)
+  were unresolved across MusicService, PlayerConnection, Queue, MusicTogetherScreen.
+  R import rewrite applied (MusicTogetherRepository).
+
+Missing :app dependencies (added):
+- ktor-client-okhttp, ktor-client-websockets, ktor-server-core/cio/websockets/
+  content-negotiation (2.3.12, same stack) — ktor OkHttp engine + Music Together
+  embedded server.
+- material-icons-extended 1.7.8 (Icons.rounded.* in AodClockWidget, AodTouchLock
+  Overlay, PlayerOutputDevice).
+- material3-adaptive 1.3.0-rc01 (currentWindowAdaptiveInfo / WindowSizeClass in
+  UpdateScreen, LyricsShareDialog, MusicTogetherScreen).
+- lifecycle-process 2.9.4 (ProcessLifecycleOwner in DiscordPresenceManager).
+- commons-lang3 3.12.0 -> 3.20.0 (RandomStringUtils.insecure() in entities).
+
+Wrong imports (kit built against androidx.hilt 1.4):
+- `androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel` -> rewrote to
+  `androidx.hilt.navigation.compose.hiltViewModel` in 28 kit files.
+
+Local build config:
+- Added tasks.withType<KotlinCompile> compilerOptions opt-ins (material3,
+  material3-expressive, foundation, foundation-layout, material +
+  kotlin.RequiresOptIn) — experimental-API errors in StorageSettings, LyricsMenu,
+  LyricsSettings, dialogs.
+
+Surgical code fixes:
+- CompositionLocals.kt: EntryPointAccessors import was dagger.hilt.* ->
+  dagger.hilt.android.*.
+- BuildConfig shim: DISTRIBUTION had no muso counterpart -> const "foss"
+  (kit only compares it to "gms").
+- MainActivity: onboarding `when` — Error branch needs `is` (data class).
+- MusoSettingsSections: 16 PreferenceGroupScope sections now @Composable.
+- NowPlayingScreen.kt:601: repaired mangled val state = NowPlayingContentState(...)
+  edit (rememberPreference destructuring hoisted above the assignment).
+- EchoPlayerSliders: ProgressIndicatorDefaults import animation.core ->
+  material3.
+- expect/ui MediaPlayerViewWithSubtitle: added cropToBounds pass-through param.
+- AiContentFilterRepository / DownloadedArtworkRepository: okhttp4 nullable
+  `response.body` -> `body!!`.
+
+Static re-verification: 0 unresolved moe.rukamori imports; all together/
+symbols present.
+
 # Round 173 (v0.5.184, code 191) — buildfix round 6: Hilt entry point annotation
 
 All 12 new modules now compile fully; the build reached :app KSP/Hilt
