@@ -76,6 +76,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    packaging {
+        resources {
+            // kuromoji-core and kuromoji-ipadic both bundle these
+            // (DuplicateRelativeFileException at mergeFossReleaseJavaResource).
+            excludes += setOf(
+                "META-INF/CONTRIBUTORS.md",
+                "META-INF/LICENSE.md",
+            )
+        }
+    }
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.isReturnDefaultValues = true

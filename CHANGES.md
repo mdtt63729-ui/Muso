@@ -1,3 +1,11 @@
+# Round 177 (v0.5.184, code 191) — buildfix round 10: :app compile PASSED, packaging duplicate
+
+compileFossReleaseKotlin + JavaWithJavac now pass. Build failed at
+:app:mergeFossReleaseJavaResource: kuromoji-core 0.9.0 and kuromoji-ipadic
+0.9.0 both ship META-INF/CONTRIBUTORS.md and META-INF/LICENSE.md.
+Added a packaging { resources { excludes += ... } } block in app/build.gradle.kts
+(verified against the actual jars on Maven Central).
+
 # Round 176 (v0.5.184, code 191) — buildfix round 9: single remaining error
 
 Preference.kt:1302 — the now-@Composable PreferenceGroup content lambda can't
