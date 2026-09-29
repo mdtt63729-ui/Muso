@@ -33,6 +33,14 @@ import java.util.Locale
  *    they can be shared through the in-app crash dialog (FileProvider) even
  *    when the public folder is not available.
  *
+ *  - AND (Round 170): every app start and every crash is ALSO written to the
+ *    PUBLIC Downloads folder under Downloads/Muso via MediaStore - no
+ *    permission is needed for that on Android 10+, and it is visible in any
+ *    file manager. This is the guaranteed-visible copy: it works even when the
+ *    app crash-loops before the All Files Access prompt could ever appear.
+ *    Each crash entry there also carries the tail of the system logcat, so
+ *    the exact crash reason is in the file.
+ *
  * The handler is installed as the very first thing in Application.onCreate,
  * so even early crashes are captured.
  */
@@ -56,7 +64,11 @@ object MusoLog {
 
     private var logcatProcess: Process? = null
 
+    @Volatile
+    private var appContext: Context? = null
+
     fun init(app: Application) {
+        appContext = app
         val public = File(Environment.getExternalStorageDirectory(), "Muso")
         var dir: File? = null
         if (canWrite(public)) {
@@ -133,6 +145,82 @@ object MusoLog {
             // And the cumulative crash log.
             runCatching { File(dir, "crash_log.txt").appendText("\n$report") }
         }
+
+        // The guaranteed-visible copy + the logcat tail (the actual crash
+        // reason, including anything the system logged about it).
+        runCatching { appendToDownloads(app, "crash_log.txt", "\n$report\n----- logcat tail -----\n${logcatTail()}\n") }
+    }
+
+    /** Last ~300 logcat lines (the crash reason lives here). */
+    private fun logcatTail(): String = runCatching {
+        val p = ProcessBuilder("logcat", "-d", "-t", "300", "-v", "time").start()
+        p.inputStream.bufferedReader().use { r -> r.readText().take(64_000) }
+    }.getOrElse { "logcat unavailable: ${it.message}" }
+
+    /**
+     * Appends text to Downloads/Muso/<fileName> through MediaStore (Android
+     * 10+, no permission) or a direct file write (older versions). Visible in
+     * any file manager, even when the app never gets far enough to ask for
+     * All Files Access.
+     */
+    private fun appendToDownloads(context: Context, fileName: String, text: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val resolver = context.contentResolver
+            val collection = android.provider.MediaStore.Downloads.getContentUri(
+                android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY,
+            )
+            // Find this app's existing entry (we own what we insert).
+            val found = resolver.query(
+                collection,
+                arrayOf(android.provider.MediaStore.MediaColumns._ID),
+                "${android.provider.MediaStore.MediaColumns.RELATIVE_PATH}=? AND " +
+                    "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME}=?",
+                arrayOf("${Environment.DIRECTORY_DOWNLOADS}/Muso", fileName),
+                null,
+            )?.use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+            val uri =
+                if (found != null) {
+                    android.net.Uri.withAppendedPath(collection, found.toString())
+                } else {
+                    resolver.insert(
+                        collection,
+                        android.content.ContentValues().apply {
+                            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                            put(
+                                android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                                "${Environment.DIRECTORY_DOWNLOADS}/Muso",
+                            )
+                            put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                        },
+                    ) ?: return
+                }
+            runCatching {
+                resolver.openOutputStream(uri, "wa")?.use { os ->
+                    os.write(text.toByteArray(Charsets.UTF_8))
+                }
+                // Clear the pending flag for freshly inserted entries.
+                if (found == null) {
+                    resolver.update(
+                        uri,
+                        android.content.ContentValues().apply {
+                            put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
+                        },
+                        null,
+                        null,
+                    )
+                }
+            }
+        } else {
+            // Legacy: direct write to the public Downloads folder.
+            val dir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                "Muso",
+            )
+            if (canWrite(dir)) {
+                File(dir, fileName).appendText(text)
+            }
+        }
     }
 
     /**
@@ -205,6 +293,23 @@ object MusoLog {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(COUNT_KEY, 0)
 
     private fun startLogcat(dir: File?) {
+        // Round 170: heartbeat that is visible in Files -> Downloads -> Muso.
+        // If the user sees app_log.txt there, Application.onCreate HAS run -
+        // which narrows down any crash to after that point.
+        val ctx = appContext ?: return
+        // Off the main thread: never delay the launch.
+        java.util.concurrent.Executors.newSingleThreadExecutor().execute {
+            runCatching {
+                val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+                appendToDownloads(
+                    ctx,
+                    "app_log.txt",
+                    "App start ${com.muso.music.BuildConfig.VERSION_NAME} " +
+                        "(${com.muso.music.BuildConfig.VERSION_CODE}) at $ts; " +
+                        "publicDir=$usingPublicDir\n",
+                )
+            }
+        }
         if (dir == null) return
         runCatching {
             val main = File(dir, "main.txt")

@@ -240,6 +240,11 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var downloadUtil: DownloadUtil
 
+    // Kit onboarding flag reader (DataStore only - safe to construct eagerly
+    // via Hilt field injection; used after the main UI renders).
+    @Inject
+    lateinit var onboardingRepository: moe.rukamori.archivetune.onboarding.OnboardingRepository
+
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -1271,21 +1276,24 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     // --- ArchiveTune onboarding (Phase 4, kit port) ---------------
-                    // First-launch welcome shown ON TOP of the freshly composed
-                    // main UI, right after the splash hands off. Completion is
-                    // stored in the kit database: it only ever appears once per
-                    // install.
-                    val onboardingViewModel: moe.rukamori.archivetune.onboarding.OnboardingViewModel =
-                        hiltViewModel()
-                    val onboardingState by onboardingViewModel.screenState.collectAsStateWithLifecycle()
-                    val showOnboarding =
-                        when (val state = onboardingState) {
-                            moe.rukamori.archivetune.onboarding.OnboardingScreenState.Loading -> false
-                            moe.rukamori.archivetune.onboarding.OnboardingScreenState.Empty -> true
-                            is moe.rukamori.archivetune.onboarding.OnboardingScreenState.Error -> false
-                            is moe.rukamori.archivetune.onboarding.OnboardingScreenState.Success ->
-                                state.uiState.shouldShowOnboarding
-                        }
+                    // Round 170 fix: the onboarding used to construct its
+                    // HiltViewModel + kit DataStore flow DURING the startup
+                    // composition (the heaviest, most fragile moment of the
+                    // app). It now waits until the main UI has fully rendered,
+                    // reads the completion flag once (guarded - any failure
+                    // simply skips the onboarding), and only then composes the
+                    // kit screen. If the onboarding itself ever fails, the app
+                    // is already open, the crash is captured by MusoLog and
+                    // shown in the crash dialog on the next launch.
+                    var showOnboarding by remember { mutableStateOf(false) }
+                    LaunchedEffect(mainUiRendered) {
+                        if (!mainUiRendered) return@LaunchedEffect
+                        val shouldShow =
+                            runCatching {
+                                onboardingRepository.observeShouldShowOnboarding().first()
+                            }.getOrDefault(false)
+                        if (shouldShow) showOnboarding = true
+                    }
                     if (showOnboarding) {
                         Box(
                             Modifier
@@ -1293,7 +1301,6 @@ class MainActivity : ComponentActivity() {
                                 .background(androidx.compose.ui.graphics.Color.Black),
                         ) {
                             moe.rukamori.archivetune.ui.screens.onboarding.OnboardingRoute(
-                                viewModel = onboardingViewModel,
                                 onLoginRequested = { navController.navigate("login") },
                             )
                         }

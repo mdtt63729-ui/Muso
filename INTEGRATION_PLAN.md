@@ -117,3 +117,11 @@ About page) integrated in. All settings must APPLY to the app.
 - MusoLog: crash files mirrored to the app-external Muso folder; crash
   dialog share button sends full log files via FileProvider
   (com.muso.music.fileprovider, res/xml/file_paths.xml).
+
+## Round 170 addendum — startup hardening II (v0.5.187)
+- Onboarding: no longer composed during startup; MainActivity injects kit
+  OnboardingRepository and reads the flag once (guarded) after the main UI
+  renders, then overlays OnboardingRoute.
+- MusoLog: crash entries + logcat tail + app-start heartbeats are mirrored to
+  Downloads/Muso via MediaStore (permission-free, visible in any file
+  manager). app_log.txt heartbeat proves whether App.onCreate runs.
