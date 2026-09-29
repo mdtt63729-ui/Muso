@@ -220,6 +220,8 @@
     <string name="log_folder_title">Muso log folder</string>
     <string name="log_folder_desc">Allow access to all files so the Muso folder (with crash_log.txt, crash_log_N.txt and main.txt) is visible in your phone storage. If you skip this, logs are still saved, just inside Android/data.</string>
     <string name="log_folder_allow">Allow</string>
+    <string name="share_crash_log">Share crash log</string>
+    <string name="kit_settings_unavailable">Settings module could not load. The rest of the app is unaffected. Please share the Muso crash log so it can be fixed.</string>
     <string name="player_style_classic_v2">Classic V2</string>
     <string name="player_style_m3_expressive">M3 Expressive</string>
     <string name="player_style_immersive_nightly">Immersive Nightly</string>

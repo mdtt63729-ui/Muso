@@ -46,6 +46,18 @@
             android:name="org.apache.http.legacy"
             android:required="false" />
 
+        <!-- Shares the Muso crash/log files from the crash dialog (no storage
+             permission needed - FileProvider serves the app-external folder). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

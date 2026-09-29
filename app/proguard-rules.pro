@@ -140,3 +140,9 @@
 }
 -keep class * extends androidx.glance.appwidget.GlanceAppWidget { *; }
 -keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver { *; }
+
+# ===== ArchiveTune settings kit (Round 169) =====
+# The kit was ported wholesale; until its reflection surface is audited, R8
+# must not strip or rename anything inside it (Room auto-migrations, Hilt
+# entry points, enums persisted by name, kotlinx serialization models).
+-keep class moe.rukamori.archivetune.** { *; }

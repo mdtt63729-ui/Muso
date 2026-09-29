@@ -107,3 +107,13 @@ About page) integrated in. All settings must APPLY to the app.
 - MusoLog (com.muso.music.utils.MusoLog): Muso folder with crash_log.txt,
   crash_log_N.txt (one per crash), main.txt (full run logcat); App.onCreate
   init; one-time All Files Access prompt in MainActivity; manifest perms.
+
+## Round 169 addendum — startup immunity (v0.5.186)
+- Kit CompositionLocals moved OUT of MainActivity's startup provider into
+  moe.rukamori.archivetune.KitSettingsHost, wrapping all 28 kit routes in
+  NavigationBuilder. Kit DB/SyncUtils/DownloadUtil construct lazily on
+  settings open; failures render a fallback screen, never a startup crash.
+- R8 blanket keep for the kit in proguard-rules.pro.
+- MusoLog: crash files mirrored to the app-external Muso folder; crash
+  dialog share button sends full log files via FileProvider
+  (com.muso.music.fileprovider, res/xml/file_paths.xml).

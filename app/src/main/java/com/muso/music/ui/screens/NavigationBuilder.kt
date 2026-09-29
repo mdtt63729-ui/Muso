@@ -281,9 +281,11 @@ fun NavGraphBuilder.navigationBuilder(
     // Kit screens are invoked fully-qualified: the old muso screens keep
     // their names until Phase 3 removes them.
     composable("settings") {
-        moe.rukamori.archivetune.ui.screens.settings.SettingsScreen(
-            navController, latestVersionName,
-        )
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.SettingsScreen(
+                navController, latestVersionName,
+            )
+        }
     }
     composable("settings/account") {
         // Muso's own YouTube login flow (the kit AccountSettings needs the
@@ -291,79 +293,129 @@ fun NavGraphBuilder.navigationBuilder(
         LoginScreen(navController)
     }
     composable("settings/hidden_playlists") {
-        moe.rukamori.archivetune.ui.screens.settings.HiddenPlaylistsScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.HiddenPlaylistsScreen(navController)
+        }
     }
     composable("settings/appearance") {
-        moe.rukamori.archivetune.ui.screens.settings.AppearanceSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.AppearanceSettings(navController)
+        }
     }
     composable("settings/appearance/icon") {
-        moe.rukamori.archivetune.ui.screens.settings.IconScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.IconScreen(navController)
+        }
     }
     composable("settings/appearance/aod_customized") {
-        moe.rukamori.archivetune.ui.screens.settings.AodCustomizedScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.AodCustomizedScreen(navController)
+        }
     }
     composable("settings/appearance/palette_picker") {
-        moe.rukamori.archivetune.ui.screens.settings.PalettePickerScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.PalettePickerScreen(navController)
+        }
     }
     composable("settings/appearance/lyrics_animations") {
-        moe.rukamori.archivetune.ui.screens.settings.LyricsAnimationSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.LyricsAnimationSettings(navController)
+        }
     }
     composable("settings/appearance/theme_creator") {
-        moe.rukamori.archivetune.ui.screens.settings.ThemeCreatorScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.ThemeCreatorScreen(navController)
+        }
     }
     composable("settings/content") {
-        moe.rukamori.archivetune.ui.screens.settings.ContentSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.ContentSettings(navController)
+        }
     }
     composable("settings/lyrics") {
-        moe.rukamori.archivetune.ui.screens.settings.LyricsSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.LyricsSettings(navController)
+        }
     }
     composable("settings/internet") {
-        moe.rukamori.archivetune.ui.screens.settings.InternetSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.InternetSettings(navController)
+        }
     }
     composable("settings/player") {
-        moe.rukamori.archivetune.ui.screens.settings.PlayerSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.PlayerSettings(navController)
+        }
     }
     composable("settings/canvas") {
-        moe.rukamori.archivetune.ui.screens.settings.CanvasSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.CanvasSettings(navController)
+        }
     }
     composable("settings/android_auto") {
-        moe.rukamori.archivetune.ui.screens.settings.AndroidAutoSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.AndroidAutoSettings(navController)
+        }
     }
     composable("settings/storage") {
-        moe.rukamori.archivetune.ui.screens.settings.StorageSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.StorageSettings(navController)
+        }
     }
     composable("settings/privacy") {
-        moe.rukamori.archivetune.ui.screens.settings.PrivacySettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.PrivacySettings(navController)
+        }
     }
     composable("settings/backup_restore") {
-        moe.rukamori.archivetune.ui.screens.settings.BackupAndRestore(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.BackupAndRestore(navController)
+        }
     }
     composable("settings/discord") {
-        moe.rukamori.archivetune.ui.screens.settings.DiscordSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.DiscordSettings(navController)
+        }
     }
     composable("settings/integration") {
-        moe.rukamori.archivetune.ui.screens.settings.IntegrationScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.IntegrationScreen(navController)
+        }
     }
     composable("settings/ai_integration") {
-        moe.rukamori.archivetune.ui.screens.settings.AiIntegrationSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.AiIntegrationSettings(navController)
+        }
     }
     composable("settings/music_together") {
-        moe.rukamori.archivetune.ui.screens.settings.MusicTogetherScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.MusicTogetherScreen(navController)
+        }
     }
     composable("settings/lastfm") {
-        moe.rukamori.archivetune.ui.screens.settings.LastFMSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.LastFMSettings(navController)
+        }
     }
     composable("settings/discord/experimental") {
-        moe.rukamori.archivetune.ui.screens.settings.DiscordExperimental(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.DiscordExperimental(navController)
+        }
     }
     composable("settings/misc") {
-        moe.rukamori.archivetune.ui.screens.settings.DebugSettings(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.DebugSettings(navController)
+        }
     }
     composable("settings/logcat") {
-        moe.rukamori.archivetune.ui.screens.settings.LogcatScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.LogcatScreen(navController)
+        }
     }
     composable("settings/update") {
-        moe.rukamori.archivetune.ui.screens.settings.UpdateScreen(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.UpdateScreen(navController)
+        }
     }
     composable(
         route = "settings/changelog?channel={channel}",
@@ -375,17 +427,21 @@ fun NavGraphBuilder.navigationBuilder(
             },
         ),
     ) { backStackEntry ->
-        val channelName = backStackEntry.arguments?.getString("channel")
-        val channel = moe.rukamori.archivetune.constants.UpdateChannel
-            .fromStoredName(channelName, moe.rukamori.archivetune.constants.UpdateChannel.STABLE)
-        moe.rukamori.archivetune.ui.screens.settings.ChangelogScreen(navController, channel = channel)
+        moe.rukamori.archivetune.KitSettingsHost {
+            val channelName = backStackEntry.arguments?.getString("channel")
+            val channel = moe.rukamori.archivetune.constants.UpdateChannel
+                .fromStoredName(channelName, moe.rukamori.archivetune.constants.UpdateChannel.STABLE)
+            moe.rukamori.archivetune.ui.screens.settings.ChangelogScreen(navController, channel = channel)
+        }
     }
     composable("settings/about") {
         // OUR About page stays (user spec).
         AboutScreen(navController, scrollBehavior)
     }
     composable("customize_background") {
-        moe.rukamori.archivetune.ui.screens.settings.CustomizeBackground(navController)
+        moe.rukamori.archivetune.KitSettingsHost {
+            moe.rukamori.archivetune.ui.screens.settings.CustomizeBackground(navController)
+        }
     }
     // Old muso-only settings routes, kept until Phase 3 removes the screens.
     composable("settings/audio_effects") {

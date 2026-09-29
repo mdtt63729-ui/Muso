@@ -2,6 +2,8 @@ package com.muso.music.utils
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import java.io.File
@@ -26,11 +28,19 @@ import java.util.Locale
  *                         (the biggest file; the previous run is kept as
  *                         main_previous.txt). Crashes appear here too, via
  *                         the system's AndroidRuntime logging.
+ *
+ *  - Crash files are ALWAYS mirrored into the app-external "Muso" folder so
+ *    they can be shared through the in-app crash dialog (FileProvider) even
+ *    when the public folder is not available.
+ *
+ * The handler is installed as the very first thing in Application.onCreate,
+ * so even early crashes are captured.
  */
 object MusoLog {
     private const val PREFS = "muso_crash_log"
     private const val COUNT_KEY = "crash_count"
     private const val PROMPT_KEY = "storage_prompt_done"
+    private const val FILE_PROVIDER_AUTHORITY = "com.muso.music.fileprovider"
 
     @Volatile
     var logDir: File? = null
@@ -39,6 +49,10 @@ object MusoLog {
     @Volatile
     var usingPublicDir: Boolean = false
         private set
+
+    /** Always-writable mirror of the crash files (app-external storage). */
+    @Volatile
+    private var mirrorDir: File? = null
 
     private var logcatProcess: Process? = null
 
@@ -54,6 +68,9 @@ object MusoLog {
             if (canWrite(fallback)) dir = fallback
         }
         logDir = dir
+        mirrorDir = runCatching {
+            File(app.getExternalFilesDir(null), "Muso").apply { mkdirs() }
+        }.getOrNull()
         installCrashHandler(app)
         startLogcat(dir)
     }
@@ -89,7 +106,6 @@ object MusoLog {
     }
 
     private fun writeCrash(app: Application, thread: Thread, throwable: Throwable) {
-        val dir = logDir ?: return
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val count = prefs.getInt(COUNT_KEY, 0) + 1
         prefs.edit().putInt(COUNT_KEY, count).apply()
@@ -110,11 +126,83 @@ object MusoLog {
             appendLine()
         }
 
-        // One file per crash: crash_log_1.txt, crash_log_2.txt, ...
-        runCatching { File(dir, "crash_log_$count.txt").writeText(report) }
-        // And the cumulative crash log.
-        runCatching { File(dir, "crash_log.txt").appendText("\n$report") }
+        val targets = listOfNotNull(logDir, mirrorDir)
+        for (dir in targets) {
+            // One file per crash: crash_log_1.txt, crash_log_2.txt, ...
+            runCatching { File(dir, "crash_log_$count.txt").writeText(report) }
+            // And the cumulative crash log.
+            runCatching { File(dir, "crash_log.txt").appendText("\n$report") }
+        }
     }
+
+    /**
+     * A share intent (used by the crash dialog) carrying every log file that
+     * exists. main.txt is copied into the app-external folder first so the
+     * FileProvider can reach it even when the public Muso folder holds the
+     * live files. Works with no storage permission at all.
+     */
+    fun shareLogsIntent(context: Context): Intent {
+        val uris = mutableListOf<Uri>()
+        val dirs = listOfNotNull(mirrorDir, logDir).distinct()
+        val names = mutableListOf("crash_log.txt")
+        prefsCrashCount(context).let { n -> if (n > 0) names.add("crash_log_$n.txt") }
+        names.add("main.txt")
+        for (name in names) {
+            // Prefer the newest copy of each file across the folders.
+            val candidates = dirs.map { File(it, name) }.filter { it.isFile }
+            val file =
+                candidates.maxByOrNull { it.lastModified() }
+                    ?: continue
+            val shareable =
+                if (file.parentFile == mirrorDir) {
+                    file
+                } else {
+                    // Copy into the provider-accessible mirror dir.
+                    runCatching {
+                        val copy = File(mirrorDir, name)
+                        file.copyTo(copy, overwrite = true)
+                        copy
+                    }.getOrNull() ?: file
+                }
+            runCatching {
+                uris.add(
+                    androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        FILE_PROVIDER_AUTHORITY,
+                        shareable,
+                    ),
+                )
+            }
+        }
+        val intent =
+            if (uris.size > 1) {
+                Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+                }
+            } else if (uris.size == 1) {
+                Intent(Intent.ACTION_SEND).apply {
+                    putExtra(Intent.EXTRA_STREAM, uris.first())
+                }
+            } else {
+                Intent(Intent.ACTION_SEND).apply { }
+            }
+        intent.apply {
+            type = "text/plain"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(
+                Intent.EXTRA_SUBJECT,
+                "Muso ${com.muso.music.BuildConfig.VERSION_NAME} logs",
+            )
+            putExtra(
+                Intent.EXTRA_TEXT,
+                "Crash log, cumulative log and full app log attached.",
+            )
+        }
+        return intent
+    }
+
+    private fun prefsCrashCount(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(COUNT_KEY, 0)
 
     private fun startLogcat(dir: File?) {
         if (dir == null) return

@@ -1,3 +1,37 @@
+# Round 169 (v0.5.186, code 193) — startup crash-loop fix + shareable logs
+
+User report: the app crash-loops and never opens (no dialog ever visible,
+which places the crash in the startup composition BEFORE the crash dialog —
+i.e. the region where the kit CompositionLocals were provisioned since
+v0.5.182). Full fix package:
+
+1. ROOT-CAUSE CONTAINMENT — kit runtime moved off the startup path:
+   - NEW moe.rukamori.archivetune.KitSettingsHost composable. It provides the
+     kit CompositionLocals (LocalDatabase, LocalSyncUtils, LocalDownloadUtil,
+     LocalPlayerAwareWindowInsets, LocalPlayerConnection, LocalAnimationsDisabled)
+     around EVERY kit screen (all 28 routes in NavigationBuilder, including
+     the settings hub, changelog and customize_background).
+   - The kit database / SyncUtils / DownloadUtil are now constructed lazily on
+     first settings open — never during app startup. Any failure in the kit
+     object graph (Room open, Hilt, R8) shows a fallback message screen
+     ("Settings module could not load") instead of crashing, and lands in the
+     Muso log folder.
+   - MainActivity's startup CompositionLocalProvider no longer provides kit
+     locals at all — startup composition is back to pre-kit purity, so the
+     app ALWAYS opens.
+
+2. R8 insurance: proguard-rules.pro now keeps the entire kit
+   (-keep class moe.rukamori.archivetune.** { *; }) so minification cannot
+   strip/rename anything the kit touches by reflection (Room auto-migrations,
+   Hilt entry points, enums persisted by name, serialization models).
+
+3. Logs the user can always reach, no permission needed:
+   - Crash files are mirrored into Android/data/com.muso.music/files/Muso in
+     addition to the visible Muso folder.
+   - FileProvider (com.muso.music.fileprovider) + res/xml/file_paths.xml.
+   - The in-app crash dialog's Share button now attaches the FULL files
+     (crash_log_N.txt, crash_log.txt, main.txt) instead of just a text
+     snippet — works on any Android version with zero storage permissions.
 # Round 168 (v0.5.185, code 192) — Kit file completeness + on-device crash & full logging
 
 - Kit completeness audit (user request): 21 previously-skipped kit files added

@@ -841,16 +841,12 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 com.maxrave.simpmusic.ui.theme.LightAppColors
                             },
-                            moe.rukamori.archivetune.LocalPlayerAwareWindowInsets provides
-                                androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-                            moe.rukamori.archivetune.LocalPlayerConnection provides null,
-                            moe.rukamori.archivetune.LocalAnimationsDisabled provides false,
-                            moe.rukamori.archivetune.LocalDatabase provides
-                                moe.rukamori.archivetune.KitRuntimeAccess.database(),
-                            moe.rukamori.archivetune.LocalSyncUtils provides
-                                moe.rukamori.archivetune.KitRuntimeAccess.syncUtils(),
-                            moe.rukamori.archivetune.LocalDownloadUtil provides
-                                moe.rukamori.archivetune.KitRuntimeAccess.downloadUtil(),
+                            // ArchiveTune kit locals are NOT provided at startup
+                            // anymore: KitSettingsHost (around every kit screen in
+                            // NavigationBuilder) provides them lazily. Startup must
+                            // never construct the kit database / SyncUtils /
+                            // DownloadUtil — the app always opens even if the kit
+                            // graph fails (Round 169 crash-loop fix).
                     ) {
                         NavHost(
                             // The content layer the glass surfaces sample; the bar and
@@ -1237,17 +1233,30 @@ class MainActivity : ComponentActivity() {
                                 TextButton(
                                     onClick = {
                                         runCatching { java.io.File(context.filesDir, "crash.log").delete() }
-                                        runCatching {
-                                            context.startActivity(
-                                                android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                                    type = "text/plain"
-                                                    putExtra(
-                                                        android.content.Intent.EXTRA_TEXT,
-                                                        lastCrashLog,
-                                                    )
-                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                }
-                                            )
+                                        // Round 169: share the FULL log files from the
+                                        // Muso folder (crash_log_N.txt, crash_log.txt,
+                                        // main.txt) via FileProvider - no storage
+                                        // permission needed; fall back to plain text.
+                                        val shared =
+                                            runCatching {
+                                                context.startActivity(
+                                                    com.muso.music.utils.MusoLog.shareLogsIntent(context)
+                                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                                )
+                                            }.isSuccess
+                                        if (!shared) {
+                                            runCatching {
+                                                context.startActivity(
+                                                    android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                        type = "text/plain"
+                                                        putExtra(
+                                                            android.content.Intent.EXTRA_TEXT,
+                                                            lastCrashLog,
+                                                        )
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                )
+                                            }
                                         }
                                     },
                                 ) { Text(stringResource(R.string.share)) }
