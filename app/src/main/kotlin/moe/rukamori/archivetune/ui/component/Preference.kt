@@ -1297,7 +1297,7 @@ class PreferenceGroupScope internal constructor() {
 fun PreferenceGroup(
     modifier: Modifier = Modifier,
     title: String? = null,
-    content: PreferenceGroupScope.() -> Unit,
+    content: @Composable PreferenceGroupScope.() -> Unit,
 ) {
     val scope = PreferenceGroupScope().apply(content)
     val itemCount = scope.items.size

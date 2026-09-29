@@ -1,3 +1,16 @@
+# Round 175 (v0.5.184, code 191) — buildfix round 8: 21 errors, 2 root causes
+
+- together/TogetherServer.kt: ktor 2.3.12 has no `io.ktor.server.engine.
+  EmbeddedServer` class (it is Ktor 3 API; AT targets ktor 3.5.1). In Ktor 2
+  `embeddedServer(...)` returns `ApplicationEngine` — swapped the import and
+  the `engine: EmbeddedServer<*, *>?` field type. `start(wait=false)` and
+  `stop(1000, 2000)` signatures match Ktor 2's ApplicationEngine.
+- Preference.kt PreferenceGroup: the group content lambda was a plain
+  `PreferenceGroupScope.() -> Unit`; the Muso-backed section functions
+  (musoThemeRows etc., which read preference state via rememberPreference)
+  need a composable context. Marked the content lambda @Composable
+  (invocation site already composable; all existing kit call sites unchanged).
+
 # Round 174 (v0.5.184, code 191) — buildfix round 7: first :app compile wave (484 errors)
 
 KSP/Hilt now passes; :app compileFossReleaseKotlin ran for the first time.
