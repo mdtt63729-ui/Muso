@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import dagger.hilt.EntryPointAccessors
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.playback.DownloadUtil
@@ -39,6 +41,7 @@ object AppInstanceHolder {
 }
 
 /** Hilt entry point used by the Muso host to fetch kit singletons. */
+@InstallIn(SingletonComponent::class)
 @EntryPoint
 interface KitEntryPoint {
     fun database(): MusicDatabase

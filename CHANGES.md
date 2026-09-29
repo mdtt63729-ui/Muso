@@ -1,3 +1,13 @@
+# Round 173 (v0.5.184, code 191) — buildfix round 6: Hilt entry point annotation
+
+All 12 new modules now compile fully; the build reached :app KSP/Hilt
+processing for the first time. Single error, fixed:
+- CompositionLocals.kt KitEntryPoint was missing @InstallIn — Hilt
+  requires every @EntryPoint to declare its component. Added
+  @InstallIn(SingletonComponent::class) + imports.
+
+Next: :app Kotlin compile of the ~250 ported files, then R8/packaging.
+
 # Round 172 (v0.5.184, code 191) — buildfix round 5: single remaining compile error
 
 Every module except :morideobfuscator now compiles (all lyrics providers,
