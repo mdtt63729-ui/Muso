@@ -44,16 +44,19 @@ object AppInstanceHolder {
 @InstallIn(SingletonComponent::class)
 @EntryPoint
 interface KitEntryPoint {
-    fun database(): MusicDatabase
-    fun syncUtils(): SyncUtils
-    fun downloadUtil(): DownloadUtil
+    // Getter names are prefixed with `kit` — muso's own SuiteEntryPoint
+    // declares database()/downloadUtil() too, and Hilt merges both entry
+    // points into one component where Java cannot overload on return type.
+    fun kitDatabase(): MusicDatabase
+    fun kitSyncUtils(): SyncUtils
+    fun kitDownloadUtil(): DownloadUtil
 }
 
 object KitRuntimeAccess {
     private fun entryPoint(): KitEntryPoint =
         EntryPointAccessors.fromApplication(AppInstanceHolder.application, KitEntryPoint::class.java)
 
-    fun database(): MusicDatabase = entryPoint().database()
-    fun syncUtils(): SyncUtils = entryPoint().syncUtils()
-    fun downloadUtil(): DownloadUtil = entryPoint().downloadUtil()
+    fun database(): MusicDatabase = entryPoint().kitDatabase()
+    fun syncUtils(): SyncUtils = entryPoint().kitSyncUtils()
+    fun downloadUtil(): DownloadUtil = entryPoint().kitDownloadUtil()
 }

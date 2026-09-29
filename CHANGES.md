@@ -1,3 +1,13 @@
+# Round 179 (v0.5.184, code 191) — buildfix round 12: Hilt entry-point getter clash
+
+mergeFossReleaseJavaResource now passes. hiltJavaCompileFossRelease failed:
+muso's own SuiteEntryPoint and the kit's KitEntryPoint both declare
+database() and downloadUtil() getters; Hilt merges both entry points into
+the app's SingletonC component, and Java cannot overload on return type
+(the two return different types: muso vs kit classes). Renamed the
+KitEntryPoint getters to kitDatabase/kitSyncUtils/kitDownloadUtil
+(KitRuntimeAccess's public API unchanged, so MainActivity is untouched).
+
 # Round 178 (v0.5.184, code 191) — buildfix round 11: NOTICE.md duplicate
 
 Same merge task, next conflict: META-INF/NOTICE.md ships in both
