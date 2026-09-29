@@ -121,7 +121,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import moe.rukamori.archivetune.MainActivity
+import com.muso.music.MainActivity
 import com.muso.music.R
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.androidauto.AndroidAutoConfiguration

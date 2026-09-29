@@ -15,7 +15,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
-import moe.rukamori.archivetune.App
+import moe.rukamori.archivetune.AppInstanceHolder
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.constants.CanaryReleasesEtagKey
 import moe.rukamori.archivetune.constants.CanaryReleasesFingerprintKey
@@ -370,7 +370,7 @@ object Updater {
             return emptyList()
         }
 
-        val cachedJson = App.instance.dataStore.getAsync(GitHubReleasesJsonKey)
+        val cachedJson = AppInstanceHolder.application.dataStore.getAsync(GitHubReleasesJsonKey)
         return cachedJson
             ?.takeIf { it.isNotBlank() }
             ?.let { runCatching { parseReleasesJson(it, stableReleaseArtifactName()) }.getOrNull() }
@@ -474,7 +474,7 @@ object Updater {
             return emptyList()
         }
 
-        val cachedJson = App.instance.dataStore.getAsync(CanaryReleasesJsonKey)
+        val cachedJson = AppInstanceHolder.application.dataStore.getAsync(CanaryReleasesJsonKey)
         return cachedJson
             ?.takeIf { it.isNotBlank() }
             ?.let { runCatching { parseReleasesJson(it, artifactReleaseArtifactName()) }.getOrNull() }
@@ -490,9 +490,9 @@ object Updater {
 
         return runCatchingCancellable {
             val now = System.currentTimeMillis()
-            val cachedJson = App.instance.dataStore.getAsync(CanaryReleasesJsonKey)
-            val lastCheckedAt = App.instance.dataStore.getAsync(CanaryReleasesLastCheckedAtKey, 0L)
-            val cachedFingerprint = App.instance.dataStore.getAsync(CanaryReleasesFingerprintKey)
+            val cachedJson = AppInstanceHolder.application.dataStore.getAsync(CanaryReleasesJsonKey)
+            val lastCheckedAt = AppInstanceHolder.application.dataStore.getAsync(CanaryReleasesLastCheckedAtKey, 0L)
+            val cachedFingerprint = AppInstanceHolder.application.dataStore.getAsync(CanaryReleasesFingerprintKey)
             val cachedReleases =
                 cachedJson
                     ?.takeIf { it.isNotBlank() }
@@ -528,7 +528,7 @@ object Updater {
                 val cachedWorkflowJson = encodeReleasesJson(cachedArtifactReleases ?: emptyList())
                 val hasPayloadChanged = cachedJson != cachedWorkflowJson
 
-                App.instance.dataStore.edit { settings ->
+                AppInstanceHolder.application.dataStore.edit { settings ->
                     settings[CanaryReleasesLastCheckedAtKey] = now
                     settings.remove(CanaryReleasesEtagKey)
                     if (hasPayloadChanged || hasTopReleaseChanged || cachedJson.isNullOrBlank()) {
@@ -615,10 +615,10 @@ object Updater {
 
         return runCatchingCancellable {
             val now = System.currentTimeMillis()
-            val cachedJson = App.instance.dataStore.getAsync(GitHubReleasesJsonKey)
-            val cachedEtag = App.instance.dataStore.getAsync(GitHubReleasesEtagKey)
-            val lastCheckedAt = App.instance.dataStore.getAsync(GitHubReleasesLastCheckedAtKey, 0L)
-            val cachedFingerprint = App.instance.dataStore.getAsync(GitHubReleasesFingerprintKey)
+            val cachedJson = AppInstanceHolder.application.dataStore.getAsync(GitHubReleasesJsonKey)
+            val cachedEtag = AppInstanceHolder.application.dataStore.getAsync(GitHubReleasesEtagKey)
+            val lastCheckedAt = AppInstanceHolder.application.dataStore.getAsync(GitHubReleasesLastCheckedAtKey, 0L)
+            val cachedFingerprint = AppInstanceHolder.application.dataStore.getAsync(GitHubReleasesFingerprintKey)
 
             val cachedReleases =
                 cachedJson
@@ -656,7 +656,7 @@ object Updater {
 
             when {
                 networkResult.status == HttpStatusCode.NotModified -> {
-                    App.instance.dataStore.edit { settings ->
+                    AppInstanceHolder.application.dataStore.edit { settings ->
                         settings[GitHubReleasesLastCheckedAtKey] = now
                         networkResult.etag?.let { settings[GitHubReleasesEtagKey] = it }
                     }
@@ -675,7 +675,7 @@ object Updater {
                     val hasPayloadChanged = cachedJson != networkBody
                     val hasTopReleaseChanged = cachedFingerprint != newFingerprint
 
-                    App.instance.dataStore.edit { settings ->
+                    AppInstanceHolder.application.dataStore.edit { settings ->
                         settings[GitHubReleasesLastCheckedAtKey] = now
                         networkResult.etag?.let { settings[GitHubReleasesEtagKey] = it }
                         if (hasPayloadChanged || hasTopReleaseChanged || cachedJson.isNullOrBlank()) {

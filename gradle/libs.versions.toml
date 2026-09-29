@@ -1,4 +1,14 @@
 [versions]
+carApp = "1.7.0"
+graphicsShapes = "1.0.1"
+webkit = "1.17.0"
+kuromojiIpadic = "0.9.0"
+coroutines = "1.7.3"
+okhttp = "4.12.0"
+extractor = "0.26.5"
+re2j = "1.8"
+quickjsKt = "1.0.14"
+protobuf = "4.36.1"
 translator = "1.1.1"
 markwon = "4.6.2"
 accompanist = "1.0.19"
@@ -21,6 +31,16 @@ ktor = "2.3.12"
 ksp = "2.3.9"
 
 [libraries]
+car-app = { module = "androidx.car.app:app", version.ref = "carApp" }
+androidx-graphics-shapes = { group = "androidx.graphics", name = "graphics-shapes", version.ref = "graphicsShapes" }
+webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
+kuromoji-ipadic = { module = "com.atilika.kuromoji:kuromoji-ipadic", version.ref = "kuromojiIpadic" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+newpipe-extractor = { module = "com.github.TeamNewPipe:NewPipeExtractor", version.ref = "extractor" }
+re2j = { module = "com.google.re2j:re2j", version.ref = "re2j" }
+okhttp-dnsoverhttps = { module = "com.squareup.okhttp3:okhttp-dnsoverhttps", version.ref = "okhttp" }
+quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjsKt" }
+protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf" }
 translator = { module = "com.github.therealbush:translator", version.ref = "translator" }
 markwon-core = { module = "io.noties.markwon:core", version.ref = "markwon" }
 markwon-ext-strikethrough = { module = "io.noties.markwon:ext-strikethrough", version.ref = "markwon" }

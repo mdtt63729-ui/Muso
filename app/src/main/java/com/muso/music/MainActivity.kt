@@ -791,6 +791,16 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 com.maxrave.simpmusic.ui.theme.LightAppColors
                             },
+                            moe.rukamori.archivetune.LocalPlayerAwareWindowInsets provides
+                                androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+                            moe.rukamori.archivetune.LocalPlayerConnection provides null,
+                            moe.rukamori.archivetune.LocalAnimationsDisabled provides false,
+                            moe.rukamori.archivetune.LocalDatabase provides
+                                moe.rukamori.archivetune.KitRuntimeAccess.database(),
+                            moe.rukamori.archivetune.LocalSyncUtils provides
+                                moe.rukamori.archivetune.KitRuntimeAccess.syncUtils(),
+                            moe.rukamori.archivetune.LocalDownloadUtil provides
+                                moe.rukamori.archivetune.KitRuntimeAccess.downloadUtil(),
                     ) {
                         NavHost(
                             // The content layer the glass surfaces sample; the bar and

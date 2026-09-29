@@ -1,3 +1,50 @@
+# Round 168 (v0.5.184, code 191) — GitHub build fix: ArchiveTune dependency closure
+
+The FossRelease build failed at (a) the manifest merger (accompanist lyrics-ui
+declares minSdk 29) and (b) KSP: the settings kit referenced ~40 classes
+(repositories, use cases, DAOs, providers) that were never copied in from the
+full ArchiveTune source. Fix, in full:
+
+- MANIFEST: added <uses-sdk tools:overrideLibrary=
+  "com.mocharealm.accompanist.lyrics.ui" /> (exactly what ArchiveTune does).
+- DEPENDENCY CLOSURE: ~250 missing ArchiveTune sources brought in from
+  github.com/rukamori/ArchiveTune @ 2f48b81 + its submodules (core = AT
+  innertube, lyrics/* = the 7 lyric provider modules, morideobfuscator,
+  lastfm, canvas, spotifycore), pinned at the exact submodule SHAs the app
+  was extracted from. R imports remapped to com.muso.music.R; the kit's
+  references to AT's MainActivity/App rewritten to muso's
+  (com.muso.music.MainActivity / AppInstanceHolder).
+- NEW GRADLE MODULES: :core :lyrics:kugou/lrclib/simpmusic/paxsenix/
+  betterlyrics/unison/youlyplus :lastfm :canvas :spotifycore
+  :morideobfuscator (JDK 17 toolchains to match our CI), wired into
+  settings.gradle.kts, the app module and libs.versions.toml
+  (+newpipe-extractor, re2j, okhttp, kuromoji-ipadic, glance, car-app,
+  graphics-shapes, webkit, protobuf-javalite, quickjs-kt).
+- COMPOSITION LOCALS: the locals AT declares in its MainActivity
+  (LocalDatabase/PlayerConnection/PlayerAwareWindowInsets/DownloadUtil/
+  SyncUtils) now live in CompositionLocals.kt and are provided around our
+  NavHost via the new KitRuntimeAccess Hilt entry point, so kit screens
+  never hit the "not provided" error defaults. AppInstanceHolder feeds the
+  kit's non-composable access to the Application (Updater).
+- KIT DB: Room Converters + DatabaseDao + the missing entities copied in,
+  so InternalDatabase generates again; provideDatabase stays in the kit
+  AppModule.
+- PRUNED 57 provably-unreachable kit files (dead UI/menus the settings hub
+  never navigates to) that only pulled in more unresolved references;
+  every remaining kit reference was verified to resolve (static import +
+  same-package audit, 0 unresolved).
+- RESOURCES: missing strings/plurals/drawables/font ported from AT
+  (drive_backup_* set, app_icon_count, widget plurals, all_inclusive,
+  deselect, sfprodisplaybold...) into
+  values/archivetune_buildfix_strings.xml.
+- AccountSettings' App.Companion.forgetAccount reimplemented as
+  KitAccountAccess.forgetAccount (same behavior, no AT Application class).
+- KitAccountAccess + CompositionLocals + KitRuntimeAccess carry the
+  muso-port notice headers.
+
+Known limitation (unchanged): kit-DB-backed screens (stats, hidden
+playlists) read the kit database, which starts empty on muso installs.
+
 # Round 167 (v0.5.184, code 191) — ArchiveTune settings port, Phases 3-6 complete
 
 Phase 3 — every kept muso setting now lives inside the ArchiveTune settings

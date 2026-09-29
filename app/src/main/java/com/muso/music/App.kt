@@ -64,6 +64,7 @@ class App : Application(), ImageLoaderFactory {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        moe.rukamori.archivetune.AppInstanceHolder.application = this
         // The SimpMusic player suite resolves its few injected collaborators
         // (tab memory, sheet state, the queue-view handler) through Koin.
         koin = startKoin {

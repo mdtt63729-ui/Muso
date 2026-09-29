@@ -89,7 +89,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import moe.rukamori.archivetune.App.Companion.forgetAccount
+import moe.rukamori.archivetune.forgetAccount
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import com.muso.music.R

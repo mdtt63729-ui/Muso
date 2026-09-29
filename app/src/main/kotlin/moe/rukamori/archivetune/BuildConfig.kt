@@ -27,6 +27,7 @@ object BuildConfig {
     const val UPDATER_AVAILABLE = false
     const val LEAK_CANARY_TOGGLE_AVAILABLE = false
     const val IS_NIGHTLY_BUILD = false
+    const val NIGHTLY_BUILD_HASH = ""
 
     // Muso carries no Discord / Last.fm / Music Together build secrets; the
     // Discord RPC and Music Together sections stay disabled until Phase 5.
