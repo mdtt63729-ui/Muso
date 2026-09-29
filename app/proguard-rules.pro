@@ -83,3 +83,60 @@
 # some of these classes in release builds, which crashed the library tab.
 -keep class com.muso.music.viewmodels.** { *; }
 -keep class com.muso.music.constants.** { *; }
+
+# --- ArchiveTune settings-kit port (Round 180) --------------------------------
+# Rules ported from AT's proguard-rules.pro for the libraries the kit brought in.
+
+## Ktor (Music Together, AI, lyrics, updater clients).
+# R8 reports ktor's cross-module references (HttpTimeout, io.ktor.utils.io, …)
+# as missing classes under AGP9's jetified KMP jars; the classes are present at
+# runtime — AT ships the same keep/dontwarn pair.
+-keep class io.ktor.** { *; }
+-dontwarn io.ktor.**
+
+## Markwon — optional GIF support (android-gif-drawable) not bundled
+-dontwarn pl.droidsonroids.gif.**
+
+## NewPipeExtractor (YouTube playback via the kit's NewPipe downloader)
+-keep class org.schabi.newpipe.extractor.services.youtube.protos.** { *; }
+-keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
+-keep class org.schabi.newpipe.extractor.** { *; }
+-keepclassmembers class org.schabi.newpipe.extractor.** { *; }
+-keep class org.mozilla.javascript.** { *; }
+-keep class org.mozilla.javascript.engine.** { *; }
+-keep class org.mozilla.classfile.ClassFileWriter
+-dontwarn org.mozilla.javascript.JavaToJSONConverters
+-dontwarn org.mozilla.javascript.tools.**
+-keep class javax.script.** { *; }
+-dontwarn javax.script.**
+-keep class jdk.dynalink.** { *; }
+-dontwarn jdk.dynalink.**
+
+## Reflection/deserialization attributes the kit's models rely on
+-keepattributes Signature
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses
+
+## Kuromoji (Japanese lyrics segmentation)
+-keep class com.atilika.kuromoji.** { *; }
+
+## Queue persistence (kit's MusicService serializes these via java serialization)
+-keep class moe.rukamori.archivetune.models.PersistQueue { *; }
+-keep class moe.rukamori.archivetune.models.PersistPlayerState { *; }
+-keep class moe.rukamori.archivetune.models.QueueData { *; }
+-keep class moe.rukamori.archivetune.models.QueueType { *; }
+-keep class moe.rukamori.archivetune.playback.queues.** { *; }
+-keepclassmembers class * implements java.io.Serializable {
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+}
+
+## Jetpack Glance (AOD clock widget)
+-keep class * implements androidx.glance.appwidget.action.ActionCallback {
+    public <init>();
+}
+-keep class * implements androidx.glance.action.ActionCallback {
+    public <init>();
+}
+-keep class * extends androidx.glance.appwidget.GlanceAppWidget { *; }
+-keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver { *; }

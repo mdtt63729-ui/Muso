@@ -1,3 +1,15 @@
+# Round 180 (v0.5.184, code 191) — buildfix round 13: R8 missing-class rules
+
+Hilt component compiles; the build now reaches minifyFossReleaseWithR8.
+R8 reported missing classes from the kit's new libraries: io.ktor.* cross-module
+references (HttpTimeout, io.ktor.utils.io.*, SocketTimeoutException),
+pl.droidsonroids.gif.GifDrawable (Markwon optional GIF support), and warned
+about a javax.script service (quickjs). Root-caused against AT: its own
+proguard-rules.pro ships exactly these rules. Ported AT's rules for the kit's
+libraries to muso's proguard-rules.pro: ktor keep+dontwarn, NewPipeExtractor,
+mozilla rhino/javax.script/jdk.dynalink, kuromoji, Glance widgets, queue
+persistence serialization, gif dontwarn.
+
 # Round 179 (v0.5.184, code 191) — buildfix round 12: Hilt entry-point getter clash
 
 mergeFossReleaseJavaResource now passes. hiltJavaCompileFossRelease failed:
