@@ -100,3 +100,10 @@ About page) integrated in. All settings must APPLY to the app.
 ## Phase 5 — Apply mapping (kit keys <-> muso behavior, DB-backed screens).
 
 ## Phase 6 — Polish + full verification.
+
+## Round 168 addendum — kit completeness + logging (v0.5.185)
+- 21 safe skipped kit files added; 10 strings/plurals merged; 12 kit files
+  unaddable (deps outside the kit zip — documented in CHANGES Round 168).
+- MusoLog (com.muso.music.utils.MusoLog): Muso folder with crash_log.txt,
+  crash_log_N.txt (one per crash), main.txt (full run logcat); App.onCreate
+  init; one-time All Files Access prompt in MainActivity; manifest perms.

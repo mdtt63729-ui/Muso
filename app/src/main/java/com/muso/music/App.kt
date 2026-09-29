@@ -64,6 +64,9 @@ class App : Application(), ImageLoaderFactory {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        // On-device crash + full log capture must be the very first thing:
+        // if anything below this line crashes, it is already being logged.
+        com.muso.music.utils.MusoLog.init(this)
         moe.rukamori.archivetune.AppInstanceHolder.application = this
         // The SimpMusic player suite resolves its few injected collaborators
         // (tab memory, sheet state, the queue-view handler) through Koin.

@@ -412,6 +412,56 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // One-time ask (Android 11+): grant All Files Access so the Muso
+            // log folder is visible at /storage/emulated/0/Muso. Declining
+            // keeps the logs inside Android/data (still fully functional).
+            var showLogFolderDialog by remember { mutableStateOf(false) }
+            LaunchedEffect(showSplash) {
+                if (
+                    !showSplash &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                    !android.os.Environment.isExternalStorageManager() &&
+                    !com.muso.music.utils.MusoLog.isPublicDirActive() &&
+                    !com.muso.music.utils.MusoLog.storagePromptDone(this@MainActivity)
+                ) {
+                    showLogFolderDialog = true
+                }
+            }
+            if (showLogFolderDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        com.muso.music.utils.MusoLog.markStoragePromptDone(this@MainActivity)
+                        showLogFolderDialog = false
+                    },
+                    title = { Text(stringResource(R.string.log_folder_title)) },
+                    text = { Text(stringResource(R.string.log_folder_desc)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                com.muso.music.utils.MusoLog.markStoragePromptDone(this@MainActivity)
+                                showLogFolderDialog = false
+                                runCatching {
+                                    startActivity(
+                                        android.content.Intent(
+                                            android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                            android.net.Uri.parse("package:$packageName"),
+                                        ),
+                                    )
+                                }
+                            },
+                        ) { Text(stringResource(R.string.log_folder_allow)) }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                com.muso.music.utils.MusoLog.markStoragePromptDone(this@MainActivity)
+                                showLogFolderDialog = false
+                            },
+                        ) { Text(stringResource(R.string.cancel)) }
+                    },
+                )
+            }
+
             if (composeMainUi) {
                 // First-frame reporter: the splash's exit fade waits for this,
                 // so home is genuinely on screen before the splash lets go.

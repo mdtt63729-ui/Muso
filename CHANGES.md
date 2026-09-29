@@ -1,3 +1,45 @@
+# Round 168 (v0.5.185, code 192) — Kit file completeness + on-device crash & full logging
+
+- Kit completeness audit (user request): 21 previously-skipped kit files added
+  (HistorySource, NetworkBannerUiState, AutoResizeText, BigSeekBar, DebugPanel,
+  DraggableScrollBarOverlay, EmptyPlaceholder, ExpressivePullToRefreshBox,
+  FloatingNavigationToolbar, GridItemRandomizer, GridMenu, Material3SettingsGroup,
+  NavigationTile, NavigationTitle, NetworkStatusBanner, ReleaseNotesCard, SearchBar,
+  SortHeader, StarDialog, TagChip, TvNavigationRail — full dependency closure
+  verified). 10 previously-unmerged kit strings/plurals added (widget
+  descriptions, n_time, news_article_count). Repo-wide resource audit: every
+  R.string/R.drawable/R.font reference in muso, suite and kit code resolves.
+  12 kit files (StatPeriod, ChipsRow, HideOnScrollFAB, Library, MediaDetailHero,
+  SpeedDialGridItem, SpotifyLibraryItems, Album/Artist/PlaylistMenu,
+  AboutViewModel, AboutScreen) are NOT addable: they depend on code that is not
+  part of the settings kit zip at all — adding them would break compilation.
+
+- On-device logging (user request): a "Muso" folder is created on the phone —
+  /storage/emulated/0/Muso when storage access is available (Android 11+ asks
+  once for All Files Access), otherwise Android/data/com.muso.music/files/Muso
+  (works with no permission). Inside it:
+    * crash_log.txt   — every crash appended (timestamp, version, device, stack)
+    * crash_log_N.txt — one file per crash (crash_log_1.txt, crash_log_2.txt, ...)
+    * main.txt        — the app's complete logcat for the run (rotated at 8 MB;
+                        the previous run is kept as main_previous.txt)
+  The handler is installed as the very first thing in Application.onCreate, so
+  even early crashes are captured. Manifest: WRITE_EXTERNAL_STORAGE (≤29),
+  MANAGE_EXTERNAL_STORAGE, requestLegacyExternalStorage.
+# Round 182 (v0.5.184, code 191) — self-heal for the poisoned song.db
+
+The crashing build (v13 and earlier) let the kit's Room schema fight muso's
+over song.db, which could leave the file with the KIT's v37 schema. muso's
+own InternalDatabase has only MIGRATION_1_2 and NO downgrade fallback, so
+opening a newer-schema file crashed on every launch even after the Round 181
+rename. Added fallbackToDestructiveMigrationOnDowngrade() to muso's own
+database builder: if song.db is left with a newer schema, the app wipes and
+recreates it once and opens normally (library re-sync needed) instead of
+crashing forever. Together with Round 181 this makes the app open on both
+fresh installs and phones where the broken build already ran.
+
+If the library looks empty after this build: the damage was done earlier;
+re-sync.
+
 # Round 181 (v0.5.184, code 191) — launch crash fix: database file collision
 
 SYMPTOM: APK builds green but crashes immediately on open.

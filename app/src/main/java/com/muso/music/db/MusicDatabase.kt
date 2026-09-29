@@ -85,6 +85,11 @@ abstract class InternalDatabase : RoomDatabase() {
             MusicDatabase(
                 delegate = Room.databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
                     .addMigrations(MIGRATION_1_2)
+                    // Self-heal: if the file was left with a NEWER schema than
+                    // this app knows (e.g. the broken kit build that briefly
+                    // wrote ArchiveTune's v37 schema into song.db), wipe and
+                    // recreate instead of crashing on every open.
+                    .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
             )
     }
