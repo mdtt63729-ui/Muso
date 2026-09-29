@@ -1,3 +1,13 @@
+# Round 170 (v0.5.184, code 191) — buildfix round 3: AGP 9 built-in Kotlin
+
+morideobfuscator applied `org.jetbrains.kotlin.android`, which AGP 9.0
+forbids (Kotlin support is built into AGP since 9.0 - the same reason our
+:app module applies no Kotlin plugin). Dropped the plugin and the
+`kotlin { jvmToolchain }` block from the module build file; Java stays on
+17 via compileOptions, matching the app module's setup. All other new
+modules configured cleanly (only the usual DSL_SCOPE_VIOLATION
+suppression warnings, same as the pre-existing innertube/kugou/etc.).
+
 # Round 169 (v0.5.184, code 191) — buildfix round 2: version-catalog alias
 
 The build now failed at :app configuration: `implementation(libs.okhttp)`
