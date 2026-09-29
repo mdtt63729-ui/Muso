@@ -1,3 +1,16 @@
+# Round 171 (v0.5.184, code 191) — buildfix round 4: first real compile errors
+
+The build now reaches Kotlin compilation (all modules configured OK).
+Three errors, all fixed:
+- :lyrics:simpmusic + :lyrics:lrclib — `Unresolved reference 'cio'/CIO`:
+  the AT lyric providers build their HttpClient on the CIO engine, which
+  we had not added. New toml alias ktor-client-cio + dep in both modules
+  (same 2.3.12 as the rest of our ktor stack).
+- :core NewPipe.kt:83 — okhttp 4 returns a nullable `response.body` (AT
+  builds against okhttp 5 where it is non-null); switched to
+  `response.body!!.string()` (verified: only okhttp body call site in the
+  ported modules).
+
 # Round 170 (v0.5.184, code 191) — buildfix round 3: AGP 9 built-in Kotlin
 
 morideobfuscator applied `org.jetbrains.kotlin.android`, which AGP 9.0
