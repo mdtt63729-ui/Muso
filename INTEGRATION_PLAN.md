@@ -125,3 +125,15 @@ About page) integrated in. All settings must APPLY to the app.
 - MusoLog: crash entries + logcat tail + app-start heartbeats are mirrored to
   Downloads/Muso via MediaStore (permission-free, visible in any file
   manager). app_log.txt heartbeat proves whether App.onCreate runs.
+
+## Round 171 addendum — ktor alignment (v0.5.188) - THE startup crash fix
+- Root cause: translator (jitpack) pulls ktor-client-core 3.0.1; Gradle
+  newest-wins made core 3.0.1 + okhttp engine 2.3.12; ktor 3 removed
+  io.ktor.client.plugins.HttpTimeout -> NoClassDefFoundError at every launch
+  (Updater object's HttpClient in App.onCreate).
+- Fix: allprojects resolutionStrategy forces every io.ktor:* artifact to
+  2.3.12; Updater's client is lazy. Kit screens/DI/R8 keeps from earlier
+  rounds unchanged.
+- LESSON: when adding a library that transitively bumps a shared dependency
+  (especially ktor 2->3), check the resolved versions - Gradle picks the
+  newest, not the direct one.

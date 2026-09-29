@@ -8,7 +8,10 @@ import org.json.JSONObject
 object Updater {
     private const val REPO_RELEASES_URL = "https://api.github.com/repos/mdtt63729-ui/Muso/releases/latest"
 
-    private val client = HttpClient()
+    // Lazy: the class is first touched by App.onCreate's WorkManager
+    // scheduling; the network client must only be built when an actual
+    // update check runs, never during process startup.
+    private val client by lazy { HttpClient() }
     var lastCheckTime = -1L
         private set
     private var cachedJson: JSONObject? = null

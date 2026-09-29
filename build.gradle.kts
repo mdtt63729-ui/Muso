@@ -25,6 +25,49 @@ buildscript {
     }
 }
 
+// =============================================================================
+// Ktor version alignment (Round 171 - the startup crash-loop root cause fix)
+// =============================================================================
+// The kit's translator dependency (com.github.therealbush:translator, jitpack)
+// transitively pulls io.ktor:ktor-client-core:3.0.1 and ktor-client-cio:3.0.1.
+// Gradle's conflict resolution picks the NEWEST version, so ktor-client-core
+// resolved to 3.0.1 while the okhttp engine stayed at muso's pinned 2.3.12.
+// Ktor 3.0 REMOVED io.ktor.client.plugins.HttpTimeout (renamed to
+// HttpTimeoutConfig/HttpTimeoutCapability), so the 2.3.12 OkHttpEngine could
+// not find the class at runtime -> NoClassDefFoundError in App.onCreate (the
+// Updater object builds its HttpClient on first class access) -> the app
+// crash-looped and never opened (v0.5.182-187 on device).
+// Forcing EVERY io.ktor artifact to 2.3.12 keeps the whole graph consistent.
+allprojects {
+    configurations.all {
+        resolutionStrategy {
+            force(
+                "io.ktor:ktor-client-core:2.3.12",
+                "io.ktor:ktor-client-okhttp:2.3.12",
+                "io.ktor:ktor-client-cio:2.3.12",
+                "io.ktor:ktor-client-websockets:2.3.12",
+                "io.ktor:ktor-client-content-negotiation:2.3.12",
+                "io.ktor:ktor-client-encoding:2.3.12",
+                "io.ktor:ktor-serialization-kotlinx-json:2.3.12",
+                "io.ktor:ktor-server-core:2.3.12",
+                "io.ktor:ktor-server-cio:2.3.12",
+                "io.ktor:ktor-server-websockets:2.3.12",
+                "io.ktor:ktor-server-content-negotiation:2.3.12",
+                "io.ktor:ktor-http:2.3.12",
+                "io.ktor:ktor-http-cio:2.3.12",
+                "io.ktor:ktor-utils:2.3.12",
+                "io.ktor:ktor-io:2.3.12",
+                "io.ktor:ktor-events:2.3.12",
+                "io.ktor:ktor-network:2.3.12",
+                "io.ktor:ktor-network-tls:2.3.12",
+                "io.ktor:ktor-serialization:2.3.12",
+                "io.ktor:ktor-websocket-serialization:2.3.12",
+                "io.ktor:ktor-websockets:2.3.12",
+            )
+        }
+    }
+}
+
 tasks.register<Delete>("Clean") {
     delete(rootProject.layout.buildDirectory)
 }
