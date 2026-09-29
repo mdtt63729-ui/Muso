@@ -1,3 +1,11 @@
+# Round 176 (v0.5.184, code 191) — buildfix round 9: single remaining error
+
+Preference.kt:1302 — the now-@Composable PreferenceGroup content lambda can't
+be handed to Kotlin's `apply` (its parameter type is a plain T.() -> Unit, so
+the composable function type mismatches). Replaced
+`PreferenceGroupScope().apply(content)` with direct construction +
+`scope.content()` invocation (same inline semantics, valid composable call).
+
 # Round 175 (v0.5.184, code 191) — buildfix round 8: 21 errors, 2 root causes
 
 - together/TogetherServer.kt: ktor 2.3.12 has no `io.ktor.server.engine.

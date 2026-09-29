@@ -1299,7 +1299,8 @@ fun PreferenceGroup(
     title: String? = null,
     content: @Composable PreferenceGroupScope.() -> Unit,
 ) {
-    val scope = PreferenceGroupScope().apply(content)
+    val scope = PreferenceGroupScope()
+    scope.content()
     val itemCount = scope.items.size
 
     if (itemCount == 0) return
