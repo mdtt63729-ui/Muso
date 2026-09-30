@@ -1209,8 +1209,8 @@ internal fun AnimatedLyricsGradientBackground(
 
     // Round 173 perf: the animated values are now read ONLY inside the draw
     // phase (drawBehind), so this composable no longer recomposes - and no
-    longer rebuilds a five-stop Brush - sixty times a second. That
-    recomposition was the main cause of the lyrics section lagging.
+    // longer rebuilds a five-stop Brush - sixty times a second. That
+    // recomposition was the main cause of the lyrics section lagging.
     Box(
         modifier =
             modifier

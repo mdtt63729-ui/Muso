@@ -168,3 +168,9 @@ About page) integrated in. All settings must APPLY to the app.
   blank player at launch).
 - LESSON: never reuse the canvas MediaPlayerView for full-video playback -
   it loops a 15s segment by design (canvas PRD).
+
+## Round 175 addendum — v0.5.192
+- LESSONS: (1) SimpIcons icons are extension properties - every icon needs
+  its own import; (2) never substring-check imports (heightIn matched the
+  height check); (3) brace-balance checks do not catch bare-word lines -
+  verify every comment line carries its // prefix.

@@ -88,9 +88,9 @@ fun KitSettingsHost(content: @Composable () -> Unit) {
     val kitInsets =
         with(density) {
             WindowInsets(
-                left = WindowInsets.navigationBars.getLeft(density).toDp(),
+                left = WindowInsets.navigationBars.getLeft(density, androidx.compose.ui.unit.LayoutDirection.Ltr).toDp(),
                 top = WindowInsets.statusBars.getTop(density).toDp() + 64.dp,
-                right = WindowInsets.navigationBars.getRight(density).toDp(),
+                right = WindowInsets.navigationBars.getRight(density, androidx.compose.ui.unit.LayoutDirection.Ltr).toDp(),
                 bottom = musoInsets.getBottom(density).toDp(),
             )
         }

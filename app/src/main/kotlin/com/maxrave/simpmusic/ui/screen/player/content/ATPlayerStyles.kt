@@ -45,7 +45,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.surfaceColorAtAlpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -72,6 +71,19 @@ import coil3.request.crossfade
 import androidx.compose.ui.platform.LocalContext
 import com.maxrave.simpmusic.extension.formatDuration
 import com.maxrave.simpmusic.ui.icon.SimpIcons
+import com.maxrave.simpmusic.ui.icon.SkipPrevious
+import com.maxrave.simpmusic.ui.icon.SkipNext
+import com.maxrave.simpmusic.ui.icon.Favorite
+import com.maxrave.simpmusic.ui.icon.FavoriteBorder
+import com.maxrave.simpmusic.ui.icon.Lyrics
+import com.maxrave.simpmusic.ui.icon.Fullscreen
+import com.maxrave.simpmusic.ui.icon.QueueMusic
+import com.maxrave.simpmusic.ui.icon.MoreVert
+import com.maxrave.simpmusic.ui.icon.Pause
+import com.maxrave.simpmusic.ui.icon.PlayArrow
+import com.maxrave.simpmusic.ui.icon.PauseCircle
+import com.maxrave.simpmusic.ui.icon.PlayCircle
+import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 import com.maxrave.simpmusic.viewModel.UIEvent
 import kotlin.math.roundToLong
 
@@ -116,9 +128,9 @@ private fun ATArtworkPager(
                     .clip(shape)
                     .graphicsLayer { alpha = if (isCurrent) 1f else 0.65f },
         ) {
-            if (showCanvasVideo && isCurrent && state.canvasData?.isVideo == true) {
+            if (showCanvasVideo && isCurrent && state.screenData.canvasData?.isVideo == true) {
                 com.maxrave.simpmusic.expect.ui.MediaPlayerView(
-                    url = state.canvasData.url,
+                    url = state.screenData.canvasData.url,
                     cropToBounds = true,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -583,7 +595,7 @@ fun NowPlayingContentLittle(state: NowPlayingContentState, actions: NowPlayingCo
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.weight(0.55f))
-            ATSlider(state = state, actions = actions, accent = accent, trackHeight = 6)
+            ATSlider(state = state, actions = actions, accent = accent)
             Spacer(Modifier.height(8.dp))
             ATTransportControls(
                 state = state,

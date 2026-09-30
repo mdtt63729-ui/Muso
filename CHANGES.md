@@ -1,39 +1,21 @@
-# Round 174 (v0.5.191, code 198) — ArchiveTune player styles, fullscreen video rewrite, blank-player-at-launch fix
+# Round 175 (v0.5.192, code 199) — CI fix round for v0.5.191
 
-User requests (on top of v0.5.190):
+The v0.5.191 CI log (paste-1-35.md) failed with 50 compile errors, all in
+the new Round 174 code plus one latent Round 173 typo:
 
-1. ARCHIVETUNE PLAYER STYLES (user request: "add AT's player styles")
-   - AT ships ten player designs; Muso had three. All ten now exist:
-     Classic (V1, Muso's Spotify style), Expressive (V6, M3), Immersive
-     (V7, AppleMusic), plus seven NEW ports in ATPlayerStyles.kt driven by
-     the same NowPlayingContentState/Actions contract:
-       Modern (V2) - rounded card artwork, left-aligned type
-       Minimal (V3) - small art, hairline progress, three-button controls
-       Cinematic (V4) - blurred full-bleed backdrop, letterboxed title block
-       Little (V5) - tiny artwork, compact centered layout
-       Immersive Extended (V8) - dark canvas + codec/explicit/video chips + NEXT UP queue peek
-       Material Extended (V9) - M3 tonal buttons + shuffle/repeat FilterChips + huge filled play
-       Editorial (V10) - magazine layout, giant display title, offset artwork
-   - Every style: artwork pager (swipe = change song), working slider,
-     transport controls, like/lyrics/queue/video/more actions, canvas video
-     in the artwork frame when a video track plays.
-   - Settings row lists all ten (AT's own names).
-
-2. FULLSCREEN VIDEO REWRITE
-   - Root cause of "videos don't play properly": the screen reused the
-     suite's canvas MediaPlayerView — a 15-second LOOPING segment player.
-     The video jumped back to the start every 15s, with double audio and no
-     position sync.
-   - FullscreenVideoScreen now owns a dedicated player: plays the WHOLE
-     video, starts at the service player's position, follows play/pause and
-     drift-corrects, MUTED (audio stays with the service stream - single,
-     gapless sound), fills the screen edge-to-edge (scale-to-cover, no
-     insets, no bars).
-
-3. BLANK FULLSCREEN PLAYER AT APP LAUNCH (fixed)
-   - Cause: process death while the fullscreen video route was open left
-     that route in the saved NavHost back stack; restoring the app reopened
-     a dead video screen - a black, useless fullscreen player.
-   - The screen now pops itself out if, after the grace period, there is no
-     playable video URL (or no player connection): app launch lands on the
-     normal home screen instead.
+1. FullscreenLyricsContent.kt — the Round 173 perf comment's last two lines
+   were missing their `//` prefix (bare words parsed as code). Fixed.
+2. ATPlayerStyles.kt:
+   - SimpIcons' icons are extension properties, each needing its own
+     import; the file imported only the receiver object. Added all 13
+     (SkipPrevious, SkipNext, Favorite, FavoriteBorder, Lyrics, Fullscreen,
+   QueueMusic, MoreVert, Pause, PlayArrow, PauseCircle, PlayCircle,
+   KeyboardArrowDown).
+   - `state.canvasData` -> `state.screenData.canvasData` (two places).
+   - Removed the unresolvable `surfaceColorAtAlpha` import.
+   - Removed the leftover `trackHeight` argument from one ATSlider call
+     (the parameter had been deleted from the definition).
+3. KitSettingsHost.kt — `WindowInsets.getLeft/getRight` take a
+   LayoutDirection parameter; passed `LayoutDirection.Ltr`.
+4. LyricsSettings.kt — `Modifier.height` used without import (an earlier
+   substring check matched `heightIn` and skipped adding it). Added.
