@@ -128,16 +128,23 @@ fun OnboardingRoute(
         }
     }
 
-    OnboardingScreen(
-        state = state,
-        onNext = viewModel::onNext,
-        onBack = viewModel::onBack,
-        onComplete = viewModel::complete,
-        onLogin = viewModel::onLogin,
-        onPermissionAction = viewModel::onPermissionAction,
-        onCommunityAction = viewModel::onCommunityAction,
-        modifier = modifier,
-    )
+    // Round 173: the whole onboarding flow runs in a fixed lavender Material 3
+    // scheme (user request) - the Sunny logo panel, buttons, pills and every
+    // other M3 component inside are lavender regardless of the app theme.
+    androidx.compose.material3.MaterialTheme(
+        colorScheme = MusoLavenderOnboardingScheme,
+    ) {
+        OnboardingScreen(
+            state = state,
+            onNext = viewModel::onNext,
+            onBack = viewModel::onBack,
+            onComplete = viewModel::complete,
+            onLogin = viewModel::onLogin,
+            onPermissionAction = viewModel::onPermissionAction,
+            onCommunityAction = viewModel::onCommunityAction,
+            modifier = modifier,
+        )
+    }
 }
 
 @Composable
@@ -489,7 +496,22 @@ private fun LoginActions(
                 .padding(top = 28.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // Round 173: the community page is gone, so the login page is the last
+        // step of onboarding. Its primary action now CONTINUES - completing
+        // onboarding and opening the main app home screen (onSkip == onNext on
+        // the last page, and the view model completes there).
         Button(
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = OnboardingActionButtonPadding,
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_continue),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        OutlinedButton(
             onClick = onLogin,
             modifier = Modifier.fillMaxWidth(),
             contentPadding = OnboardingActionButtonPadding,
@@ -506,36 +528,18 @@ private fun LoginActions(
                 fontWeight = FontWeight.SemiBold,
             )
         }
-        Row(
+        TextButton(
+            onClick = onBack,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(
-                onClick = onBack,
-                modifier = Modifier.weight(1f),
-                contentPadding = OnboardingActionButtonPadding,
-            ) {
-                Text(
-                    text = stringResource(R.string.back_button_desc),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            TextButton(
-                onClick = onSkip,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = stringResource(R.string.onboarding_login_skip),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+            Text(
+                text = stringResource(R.string.back_button_desc),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun WelcomePage(
@@ -1136,3 +1140,30 @@ private fun OnboardingPermissionStatus.labelResId(): Int =
 private val OnboardingContentMaxWidth = 680.dp
 private val OnboardingPagePadding = PaddingValues(horizontal = 24.dp, vertical = 28.dp)
 private val OnboardingActionButtonPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+
+// ---------------------------------------------------------------------------
+// Round 173: fixed lavender scheme for the onboarding flow (user request):
+// dark navy background like the kit's, lavender primary for the logo panel
+// and buttons, light grey text.
+// ---------------------------------------------------------------------------
+private val MusoLavenderOnboardingScheme =
+    androidx.compose.material3.darkColorScheme(
+        primary = androidx.compose.ui.graphics.Color(0xFFB6A7F2),
+        onPrimary = androidx.compose.ui.graphics.Color(0xFF241C4E),
+        primaryContainer = androidx.compose.ui.graphics.Color(0xFF493C86),
+        onPrimaryContainer = androidx.compose.ui.graphics.Color(0xFFE7DFFF),
+        secondary = androidx.compose.ui.graphics.Color(0xFFCCC2EE),
+        onSecondary = androidx.compose.ui.graphics.Color(0xFF33295B),
+        tertiary = androidx.compose.ui.graphics.Color(0xFFEFB8C8),
+        onTertiary = androidx.compose.ui.graphics.Color(0xFF4A2532),
+        background = androidx.compose.ui.graphics.Color(0xFF14121C),
+        onBackground = androidx.compose.ui.graphics.Color(0xFFEAE7F3),
+        surface = androidx.compose.ui.graphics.Color(0xFF14121C),
+        onSurface = androidx.compose.ui.graphics.Color(0xFFEAE7F3),
+        surfaceVariant = androidx.compose.ui.graphics.Color(0xFF1C1927),
+        onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFC8C3D6),
+        surfaceContainer = androidx.compose.ui.graphics.Color(0xFF1E1B29),
+        surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFF232031),
+        surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFF2B2839),
+        outline = androidx.compose.ui.graphics.Color(0xFF4A4460),
+    )

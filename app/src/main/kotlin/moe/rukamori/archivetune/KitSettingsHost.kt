@@ -19,6 +19,8 @@ package moe.rukamori.archivetune
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -75,8 +77,26 @@ fun KitSettingsHost(content: @Composable () -> Unit) {
         return
     }
 
+    // Round 173: the kit screens were getting zero insets, so their content
+    // started UNDER the status bar and their trailing TopAppBar, and ended
+    // under muso's floating navbar/miniplayer - settings rows were invisible
+    // and the screens looked broken/unscrollable. Give them the REAL insets:
+    // horizontal = system bars, top = status bar + 64dp top app bar, bottom =
+    // muso's player-aware bottom (navbar + miniplayer).
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val musoInsets = com.muso.music.LocalPlayerAwareWindowInsets.current
+    val kitInsets =
+        with(density) {
+            WindowInsets(
+                left = WindowInsets.navigationBars.getLeft(density).toDp(),
+                top = WindowInsets.statusBars.getTop(density).toDp() + 64.dp,
+                right = WindowInsets.navigationBars.getRight(density).toDp(),
+                bottom = musoInsets.getBottom(density).toDp(),
+            )
+        }
+
     CompositionLocalProvider(
-        LocalPlayerAwareWindowInsets provides WindowInsets(0, 0, 0, 0),
+        LocalPlayerAwareWindowInsets provides kitInsets,
         LocalPlayerConnection provides null,
         LocalAnimationsDisabled provides false,
         LocalDatabase provides database.getOrThrow(),

@@ -12,6 +12,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +32,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -97,6 +104,8 @@ import com.muso.music.constants.LoudnessPreset
 import com.muso.music.constants.LoudnessPresetKey
 import com.muso.music.constants.LyricsAnimationStyle
 import com.muso.music.constants.LyricsAnimationStyleKey
+import com.muso.music.constants.LyricsModeEnabledKey
+import com.muso.music.constants.WordByWordLyricsEnabledKey
 import com.muso.music.constants.LyricsAutoScrollKey
 import com.muso.music.constants.LyricsBlurEnabledKey
 import com.muso.music.constants.LyricsLineSpacingKey
@@ -527,6 +536,14 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
                     PlayerStyle.CLASSIC -> stringResource(R.string.player_style_classic_v2)
                     PlayerStyle.EXPRESSIVE -> stringResource(R.string.player_style_m3_expressive)
                     PlayerStyle.IMMERSIVE -> stringResource(R.string.player_style_immersive_nightly)
+                    // Round 174: the ArchiveTune player design styles.
+                    PlayerStyle.MODERN -> stringResource(R.string.player_style_modern)
+                    PlayerStyle.MINIMAL -> stringResource(R.string.player_style_minimal)
+                    PlayerStyle.CINEMATIC -> stringResource(R.string.player_style_cinematic)
+                    PlayerStyle.LITTLE -> stringResource(R.string.player_style_little)
+                    PlayerStyle.IMMERSIVE_EXTENDED -> stringResource(R.string.player_style_immersive_extended)
+                    PlayerStyle.MATERIAL_EXTENDED -> stringResource(R.string.player_style_material_extended)
+                    PlayerStyle.EDITORIAL -> stringResource(R.string.player_style_editorial)
                 }
             },
         )
@@ -1130,8 +1147,9 @@ fun PreferenceGroupScope.musoMiscPlayerRows() {
 
 @Composable
 fun PreferenceGroupScope.musoLyricsRows() {
-    val (lyricsStyle, onLyricsStyleChange) = rememberEnumPreference(key = LyricsStyleKey, defaultValue = LyricsStyle.APPLE_MUSIC)
     val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.FLARE)
+    val (wordByWordEnabled, onWordByWordEnabledChange) = rememberPreference(key = WordByWordLyricsEnabledKey, defaultValue = true)
+    val (lyricsModeEnabled, onLyricsModeEnabledChange) = rememberPreference(key = LyricsModeEnabledKey, defaultValue = false)
     val (lyricsTextPosition, onLyricsTextPositionChange) = rememberEnumPreference(key = LyricsTextPositionKey, defaultValue = LyricsPosition.CENTER)
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(key = LyricsTextSizeKey, defaultValue = 26)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(key = LyricsLineSpacingKey, defaultValue = 1.3f)
@@ -1141,40 +1159,27 @@ fun PreferenceGroupScope.musoLyricsRows() {
     val (lyricsOffset, onLyricsOffsetChange) = rememberPreference(key = LyricsOffsetKey, defaultValue = 0)
 
     item {
-        EnumListPreference(
-            title = { Text(stringResource(R.string.lyrics_style)) },
-            icon = { Icon(painterResource(R.drawable.format_align_center), null) },
-            selectedValue = lyricsStyle,
-            onValueSelected = onLyricsStyleChange,
-            valueText = {
-                when (it) {
-                    LyricsStyle.APPLE_MUSIC -> stringResource(R.string.lyrics_style_apple_music)
-                    LyricsStyle.CLASSIC -> stringResource(R.string.lyrics_style_classic)
-                }
-            },
-        )
-    }
-    item {
-        EnumListPreference(
+        var showWordByWordDialog by remember { mutableStateOf(false) }
+
+        if (showWordByWordDialog) {
+            WordByWordStyleDialog(
+                enabled = wordByWordEnabled,
+                onEnabledChange = { checked ->
+                    onWordByWordEnabledChange(checked)
+                    // Interlock (user request, ArchiveTune-style): turning word-by-word
+                    // on automatically turns the lyrics mode engine off.
+                    if (checked) onLyricsModeEnabledChange(false)
+                },
+                selectedStyle = lyricsAnimationStyle,
+                onStyleSelected = onLyricsAnimationStyleChange,
+                onDismiss = { showWordByWordDialog = false },
+            )
+        }
+
+        PreferenceEntry(
             title = { Text(stringResource(R.string.word_by_word_animation_style)) },
             icon = { Icon(painterResource(R.drawable.text_fields), null) },
-            selectedValue = lyricsAnimationStyle,
-            onValueSelected = onLyricsAnimationStyleChange,
-            valueText = {
-                when (it) {
-                    LyricsAnimationStyle.FLARE -> stringResource(R.string.lyrics_style_flare)
-                    LyricsAnimationStyle.NONE -> stringResource(R.string.lyrics_style_none)
-                    LyricsAnimationStyle.FADE -> stringResource(R.string.lyrics_style_fade)
-                    LyricsAnimationStyle.GLOW -> stringResource(R.string.lyrics_style_glow)
-                    LyricsAnimationStyle.SLIDE -> stringResource(R.string.lyrics_style_slide)
-                    LyricsAnimationStyle.KARAOKE -> stringResource(R.string.lyrics_style_karaoke)
-                    LyricsAnimationStyle.APPLE -> stringResource(R.string.lyrics_style_apple)
-                    LyricsAnimationStyle.APPLE_V2 -> stringResource(R.string.lyrics_style_apple_v2)
-                    LyricsAnimationStyle.ECHOMUSIC_1 -> stringResource(R.string.lyrics_style_echomusic_1)
-                    LyricsAnimationStyle.LYRICS_V2 -> stringResource(R.string.lyrics_style_lyrics_v2)
-                    LyricsAnimationStyle.METRO_LYRICS -> stringResource(R.string.lyrics_style_metro)
-                }
-            },
+            onClick = { showWordByWordDialog = true },
         )
     }
     item {
@@ -1690,3 +1695,87 @@ fun PreferenceGroupScope.musoBackupRows(navController: NavController) {
         )
     }
 }
+
+// ---------------------------------------------------------------------------
+// Round 173: word-by-word lyrics dialog - a switch (engine on/off) plus the
+// animation style picker. The switch interlocks with the lyrics mode setting:
+// only one of the two engines is ever on, and only the on one applies.
+// ---------------------------------------------------------------------------
+@Composable
+private fun WordByWordStyleDialog(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    selectedStyle: LyricsAnimationStyle,
+    onStyleSelected: (LyricsAnimationStyle) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.word_by_word_animation_style)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier =
+                    Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.word_by_word_enable),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(checked = enabled, onCheckedChange = onEnabledChange)
+                }
+                if (enabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LyricsAnimationStyle.entries.forEach { style ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { onStyleSelected(style) }
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = style == selectedStyle,
+                                onClick = { onStyleSelected(style) },
+                            )
+                            Text(
+                                text = lyricsAnimationStyleLabel(style),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) }
+        },
+    )
+}
+
+@Composable
+private fun lyricsAnimationStyleLabel(style: LyricsAnimationStyle): String =
+    when (style) {
+        LyricsAnimationStyle.FLARE -> stringResource(R.string.lyrics_style_flare)
+        LyricsAnimationStyle.NONE -> stringResource(R.string.lyrics_style_none)
+        LyricsAnimationStyle.FADE -> stringResource(R.string.lyrics_style_fade)
+        LyricsAnimationStyle.GLOW -> stringResource(R.string.lyrics_style_glow)
+        LyricsAnimationStyle.SLIDE -> stringResource(R.string.lyrics_style_slide)
+        LyricsAnimationStyle.KARAOKE -> stringResource(R.string.lyrics_style_karaoke)
+        LyricsAnimationStyle.APPLE -> stringResource(R.string.lyrics_style_apple)
+        LyricsAnimationStyle.APPLE_V2 -> stringResource(R.string.lyrics_style_apple_v2)
+        LyricsAnimationStyle.ECHOMUSIC_1 -> stringResource(R.string.lyrics_style_echomusic_1)
+        LyricsAnimationStyle.LYRICS_V2 -> stringResource(R.string.lyrics_style_lyrics_v2)
+        LyricsAnimationStyle.METRO_LYRICS -> stringResource(R.string.lyrics_style_metro)
+    }

@@ -728,6 +728,9 @@
 <string name="onboarding_login_playback_title">Better playback</string>
 <string name="onboarding_login_playback_desc">Use your account context for a more dependable playback experience.</string>
 <string name="onboarding_login_skip">Skip for now</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="word_by_word_enable">Enable word-by-word lyrics</string>
+    <string name="lyrics_mode_enable">Enable lyrics mode</string>
 <string name="onboarding_community_title">Stay connected</string>
 <string name="onboarding_community_subtitle">Follow development, report issues, or support ArchiveTune.</string>
 <string name="onboarding_finish">Start listening</string>

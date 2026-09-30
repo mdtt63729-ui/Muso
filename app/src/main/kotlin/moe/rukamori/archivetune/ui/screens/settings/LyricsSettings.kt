@@ -39,6 +39,10 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -162,6 +166,16 @@ fun LyricsSettings(
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 26f)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     val (lyricsMode, onLyricsModeChange) = rememberEnumPreference(LyricsModeKey, defaultValue = LyricsMode.ENHANCED)
+    val (lyricsModeEnabled, onLyricsModeEnabledChange) =
+        com.muso.music.utils.rememberPreference(
+            com.muso.music.constants.LyricsModeEnabledKey,
+            defaultValue = false,
+        )
+    val (wordByWordEnabled, onWordByWordEnabledChange) =
+        com.muso.music.utils.rememberPreference(
+            com.muso.music.constants.WordByWordLyricsEnabledKey,
+            defaultValue = true,
+        )
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
     val (enableBetterLyrics, onEnableBetterLyricsChange) = rememberPreference(key = EnableBetterLyricsKey, defaultValue = true)
@@ -395,22 +409,33 @@ fun LyricsSettings(
             musoLyricsRows()
 
             item {
-                EnumListPreference(
+                var showLyricsModeDialog by remember { mutableStateOf(false) }
+
+                if (showLyricsModeDialog) {
+                    LyricsModeWithSwitchDialog(
+                        enabled = lyricsModeEnabled,
+                        onEnabledChange = { checked ->
+                            onLyricsModeEnabledChange(checked)
+                            // Interlock (user request, ArchiveTune-style): turning
+                            // lyrics mode on turns the word-by-word engine off.
+                            if (checked) onWordByWordEnabledChange(false)
+                        },
+                        selectedMode = lyricsMode,
+                        onModeSelected = onLyricsModeChange,
+                        onDismiss = { showLyricsModeDialog = false },
+                    )
+                }
+
+                PreferenceEntry(
                     title = { Text(stringResource(R.string.lyrics_mode)) },
                     icon = { Icon(painterResource(R.drawable.lyrics), null) },
-                    selectedValue = lyricsMode,
-                    onValueSelected = onLyricsModeChange,
-                    valueText = {
-                        when (it) {
-                            LyricsMode.V2 -> stringResource(R.string.lyrics_mode_v2)
-                            LyricsMode.ENHANCED -> stringResource(R.string.lyrics_mode_enhanced)
-                        }
-                    },
+                    onClick = { showLyricsModeDialog = true },
                 )
             }
 
             item {
-                val animationSettingsEnabled = lyricsMode == LyricsMode.V2
+                val animationSettingsEnabled =
+                    lyricsModeEnabled && lyricsMode == LyricsMode.V2
 
                 PreferenceEntry(
                     title = { Text(stringResource(R.string.lyrics_animation_style)) },
@@ -1087,4 +1112,76 @@ private fun PaxsenixProviderRow(
             )
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Round 173: lyrics mode dialog - a switch (engine on/off) plus the V2 /
+// Enhanced picker. Mutually exclusive with the word-by-word engine: switching
+// one on switches the other off, and only the enabled one applies.
+// ---------------------------------------------------------------------------
+@Composable
+private fun LyricsModeWithSwitchDialog(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    selectedMode: LyricsMode,
+    onModeSelected: (LyricsMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.lyrics_mode)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier =
+                    Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.lyrics_mode_enable),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(checked = enabled, onCheckedChange = onEnabledChange)
+                }
+                if (enabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LyricsMode.entries.forEach { mode ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { onModeSelected(mode) }
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = mode == selectedMode,
+                                onClick = { onModeSelected(mode) },
+                            )
+                            Text(
+                                text =
+                                    when (mode) {
+                                        LyricsMode.V2 -> stringResource(R.string.lyrics_mode_v2)
+                                        LyricsMode.ENHANCED -> stringResource(R.string.lyrics_mode_enhanced)
+                                    },
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) }
+        },
+    )
 }

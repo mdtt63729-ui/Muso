@@ -25,6 +25,10 @@ enum class MiniPlayerStyle {
 }
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")
+// Round 173: word-by-word lyrics and (kit) lyrics mode are mutually exclusive
+// engines - see the switch dialogs in the lyrics settings.
+val WordByWordLyricsEnabledKey = booleanPreferencesKey("wordByWordLyricsEnabled")
+val LyricsModeEnabledKey = booleanPreferencesKey("lyricsModeEnabled")
 
 /**
  * Word-by-word lyrics animation style (Echo-Music PRD). FLARE is the suite's own
@@ -118,6 +122,15 @@ enum class PlayerStyle {
     CLASSIC,
     EXPRESSIVE,
     IMMERSIVE,
+    // Round 174: the ArchiveTune player designs (V2/V3/V4/V5/V8/V9/V10;
+    // V1 Classic, V6 Expressive and V7 Immersive are the three above).
+    MODERN,
+    MINIMAL,
+    CINEMATIC,
+    LITTLE,
+    IMMERSIVE_EXTENDED,
+    MATERIAL_EXTENDED,
+    EDITORIAL,
 }
 /** Video quality for the in-player video stream (SimpMusic setting). */
 enum class VideoQuality {

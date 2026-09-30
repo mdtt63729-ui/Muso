@@ -455,6 +455,23 @@ fun LyricsView(
         // (Settings -> Player and audio, lyrics section).
         defaultValue = com.muso.music.constants.LyricsAnimationStyle.FLARE,
     )
+    // Round 173 interlock: only the enabled engine renders. Word-by-word off
+    // (or lyrics mode on) forces NONE, which renders lines statically - the
+    // lyrics-mode look. Only the enabled one ever applies.
+    val wordByWordEnabled by com.muso.music.utils.rememberPreference(
+        com.muso.music.constants.WordByWordLyricsEnabledKey,
+        true,
+    )
+    val lyricsModeEnabled by com.muso.music.utils.rememberPreference(
+        com.muso.music.constants.LyricsModeEnabledKey,
+        false,
+    )
+    val effectiveEchoLyricsStyle =
+        if (wordByWordEnabled && !lyricsModeEnabled) {
+            echoLyricsStyle
+        } else {
+            com.muso.music.constants.LyricsAnimationStyle.NONE
+        }
 
     // Read here rather than taken as a parameter: all four call sites (the fullscreen sheet and
     // the three player styles) want the user's one choice, so making them each thread it through
@@ -623,7 +640,7 @@ fun LyricsView(
                                         result
                                     }
 
-                                if (parsedLine != null && echoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.FLARE) {
+                                if (parsedLine != null && effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.FLARE) {
                                     // Echo animation styles (Appearance setting): the same
                                     // parsed word timings, a different word renderer.
                                     EchoLyricsLine(
@@ -632,7 +649,7 @@ fun LyricsView(
                                         romanizedWords = romanizedWords,
                                         currentTimeMs = current.current - lyricsOffsetMs,
                                         isCurrent = index == currentLineIndex,
-                                        style = echoLyricsStyle,
+                                        style = effectiveEchoLyricsStyle,
                                     )
                                 } else if (parsedLine != null) {
                                     // Reused verbatim by BOTH styles: word-by-word highlighting is
@@ -1233,6 +1250,12 @@ private fun AnimatedWord(
                             }
                         shape * flareGate
                     }
+                // Round 173 perf: quantised to 1/32 steps so the glow text
+                // style only changes a bounded number of times per word -
+                // every change can force a per-character text re-measure,
+                // and at 60fps that was measurable lag in the lyrics section.
+                // 1/32 of full brightness is invisible to the eye.
+                (charFlare * 32f).toInt() / 32f
                 // Lifted when the light touches it, over CHAR_RISE_MS, and LEFT THERE. Apple
                 // never brings the glyph back down — the sung half of a line simply sits higher
                 // than the half still to come — so there is no fall to animate, only an arrival.

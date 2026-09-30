@@ -1,12 +1,39 @@
-# Round 172 (v0.5.189, code 196) — ktor 2.x API fix for the CI compile
+# Round 174 (v0.5.191, code 198) — ArchiveTune player styles, fullscreen video rewrite, blank-player-at-launch fix
 
-The v0.5.188 CI log showed exactly two compile errors, both in the kit's
-Music Together files: 'Unresolved reference pingIntervalMillis'
-(TogetherClient.kt:118, TogetherOnlineHost.kt:68). Those lines were
-written against ktor 3.x (which is exactly why the version mix happened in
-the first place: the kit was developed on ktor 3). With all of ktor now
-forced to muso's 2.3.12, the property is called `pingInterval` (Long,
-millis) - same 25s value, same behavior.
+User requests (on top of v0.5.190):
 
-These were the ONLY two errors in the whole :app compile pass, so nothing
-else in the kit used ktor-3-only APIs.
+1. ARCHIVETUNE PLAYER STYLES (user request: "add AT's player styles")
+   - AT ships ten player designs; Muso had three. All ten now exist:
+     Classic (V1, Muso's Spotify style), Expressive (V6, M3), Immersive
+     (V7, AppleMusic), plus seven NEW ports in ATPlayerStyles.kt driven by
+     the same NowPlayingContentState/Actions contract:
+       Modern (V2) - rounded card artwork, left-aligned type
+       Minimal (V3) - small art, hairline progress, three-button controls
+       Cinematic (V4) - blurred full-bleed backdrop, letterboxed title block
+       Little (V5) - tiny artwork, compact centered layout
+       Immersive Extended (V8) - dark canvas + codec/explicit/video chips + NEXT UP queue peek
+       Material Extended (V9) - M3 tonal buttons + shuffle/repeat FilterChips + huge filled play
+       Editorial (V10) - magazine layout, giant display title, offset artwork
+   - Every style: artwork pager (swipe = change song), working slider,
+     transport controls, like/lyrics/queue/video/more actions, canvas video
+     in the artwork frame when a video track plays.
+   - Settings row lists all ten (AT's own names).
+
+2. FULLSCREEN VIDEO REWRITE
+   - Root cause of "videos don't play properly": the screen reused the
+     suite's canvas MediaPlayerView — a 15-second LOOPING segment player.
+     The video jumped back to the start every 15s, with double audio and no
+     position sync.
+   - FullscreenVideoScreen now owns a dedicated player: plays the WHOLE
+     video, starts at the service player's position, follows play/pause and
+     drift-corrects, MUTED (audio stays with the service stream - single,
+     gapless sound), fills the screen edge-to-edge (scale-to-cover, no
+     insets, no bars).
+
+3. BLANK FULLSCREEN PLAYER AT APP LAUNCH (fixed)
+   - Cause: process death while the fullscreen video route was open left
+     that route in the saved NavHost back stack; restoring the app reopened
+     a dead video screen - a black, useless fullscreen player.
+   - The screen now pops itself out if, after the grace period, there is no
+     playable video URL (or no player connection): app launch lands on the
+     normal home screen instead.

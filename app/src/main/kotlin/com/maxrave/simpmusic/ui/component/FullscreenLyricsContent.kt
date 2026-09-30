@@ -66,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
@@ -1206,31 +1207,37 @@ internal fun AnimatedLyricsGradientBackground(
         }
     }
 
+    // Round 173 perf: the animated values are now read ONLY inside the draw
+    // phase (drawBehind), so this composable no longer recomposes - and no
+    longer rebuilds a five-stop Brush - sixty times a second. That
+    recomposition was the main cause of the lyrics section lagging.
     Box(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        colors =
-                            listOf(
-                                startColor.value,
-                                midColor1.value,
-                                midColor2.value,
-                                endColor.value.copy(alpha = 0.9f),
-                                endColor.value,
-                            ),
-                        start =
-                            Offset(
-                                x = gradientOffsetX + (cos(gradientAngle * PI.toFloat() / 180f) * 800f),
-                                y = gradientOffsetY + (sin(gradientAngle * PI.toFloat() / 180f) * 800f),
-                            ),
-                        end =
-                            Offset(
-                                x = gradientOffsetX + 2500f + (cos((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
-                                y = gradientOffsetY + 2500f + (sin((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
-                            ),
-                    ),
-                ),
+                .drawBehind {
+                    drawRect(
+                        Brush.linearGradient(
+                            colors =
+                                listOf(
+                                    startColor.value,
+                                    midColor1.value,
+                                    midColor2.value,
+                                    endColor.value.copy(alpha = 0.9f),
+                                    endColor.value,
+                                ),
+                            start =
+                                Offset(
+                                    x = gradientOffsetX + (cos(gradientAngle * PI.toFloat() / 180f) * 800f),
+                                    y = gradientOffsetY + (sin(gradientAngle * PI.toFloat() / 180f) * 800f),
+                                ),
+                            end =
+                                Offset(
+                                    x = gradientOffsetX + 2500f + (cos((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
+                                    y = gradientOffsetY + 2500f + (sin((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
+                                ),
+                        ),
+                    )
+                },
     )
 }

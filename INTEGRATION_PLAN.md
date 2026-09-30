@@ -141,3 +141,30 @@ About page) integrated in. All settings must APPLY to the app.
 ## Round 172 addendum — ktor 2.x API adaptation (v0.5.189)
 - TogetherClient/TogetherOnlineHost WebSockets install: the ktor-3 property
   name -> ktor-2 `pingInterval`, value unchanged (25_000 ms).
+
+## Round 173 addendum — v0.5.190
+- Onboarding: muso logo + fixed lavender M3 scheme; community page removed;
+  login page's Continue completes onboarding into home.
+- KitSettingsHost now provides real insets (status bar + 64dp top bar +
+  player-aware bottom) - fixes the invisible/covered settings rows.
+- "Lyrics style" row removed.
+- WordByWordLyricsEnabledKey / LyricsModeEnabledKey interlock: both settings
+  are popups with switches; enabling one disables the other; LyricsView
+  computes an effective style (NONE = static line view when word-by-word is
+  off). The kit lyrics-mode row writes the muso keys.
+- Perf: gradient background moved to drawBehind (draw-phase only); glow
+  charFlare quantised.
+- LESSON: kit screens expect player-aware insets from the host; zero insets
+  put their content under the app bar and floating navbar.
+
+## Round 174 addendum — v0.5.191
+- ATPlayerStyles.kt (suite content package): seven ArchiveTune player
+  designs on the NowPlayingContentState/Actions contract. PlayerStyle enum
+  extended; MusoSuiteHost dispatches all ten (dark-canvas styles wrapped in
+  ForceDarkContent); settings row lists AT's names.
+- FullscreenVideoScreen rewritten: dedicated ExoPlayer, whole-video
+  playback, muted + synced to the service player (drift correction), edge-
+  to-edge scale-to-cover, auto-pop when restored with a dead URL (the
+  blank player at launch).
+- LESSON: never reuse the canvas MediaPlayerView for full-video playback -
+  it loops a 15s segment by design (canvas PRD).

@@ -470,6 +470,58 @@ fun MusoSuiteHost(
                 com.maxrave.simpmusic.ui.theme.ForceDarkContent {
                     NowPlayingContentAppleMusic(state = state, actions = actions)
                 }
+            // Round 174: the ArchiveTune player designs, ported against the
+            // same state/actions contract. The dark-canvas designs run inside
+            // ForceDarkContent exactly like the Immersive style above.
+            com.muso.music.constants.PlayerStyle.MODERN ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentModern(
+                        state = state,
+                        actions = actions,
+                    )
+                }
+            com.muso.music.constants.PlayerStyle.MINIMAL ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMinimal(
+                        state = state,
+                        actions = actions,
+                    )
+                }
+            com.muso.music.constants.PlayerStyle.CINEMATIC ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentCinematic(
+                        state = state,
+                        actions = actions,
+                    )
+                }
+            com.muso.music.constants.PlayerStyle.LITTLE ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentLittle(
+                        state = state,
+                        actions = actions,
+                    )
+                }
+            com.muso.music.constants.PlayerStyle.IMMERSIVE_EXTENDED ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentImmersiveExtended(
+                        state = state,
+                        actions = actions,
+                    )
+                }
+            com.muso.music.constants.PlayerStyle.MATERIAL_EXTENDED ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMaterialExtended(
+                        state = state,
+                        actions = actions,
+                    )
+                }
+            com.muso.music.constants.PlayerStyle.EDITORIAL ->
+                com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                    com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentEditorial(
+                        state = state,
+                        actions = actions,
+                    )
+                }
         }
     }
 }

@@ -226,6 +226,13 @@
     <string name="player_style_m3_expressive">M3 Expressive</string>
     <string name="player_style_immersive_nightly">Immersive Nightly</string>
     <string name="player_style_immersive">Immersive</string>
+    <string name="player_style_modern">Modern</string>
+    <string name="player_style_minimal">Minimal</string>
+    <string name="player_style_cinematic">Cinematic</string>
+    <string name="player_style_little">Little</string>
+    <string name="player_style_immersive_extended">Immersive Extended</string>
+    <string name="player_style_material_extended">Material Extended</string>
+    <string name="player_style_editorial">Editorial</string>
     <string name="mini_player_style">Mini player style</string>
     <string name="mini_player_style_glass">Glass</string>
     <string name="mini_player_style_flat">Flat</string>

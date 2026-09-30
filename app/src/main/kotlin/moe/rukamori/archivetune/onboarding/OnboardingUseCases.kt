@@ -176,7 +176,8 @@ class BuildOnboardingUiStateUseCase
                         id = OnboardingPageId.WELCOME,
                         titleResId = R.string.onboarding_welcome_title,
                         subtitleResId = R.string.onboarding_welcome_subtitle,
-                        iconResId = R.drawable.app_icon_small,
+                        // Round 173: muso's own logo (was the ArchiveTune mark).
+                        iconResId = R.drawable.splash_icon,
                     ),
                     OnboardingPageUiModel(
                         id = OnboardingPageId.PERMISSIONS,
@@ -190,12 +191,9 @@ class BuildOnboardingUiStateUseCase
                         subtitleResId = R.string.onboarding_login_subtitle,
                         iconResId = R.drawable.login,
                     ),
-                    OnboardingPageUiModel(
-                        id = OnboardingPageId.COMMUNITY,
-                        titleResId = R.string.onboarding_community_title,
-                        subtitleResId = R.string.onboarding_community_subtitle,
-                        iconResId = R.drawable.star,
-                    ),
+                    // Round 173: the community/"Stay connected" page was removed
+                    // on user request. The login page is now the last page and
+                    // its Continue button finishes onboarding into the home screen.
                 )
 
             val loginBenefits =
