@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -533,7 +534,7 @@ fun LyricsView(
     val playbackState = rememberLyricsPlaybackState(
         timeLine = timeLine,
         timedLineIndexes = timedLineIndexes,
-        lyricsOffsetMs = lyricsOffsetMs,
+        lyricsOffsetMs = lyricsOffsetMs.toLong(),
     )
     val currentLineIndex by playbackState.currentLineIndex
 
@@ -760,15 +761,18 @@ fun LyricsView(
                                 ) {
                                     val singleWordLine =
                                         remember(words, line.startTimeMs, line.endTimeMs) {
+                                            // The line model carries String timestamps (the
+                                            // parser converts the same way: toLongOrNull, and
+                                            // a missing end time means "until the next line".
                                             com.maxrave.simpmusic.extension.ParsedRichSyncLine(
                                                 words = listOf(
                                                     com.maxrave.simpmusic.extension.WordTiming(
                                                         text = words,
-                                                        startTimeMs = line.startTimeMs,
+                                                        startTimeMs = line.startTimeMs.toLongOrNull() ?: 0L,
                                                     ),
                                                 ),
-                                                lineStartTimeMs = line.startTimeMs,
-                                                lineEndTimeMs = line.endTimeMs,
+                                                lineStartTimeMs = line.startTimeMs.toLongOrNull() ?: 0L,
+                                                lineEndTimeMs = line.endTimeMs.toLongOrNull() ?: Long.MAX_VALUE,
                                             )
                                         }
                                     EchoLyricsLine(
