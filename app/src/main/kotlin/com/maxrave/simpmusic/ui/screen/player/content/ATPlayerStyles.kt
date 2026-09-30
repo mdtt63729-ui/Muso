@@ -29,11 +29,12 @@ package com.maxrave.simpmusic.ui.screen.player.content
  * (ContentScale.Crop) and loads the ultra-high (1200px / maxres) variant.
  */
 
+import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -85,9 +86,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Matrix
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
@@ -95,6 +97,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -111,6 +114,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.toPath
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -132,6 +136,7 @@ import com.maxrave.simpmusic.ui.icon.Shuffle
 import com.maxrave.simpmusic.ui.icon.SkipNext
 import com.maxrave.simpmusic.ui.icon.SkipPrevious
 import com.maxrave.simpmusic.viewModel.UIEvent
+import com.materialkolor.ktx.toColor
 import com.materialkolor.ktx.toHct
 import moe.rukamori.archivetune.ui.component.PlayerSliderTrack
 import moe.rukamori.archivetune.ui.player.StyledPlaybackSlider
@@ -385,9 +390,7 @@ private fun ATTimeLabels(
     }
 }
 
-@Composable
-private fun atShareSong(state: NowPlayingContentState) {
-    val context = LocalContext.current
+private fun atShareSong(context: Context, state: NowPlayingContentState) {
     val intent = Intent().apply {
         action = Intent.ACTION_SEND
         type = "text/plain"
@@ -484,6 +487,7 @@ private fun ATCinemaShell(
 
 @Composable
 fun NowPlayingContentModern(state: NowPlayingContentState, actions: NowPlayingContentActions) {
+    val context = LocalContext.current
     val textBackgroundColor = MaterialTheme.colorScheme.onBackground
     val textButtonColor = textBackgroundColor
     val iconButtonColor = MaterialTheme.colorScheme.surface
@@ -509,7 +513,7 @@ fun NowPlayingContentModern(state: NowPlayingContentState, actions: NowPlayingCo
                         .size(42.dp)
                         .clip(shareShape)
                         .background(textButtonColor)
-                        .clickable { atShareSong(state) },
+                        .clickable { atShareSong(context, state) },
                 ) {
                     Icon(
                         imageVector = SimpIcons.Share,
@@ -615,6 +619,7 @@ fun NowPlayingContentModern(state: NowPlayingContentState, actions: NowPlayingCo
 
 @Composable
 fun NowPlayingContentMinimal(state: NowPlayingContentState, actions: NowPlayingContentActions) {
+    val context = LocalContext.current
     val textBackgroundColor = MaterialTheme.colorScheme.onBackground
     val icBackgroundColor = MaterialTheme.colorScheme.surface
     ATCinemaShell(
@@ -630,7 +635,7 @@ fun NowPlayingContentMinimal(state: NowPlayingContentState, actions: NowPlayingC
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { atShareSong(state) },
+                        .clickable { atShareSong(context, state) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -774,6 +779,7 @@ fun NowPlayingContentMinimal(state: NowPlayingContentState, actions: NowPlayingC
 
 @Composable
 fun NowPlayingContentCinematic(state: NowPlayingContentState, actions: NowPlayingContentActions) {
+    val context = LocalContext.current
     val textBackgroundColor = MaterialTheme.colorScheme.onBackground
     val textButtonColor = textBackgroundColor
     val icBackgroundColor = MaterialTheme.colorScheme.surface
@@ -788,7 +794,7 @@ fun NowPlayingContentCinematic(state: NowPlayingContentState, actions: NowPlayin
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    onClick = { atShareSong(state) },
+                    onClick = { atShareSong(context, state) },
                     shape = RoundedCornerShape(14.dp),
                     color = textBackgroundColor.copy(alpha = 0.12f),
                     modifier = Modifier
@@ -1203,7 +1209,7 @@ private fun Modifier.littlePlayerOverlayGestures(
     onSeekFinished: () -> Unit,
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
-): Modifier = androidx.compose.ui.composed {
+): Modifier = Modifier.composed {
     val view = LocalView.current
     this.pointerInput(seekEnabled, durationMs, canSkipPrevious, canSkipNext) {
         var lastTapUptimeMs = 0L
@@ -1409,7 +1415,7 @@ fun NowPlayingContentImmersiveExtended(
                             .size(48.dp)
                             .clip(CircleShape)
                             .background(foreground.copy(alpha = 0.16f))
-                            .clickable(actions.onShowMoreSheet),
+                            .clickable { actions.onShowMoreSheet() },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -1655,7 +1661,7 @@ fun NowPlayingContentMaterialExtended(
                     .size(56.dp)
                     .clip(CircleShape)
                     .background(dynamicTextColor.copy(alpha = 0.16f))
-                    .clickable(actions.onDismiss),
+                    .clickable { actions.onDismiss() },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -1682,7 +1688,7 @@ fun NowPlayingContentMaterialExtended(
                         .size(56.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(dynamicTextColor.copy(alpha = 0.16f))
-                        .clickable(actions.onShowFullscreenLyrics),
+                        .clickable { actions.onShowFullscreenLyrics() },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -1697,7 +1703,7 @@ fun NowPlayingContentMaterialExtended(
                         .size(56.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(dynamicTextColor.copy(alpha = 0.16f))
-                        .clickable(actions.onShowQueue),
+                        .clickable { actions.onShowQueue() },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -2075,7 +2081,7 @@ fun NowPlayingContentEditorial(
                         ),
                         label = "EditorialProgress",
                     )
-                    val lineStroke = androidx.compose.ui.graphics.Stroke(
+                    val lineStroke = Stroke(
                         width = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() },
                         cap = androidx.compose.ui.graphics.StrokeCap.Round,
                     )
@@ -2308,7 +2314,6 @@ private fun EditorialDieCutArt(
     }
 }
 
-@Composable
 internal class EditorialMorphShape(
     private val morph: Morph,
     private val progress: Float,

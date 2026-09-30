@@ -291,7 +291,7 @@ private class HqThumbnailInterceptor3 : coil3.intercept.Interceptor {
         url: String,
     ): coil3.request.ImageResult? =
         runCatching {
-            chain.proceed(chain.request.newBuilder().data(url).build())
+            chain.withRequest(chain.request.newBuilder().data(url).build()).proceed()
         }.getOrNull()?.takeIf { it is coil3.request.SuccessResult }
 
     override suspend fun intercept(chain: coil3.intercept.Interceptor.Chain): coil3.request.ImageResult {
@@ -338,7 +338,7 @@ private class HqThumbnailInterceptor3 : coil3.intercept.Interceptor {
                 }
             }
         }
-        return chain.proceed(chain.request)
+        return chain.proceed()
     }
 }
 
