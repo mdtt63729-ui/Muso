@@ -123,11 +123,6 @@ class InnerTube {
     @OptIn(ExperimentalSerializationApi::class)
     private fun createClient() =
         HttpClient(OkHttp) {
-            // Music source detached: the previous remote music API is intentionally disabled.
-            // A replacement provider can be wired in without changing the player architecture.
-            defaultRequest {
-                throw MusicApiDisabledException
-            }
             expectSuccess = true
 
             install(ContentNegotiation) {
@@ -1004,7 +999,3 @@ class InnerTube {
         )
     }
 }
-
-
-/** Thrown when the legacy remote music provider has been detached. */
-object MusicApiDisabledException : IllegalStateException("Legacy music streaming/search API is disabled")

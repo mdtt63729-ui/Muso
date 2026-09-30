@@ -43,8 +43,7 @@ internal class YoutubeiHttpClient(
         authentication: YoutubeiRequestAuthentication?,
     ): String =
         try {
-            // Legacy music streaming resolver detached: never perform the old network request.
-            failure(FailureKind.NETWORK, "Legacy music streaming API is disabled")
+            executeRequest(requestJson, authentication)
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: SocketTimeoutException) {
@@ -61,8 +60,7 @@ internal class YoutubeiHttpClient(
 
     suspend fun executePlayerScript(requestJson: String): String =
         try {
-            // Legacy player-script source detached: never perform the old network request.
-            playerSourceFailure(FailureKind.NETWORK, "Legacy music streaming API is disabled")
+            executePlayerScriptRequest(requestJson)
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: SocketTimeoutException) {

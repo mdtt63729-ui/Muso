@@ -45,7 +45,16 @@ class MusoDownloadHandler(
     override val downloadTask: StateFlow<Map<String, Int>> = MutableStateFlow(emptyMap())
 
     override suspend fun downloadTrack(videoId: String, title: String, thumbnail: String) {
-        // Legacy remote download API detached. A new provider will be wired here later.
+        val request = DownloadRequest.Builder(videoId, videoId.toUri())
+            .setCustomCacheKey(videoId)
+            .setData(title.toByteArray())
+            .build()
+        androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+            context,
+            ExoDownloadService::class.java,
+            request,
+            false,
+        )
     }
 
     override fun removeDownload(videoId: String) {

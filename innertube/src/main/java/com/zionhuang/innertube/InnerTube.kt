@@ -51,10 +51,6 @@ class InnerTube {
 
     @OptIn(ExperimentalSerializationApi::class)
     private fun createClient() = HttpClient(OkHttp) {
-        // Legacy remote music API detached. No network request is permitted from this client.
-        defaultRequest {
-            throw IllegalStateException("Legacy music streaming/search API is disabled")
-        }
         expectSuccess = true
 
         install(ContentNegotiation) {

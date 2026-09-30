@@ -1,19 +1,26 @@
-# Round 183 (v0.5.200, code 207) — CI round 182 build errors fixed
+# Round 184 (v0.5.201, code 208) — SimpMusic streaming API re-enabled (user request)
 
-The first CI run of the round-182 lyrics work failed with 8 errors in
-LyricsView.kt (paste-1-36):
+The remote music source that an earlier snapshot had detached is back ON,
+restored exactly from the last CI-verified implementation (v0.5.195):
 
-- 968: unresolved 'mutableIntStateOf' (which also cascaded into the
-  currentLineIndex comparison errors at 560/620/847). The round-180
-  playback-state refactor used it without importing it - import added.
-- 536: lyricsOffsetMs passed as Int where the new playback-state builder
-  takes Long. Converted at the call site.
-- 767/770/771: the round-182 single-word synthesized ParsedRichSyncLine fed
-  the line model's STRING timestamps into Long fields. Converted with
-  toLongOrNull, matching how the rich-sync parser itself converts (missing
-  end time = until the next line).
+- innertube client (com.zionhuang): the defaultRequest stub that threw on
+  every network call is gone - search, browse, player/next, watch/playlists
+  all hit the network again.
+- morideobfuscator YoutubeiHttpClient: executeRequest / executePlayerScript
+  restored - stream URL resolution and player-script fetches work.
+- MusoDownloadHandler.downloadTrack: re-enqueues into ExoDownloadService,
+  so downloads work from the suite again.
+- core (ArchiveTune) InnerTube client and the MusicApiDisabledException
+  stub removed; API_DETACHED.md removed.
 
-Also swept every Kotlin file for other missing Compose-runtime imports of
-this class (mutable*StateOf / rememberSaveable / getValue) - no further real
-gaps (the flagged hits resolve via star imports, the saveable package, or
-Kotlin's map delegation).
+Playback quality was verified fully wired end to end: the Audio Quality
+setting (Low 66 / Medium 129 / High Opus / High AAC) drives the exact itag
+selection in MusicService's stream resolution - the setting's itag first,
+then its high-quality twin, then the family order, with the old cached
+format reused ONLY while it still belongs to the selected quality family,
+so changing the setting really changes the audio that plays. Downloads use
+the same itag-preference logic under their own Download Quality setting.
+
+Audit: brace/paren balance on all 1362 Kotlin files, all XML parsed,
+project-import resolution identical to the v0.5.200 baseline, no leftover
+detach markers anywhere in the tree.
