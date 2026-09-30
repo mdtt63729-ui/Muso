@@ -102,7 +102,11 @@ data class SearchSummaryPage(
                 renderer.onTap.browseEndpoint?.isPlaylistEndpoint == true -> {
                     PlaylistItem(
                         id = renderer.onTap.browseEndpoint.browseId.removePrefix("VL"),
-                        title = renderer.header.musicCardShelfHeaderBasicRenderer.title.runs?.joinToString(separator = "") { it.text }
+                        // header is optional now (YouTube dropped it from the
+                        // top-result card); the new cards carry their own title.
+                        title = renderer.header?.musicCardShelfHeaderBasicRenderer?.title?.runs
+                            ?.joinToString(separator = "") { it.text }
+                            ?: renderer.title.runs?.joinToString(separator = "") { it.text }
                             ?: return null,
                         author = Artist(
                             id = null,

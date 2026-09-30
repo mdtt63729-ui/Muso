@@ -1,3 +1,13 @@
+## Round 193a — CI compile fix
+
+The first CI build of Round 193 failed at :innertube (SearchSummaryPage.kt:105):
+after `MusicCardShelfRenderer.header` was made nullable, the playlist branch of
+`fromMusicCardShelfRenderer` still accessed `renderer.header.` unsafely. Fixed
+with a safe call plus a fallback to the card's own `renderer.title` (the new
+headerless top-result cards carry their title directly). A full-project sweep
+for other `.header` usages of this model found none (the remaining `.header`
+hits are the unrelated MusicCarouselShelfRenderer and OkHttp request builders).
+
 # Round 193 (v0.5.207) — offline downloads from cache, working Endless queue, All-search fix, ultra-fast loading
 
 User request: (1) cached songs must be addable to Downloads with the network fully off,
