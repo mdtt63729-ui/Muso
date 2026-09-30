@@ -176,8 +176,14 @@ class BuildOnboardingUiStateUseCase
                         id = OnboardingPageId.WELCOME,
                         titleResId = R.string.onboarding_welcome_title,
                         subtitleResId = R.string.onboarding_welcome_subtitle,
-                        // Round 173: muso's own logo (was the ArchiveTune mark).
-                        iconResId = R.drawable.splash_icon,
+                        // Round 173/179: muso's own logo (was the ArchiveTune
+                        // mark). MUST be a real vector drawable: the panel renders
+                        // it with painterResource, which only accepts vectors or
+                        // rasterized assets. splash_icon.xml is a layer-list and
+                        // crashed onboarding with IllegalArgumentException; the
+                        // neon-waveform logo exists as a true vector in
+                        // small_icon.xml.
+                        iconResId = R.drawable.small_icon,
                     ),
                     OnboardingPageUiModel(
                         id = OnboardingPageId.PERMISSIONS,
