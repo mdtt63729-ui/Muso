@@ -655,6 +655,23 @@ fun MusoSuiteBridge(
                 com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE
             com.muso.music.constants.PlayerStyle.IMMERSIVE ->
                 com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC
+            // Round 176: the seven ArchiveTune designs. They used to fall into
+            // the else branch (SPOTIFY), which is why selecting them changed
+            // nothing on screen.
+            com.muso.music.constants.PlayerStyle.MODERN ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_MODERN
+            com.muso.music.constants.PlayerStyle.MINIMAL ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_MINIMAL
+            com.muso.music.constants.PlayerStyle.CINEMATIC ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_CINEMATIC
+            com.muso.music.constants.PlayerStyle.LITTLE ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_LITTLE
+            com.muso.music.constants.PlayerStyle.IMMERSIVE_EXTENDED ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_IMMERSIVE_EXTENDED
+            com.muso.music.constants.PlayerStyle.MATERIAL_EXTENDED ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_MATERIAL_EXTENDED
+            com.muso.music.constants.PlayerStyle.EDITORIAL ->
+                com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_EDITORIAL
             else -> com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_SPOTIFY
         }
     }
@@ -699,6 +716,17 @@ fun MusoSuiteBridge(
                 com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_CLASSIC
             }
     }
+    // Round 176: lyrics sync-offset bridge. This sync used to live only in the
+    // dead MusoSuiteHost composable, so the Lyrics sync offset setting never
+    // reached the suite lyrics view that actually reads dsm.lyricsOffsetMs.
+    val lyricsOffsetMsBridge by com.muso.music.utils.rememberPreference(
+        com.muso.music.constants.LyricsOffsetKey,
+        defaultValue = 0,
+    )
+    androidx.compose.runtime.LaunchedEffect(lyricsOffsetMsBridge) {
+        dsmBridge.lyricsOffsetMs.value = lyricsOffsetMsBridge
+    }
+
     val canvasUrlBridge by playerConnection.service.videoStreamUrl.collectAsState()
     val queueTitleBridge by playerConnection.queueTitle.collectAsState()
     val musoLyricsBridge by playerConnection.currentLyrics.collectAsState()

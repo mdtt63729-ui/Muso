@@ -157,9 +157,34 @@ fun FullscreenVideoScreen(navController: NavController) {
         }
     }
 
+    // Round 177: a restored route can carry an EXPIRED stream URL - the
+    // string is present so the earlier null guard passes, but the stream
+    // never becomes ready and the screen sat black forever. Watch the
+    // player state: any error, or still nothing ready after the grace
+    // period, leaves the screen instead of showing a dead black player.
     DisposableEffect(Unit) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                navController.popBackStack()
+            }
+        }
+        exoPlayer.addListener(listener)
         onDispose {
+            exoPlayer.removeListener(listener)
             runCatching { exoPlayer.release() }
+        }
+    }
+    LaunchedEffect(preparedFor) {
+        if (preparedFor == null) return@LaunchedEffect
+        val deadline = 6000L
+        val startedAt = System.currentTimeMillis()
+        while (System.currentTimeMillis() - startedAt < deadline) {
+            delay(250)
+            val ready = runCatching { exoPlayer.playbackState == Player.STATE_READY }.getOrDefault(false)
+            if (ready) return@LaunchedEffect
+        }
+        if (runCatching { exoPlayer.playbackState == Player.STATE_READY }.getOrDefault(false).not()) {
+            navController.popBackStack()
         }
     }
 

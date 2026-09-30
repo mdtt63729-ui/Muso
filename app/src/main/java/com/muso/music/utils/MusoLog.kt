@@ -85,6 +85,15 @@ object MusoLog {
         }.getOrNull()
         installCrashHandler(app)
         startLogcat(dir)
+        // Round 178: whole-app jank needs measuring before it can be fixed.
+        FrameJankMonitor.install()
+    }
+
+    /** Public append used by the frame monitor (Downloads/Muso/<file>). */
+    fun appendPublic(fileName: String, text: String) {
+        val ctx = appContext ?: return
+        runCatching { appendToDownloads(ctx, fileName, text) }
+        logDir?.let { runCatching { File(it, fileName).appendText(text) } }
     }
 
     /** True when the "Muso" folder sits in public storage (user-visible). */
@@ -329,6 +338,61 @@ object MusoLog {
                 "-r", "8192",
                 "-n", "1",
             ).start()
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Round 178: frame-time monitor. "The whole app lags" cannot be fixed blind -
+// every screen the user names (settings, navigation, lyrics) is a different
+// composable, and the guilty renderer cannot be found from a description.
+// This monitor watches the Choreographer: every 10 seconds it writes one
+// line with the measured frame rate, how many frames overran 40 ms and the
+// worst frame, to Downloads/Muso/jank_log.txt. The user sends that file and
+// the numbers say WHERE the frames go (constant low fps everywhere = a
+// global burner like the glass shader; normal 60 fps with spikes on
+// navigation = the transitions; 30 fps with everything smooth = the device
+// is rendering in power-save).
+// ---------------------------------------------------------------------------
+object FrameJankMonitor {
+    @Volatile private var started = false
+
+    fun install() {
+        if (started) return
+        started = true
+        runCatching {
+            val choreographer = android.view.Choreographer.getInstance()
+            var last = 0L
+            var frames = 0L
+            var janky = 0
+            var worstNanos = 0L
+            var windowStart = System.currentTimeMillis()
+            choreographer.postFrameCallback(object : android.view.Choreographer.FrameCallback {
+                override fun doFrame(frameTimeNanos: Long) {
+                    if (last != 0L) {
+                        val delta = frameTimeNanos - last
+                        frames++
+                        if (delta > 40_000_000L) {
+                            janky++
+                            if (delta > worstNanos) worstNanos = delta
+                        }
+                        val elapsed = System.currentTimeMillis() - windowStart
+                        if (elapsed >= 10_000L) {
+                            if (frames > 0) {
+                                val fps = frames * 1000f / elapsed
+                                val line = "\n[" + java.text.SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss", java.util.Locale.US,
+                                ).format(java.util.Date()) + "] ${elapsed / 1000}s: $frames frames (~${"%.1f".format(fps)} fps), $janky janky(>40ms), worst ${worstNanos / 1_000_000}ms\n"
+                                Thread { runCatching { MusoLog.appendPublic("jank_log.txt", line) } }.start()
+                            }
+                            frames = 0; janky = 0; worstNanos = 0
+                            windowStart = System.currentTimeMillis()
+                        }
+                    }
+                    last = frameTimeNanos
+                    choreographer.postFrameCallback(this)
+                }
+            })
         }
     }
 }

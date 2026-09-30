@@ -174,3 +174,23 @@ About page) integrated in. All settings must APPLY to the app.
   its own import; (2) never substring-check imports (heightIn matched the
   height check); (3) brace-balance checks do not catch bare-word lines -
   verify every comment line carries its // prefix.
+
+## Round 176 addendum — v0.5.193
+- THE player = suite NowPlayingScreen (Player.kt calls it directly;
+  MusoSuiteHost is dead code with zero call sites - only MusoSuiteBridge
+  inside that file is live, called from MusoNavbarHost).
+- Style pipeline: muso PlayerStyleKey -> MusoSuiteBridge sync ->
+  DataStoreManager.nowPlayingStyle -> NowPlayingScreen when() dispatch.
+  Any new player style must be added in THREE places: the muso enum, the
+  bridge mapping, and the suite when() - plus DataStoreManager constants.
+- LESSON: before wiring a setting, grep for WHERE the consuming UI is
+  actually invoked; a dispatch table in an uncalled composable is
+  invisible.
+
+## Round 177 addendum — v0.5.194
+- AnimatedWord word-level fast path for glow==null styles (three Texts per
+  word max). AMLL glow styles keep the per-char renderer.
+- "Blank fullscreen player at launch" had TWO restore paths: saveable sheet
+  flags in NowPlayingScreen (boot-latch reset) and the dead-URL fullscreen
+  video route (error/not-ready pop). Remember: rememberSaveable flags +
+  process death = sheets that reopen at launch.

@@ -1165,6 +1165,45 @@ private fun AnimatedWord(
             else -> 0f
         }
 
+    if (glow == null) {
+        // Round 177 perf: FLARE and the other non-glow styles used to render
+        // EVERY CHARACTER as its own Box + graphicsLayer + Text, with the
+        // rising/flaring animation machinery attached - dozens of animated
+        // nodes per sung line, which is what lagged the lyrics section. The
+        // visible result for a non-glow style is only a per-character colour
+        // wipe, and this fast path reproduces exactly that with at most
+        // THREE text nodes per word: the sung part, the half-lit active
+        // character, and the rest. (The Apple/AMLL glow styles keep the
+        // per-character renderer below.)
+        val fastCharCount = word.length.coerceAtLeast(1)
+        val sungChars =
+            (wordProgress * fastCharCount)
+                .toInt()
+                .coerceIn(0, fastCharCount)
+        val restingFast = pendingColorOverride ?: DimRichPendingColor
+        Row {
+            if (sungChars > 0) {
+                Text(text = word.substring(0, sungChars), style = style, color = Color.White)
+            }
+            if (sungChars < fastCharCount) {
+                val activeFraction = (wordProgress * fastCharCount) - sungChars
+                Text(
+                    text = word.substring(sungChars, sungChars + 1),
+                    style = style,
+                    color = lerp(restingFast, Color.White, activeFraction.coerceIn(0f, 1f)),
+                )
+                if (sungChars + 1 < fastCharCount) {
+                    Text(
+                        text = word.substring(sungChars + 1),
+                        style = style,
+                        color = restingFast,
+                    )
+                }
+            }
+        }
+        return
+    }
+
     // AMLL's emphasis strengths, derived from the word's OWN duration.
     val emphasisDurationMs = max(EMP_MIN_DURATION_MS, wordDurationMs.toFloat())
     val amount =

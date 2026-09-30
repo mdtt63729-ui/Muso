@@ -397,6 +397,21 @@ fun NowPlayingScreenContent(
         mutableStateOf(false)
     }
 
+    // Round 177: these flags are rememberSaveable, so a process death with
+    // any of them open restored a dark fullscreen sheet over the app at the
+    // next launch (the "blank fullscreen player at app open"). A fresh
+    // process always starts with every one of them closed; only a
+    // within-process recreation (rotation) may restore them.
+    if (!NowPlayingSheetsBootReset.done) {
+        NowPlayingSheetsBootReset.done = true
+        showSheet = false
+        showFullscreenLyrics = false
+        showQueueBottomSheet = false
+        showInfoBottomSheet = false
+        showVoteDialog = false
+        showAddToPlaylistDirectly = false
+    }
+
     var shouldShowToolbar by remember {
         mutableStateOf(false)
     }
@@ -897,10 +912,74 @@ fun NowPlayingScreenContent(
                 actions = actions,
             )
 
+        // Round 176: the ArchiveTune player designs. The AT-style layouts are
+        // dark canvases, so they run inside ForceDarkContent like the Apple
+        // Music style above them.
+        DataStoreManager.NOW_PLAYING_STYLE_MODERN ->
+            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentModern(
+                    state = state,
+                    actions = actions,
+                )
+            }
+
+        DataStoreManager.NOW_PLAYING_STYLE_MINIMAL ->
+            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMinimal(
+                    state = state,
+                    actions = actions,
+                )
+            }
+
+        DataStoreManager.NOW_PLAYING_STYLE_CINEMATIC ->
+            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentCinematic(
+                    state = state,
+                    actions = actions,
+                )
+            }
+
+        DataStoreManager.NOW_PLAYING_STYLE_LITTLE ->
+            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentLittle(
+                    state = state,
+                    actions = actions,
+                )
+            }
+
+        DataStoreManager.NOW_PLAYING_STYLE_IMMERSIVE_EXTENDED ->
+            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentImmersiveExtended(
+                    state = state,
+                    actions = actions,
+                )
+            }
+
+        DataStoreManager.NOW_PLAYING_STYLE_MATERIAL_EXTENDED ->
+            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMaterialExtended(
+                    state = state,
+                    actions = actions,
+                )
+            }
+
+        DataStoreManager.NOW_PLAYING_STYLE_EDITORIAL ->
+            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
+                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentEditorial(
+                    state = state,
+                    actions = actions,
+                )
+            }
+
         else ->
             NowPlayingContentSpotify(
                 state = state,
                 actions = actions,
             )
     }
+}
+
+// Round 177: process-lifetime latch - see the flag reset in NowPlayingScreen.
+private object NowPlayingSheetsBootReset {
+    var done = false
 }

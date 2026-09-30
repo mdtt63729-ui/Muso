@@ -22,6 +22,14 @@ class DataStoreManager {
         const val NOW_PLAYING_STYLE_SPOTIFY = "SPOTIFY"
         const val NOW_PLAYING_STYLE_M3_EXPRESSIVE = "M3_EXPRESSIVE"
         const val NOW_PLAYING_STYLE_APPLE_MUSIC = "APPLE_MUSIC"
+        // Round 176: the ArchiveTune player designs (V2/V3/V4/V5/V8/V9/V10).
+        const val NOW_PLAYING_STYLE_MODERN = "MODERN"
+        const val NOW_PLAYING_STYLE_MINIMAL = "MINIMAL"
+        const val NOW_PLAYING_STYLE_CINEMATIC = "CINEMATIC"
+        const val NOW_PLAYING_STYLE_LITTLE = "LITTLE"
+        const val NOW_PLAYING_STYLE_IMMERSIVE_EXTENDED = "IMMERSIVE_EXTENDED"
+        const val NOW_PLAYING_STYLE_MATERIAL_EXTENDED = "MATERIAL_EXTENDED"
+        const val NOW_PLAYING_STYLE_EDITORIAL = "EDITORIAL"
         const val PROXY_TYPE_HTTP = "PROXY_TYPE_HTTP"
         const val PROXY_TYPE_SOCKS = "PROXY_TYPE_SOCKS"
         // Theme (values match upstream)
