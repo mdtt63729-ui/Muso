@@ -64,8 +64,9 @@ class TogetherOnlineHost(
                     retryOnConnectionFailure(true)
                 }
             }
+            // Ktor 2.x API (see TogetherClient).
             install(WebSockets) {
-                pingIntervalMillis = 25_000
+                pingInterval = 25_000
             }
         }
 

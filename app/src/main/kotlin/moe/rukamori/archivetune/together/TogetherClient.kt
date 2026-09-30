@@ -114,8 +114,10 @@ class TogetherClient(
                     retryOnConnectionFailure(true)
                 }
             }
+            // Ktor 2.x API (the kit was written against ktor 3, which
+            // renamed this property; muso pins 2.3.12).
             install(WebSockets) {
-                pingIntervalMillis = 25_000
+                pingInterval = 25_000
             }
         }
 

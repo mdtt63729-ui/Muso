@@ -137,3 +137,7 @@ About page) integrated in. All settings must APPLY to the app.
 - LESSON: when adding a library that transitively bumps a shared dependency
   (especially ktor 2->3), check the resolved versions - Gradle picks the
   newest, not the direct one.
+
+## Round 172 addendum — ktor 2.x API adaptation (v0.5.189)
+- TogetherClient/TogetherOnlineHost WebSockets install: the ktor-3 property
+  name -> ktor-2 `pingInterval`, value unchanged (25_000 ms).
