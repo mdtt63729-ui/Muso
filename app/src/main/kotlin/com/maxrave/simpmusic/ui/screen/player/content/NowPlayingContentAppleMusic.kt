@@ -356,7 +356,7 @@ private fun AppleMusicMainView(
         HorizontalPager(
             state = state.artworkPagerState,
             modifier = Modifier.fillMaxSize(),
-            beyondViewportPageCount = 1,
+            beyondViewportPageCount = 0,
             userScrollEnabled = !isRepeatOne && state.artworkQueue.isNotEmpty(),
             key = { idx ->
                 val vid = state.artworkQueue.getOrNull(idx)?.videoId.orEmpty()

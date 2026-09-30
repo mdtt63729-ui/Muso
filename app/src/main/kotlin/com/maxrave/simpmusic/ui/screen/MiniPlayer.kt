@@ -173,7 +173,7 @@ fun MiniPlayer(
     // text colour. Leaving them gated left the capsule with luminance stuck at 0: a 2dp blur and a
     // 0.12 darken, which is why it looked like a smear rather than glass. The setting still governs
     // the Android card below.
-    val useGlassSurface = isLiquidGlassEnabled == DataStoreManager.TRUE || getPlatform() == Platform.Desktop
+    val useGlassSurface = isLiquidGlassEnabled == DataStoreManager.TRUE
 
     val isDarkTheme = LocalIsDarkTheme.current
     val textColor by animateColorAsState(
@@ -674,8 +674,8 @@ fun MiniPlayer(
         // Apple Music-style floating capsule: transport on the left, the track and its slim
         // progress slider in the middle, the action cluster on the right. Size and placement come
         // from the caller (App.kt), so the capsule keeps a fixed width and floats over content.
-        // Always liquid glass, not gated on the setting: the capsule IS the glass shape here, and
-        // falling back to a haze blur gives a dark smear instead of a floating pill.
+        // The shared liquidGlass modifier gates the sampled-luminance glass effect with the
+        // user's Liquid Glass setting. When it is OFF this remains a normal theme surface.
         val capsuleShape = RoundedCornerShape(50)
         val density = LocalDensity.current
         Box(

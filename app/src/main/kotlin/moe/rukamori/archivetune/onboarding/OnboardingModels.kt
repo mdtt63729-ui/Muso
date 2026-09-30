@@ -128,6 +128,8 @@ sealed interface OnboardingEvent {
 
     data object OpenLogin : OnboardingEvent
 
+    data object Completed : OnboardingEvent
+
     data class OpenUri(
         val url: String,
     ) : OnboardingEvent

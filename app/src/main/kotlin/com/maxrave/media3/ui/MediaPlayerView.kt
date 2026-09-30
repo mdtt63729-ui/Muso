@@ -55,7 +55,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.compose.PlayerSurface
-import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
+import androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW
 import androidx.media3.ui.compose.modifiers.resizeWithContentScale
 import androidx.media3.ui.compose.state.rememberPresentationState
 import coil3.compose.AsyncImage
@@ -172,7 +172,7 @@ fun MediaPlayerView(
         exoPlayer.play()
         exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
         while (true) {
-            kotlinx.coroutines.delay(50)
+            kotlinx.coroutines.delay(100)
             val loop = runCatching {
                 val duration = exoPlayer.duration
                 duration != androidx.media3.common.C.TIME_UNSET &&
@@ -210,7 +210,7 @@ fun MediaPlayerView(
         Box(modifier = modifier.graphicsLayer { clip = true }) {
             PlayerSurface(
                 player = exoPlayer,
-                surfaceType = SURFACE_TYPE_SURFACE_VIEW,
+                surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
                 modifier =
                     Modifier
                         .fillMaxSize()
@@ -229,7 +229,7 @@ fun MediaPlayerView(
         Box(modifier = modifier.graphicsLayer { clip = true }) {
             PlayerSurface(
                 player = exoPlayer,
-                surfaceType = SURFACE_TYPE_SURFACE_VIEW,
+                surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
                 modifier =
                     Modifier
                         .fillMaxHeight()
@@ -493,7 +493,7 @@ fun MediaPlayerViewWithSubtitle(
             } else {
                 PlayerSurface(
                     player = player,
-                    surfaceType = SURFACE_TYPE_SURFACE_VIEW,
+                    surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
                     modifier =
                         if (cropToBounds) {
                             // Full-bleed (user spec): center scale-to-cover the caller's frame,

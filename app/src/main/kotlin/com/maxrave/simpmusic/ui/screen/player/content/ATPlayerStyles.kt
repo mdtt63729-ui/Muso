@@ -117,7 +117,7 @@ private fun ATArtworkPager(
     HorizontalPager(
         state = state.artworkPagerState,
         modifier = modifier,
-        beyondViewportPageCount = 1,
+        beyondViewportPageCount = 0,
     ) { page ->
         val isCurrent = page == state.artworkPagerState.currentPage
         val url = atTrackArtworkUrl(page, state)

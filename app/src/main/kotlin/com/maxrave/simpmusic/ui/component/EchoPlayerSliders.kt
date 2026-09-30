@@ -86,25 +86,16 @@ fun PlayerSliderByStyle(
     modifier: Modifier = Modifier,
     isPlaying: Boolean = true,
 ) {
-    when (style) {
-        SliderStyle.SLIM -> SlimPlayerSlider(position, onSeek, onSeekFinished, accent, modifier)
-        SliderStyle.SQUIGGLY -> EchoSquigglySlider(
-            value = position,
-            onValueChange = onSeek,
-            onValueChangeFinished = onSeekFinished,
-            colors = echoSliderColors(accent),
-            isPlaying = isPlaying,
-            modifier = modifier,
-        )
-        else -> EchoWavySlider(
-            value = position,
-            onValueChange = onSeek,
-            onValueChangeFinished = onSeekFinished,
-            colors = echoSliderColors(accent),
-            isPlaying = isPlaying,
-            modifier = modifier,
-        )
-    }
+    moe.rukamori.archivetune.ui.player.StyledPlaybackSlider(
+        sliderStyle = style,
+        value = position.coerceIn(0f, 1f),
+        valueRange = 0f..1f,
+        onValueChange = onSeek,
+        onValueChangeFinished = onSeekFinished,
+        activeColor = accent,
+        isPlaying = isPlaying,
+        modifier = modifier,
+    )
 }
 
 /* ------------------------------ WavySlider.kt ------------------------------ */

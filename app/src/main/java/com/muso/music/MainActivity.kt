@@ -609,7 +609,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     val (translucentNavBar, onTranslucentNavBarChange) = rememberPreference(TranslucentNavigationBarKey, defaultValue = false)
-                    val liquidGlassNavBar by rememberPreference(LiquidGlassNavBarKey, defaultValue = true)
+                    val liquidGlassNavBar by rememberPreference(LiquidGlassNavBarKey, defaultValue = false)
 
                     // One-time: M3 Expressive is the default player style now (user
                     // request). Only a stored CLASSIC (the old default) migrates; after
@@ -635,6 +635,16 @@ class MainActivity : ComponentActivity() {
                         collapsedBound = bottomInset + (if (shouldShowNavigationBar) NavigationBarHeight else 0.dp) + MiniPlayerHeight,
                         expandedBound = maxHeight,
                     )
+
+                    // Never restore the main player sheet as expanded on app startup.
+                    // The sheet is a transient UI surface, not a navigation destination;
+                    // restoring its previous expanded anchor can make a fresh launch open
+                    // directly into a blank/fullscreen player before any song is selected.
+                    // This runs once for this Activity and does not affect intentional user
+                    // expansion after the app is ready.
+                    LaunchedEffect(playerBottomSheetState) {
+                        playerBottomSheetState.snapTo(playerBottomSheetState.dismissedBound)
+                    }
 
                     val playerAwareWindowInsets = remember(bottomInset, shouldShowNavigationBar, playerBottomSheetState.isDismissed, translucentNavBar, liquidGlassNavBar) {
                         var bottom = bottomInset
@@ -1294,7 +1304,11 @@ class MainActivity : ComponentActivity() {
                             }.getOrDefault(false)
                         if (shouldShow) showOnboarding = true
                     }
-                    if (showOnboarding) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showOnboarding,
+                        enter = fadeIn(tween(220)),
+                        exit = fadeOut(tween(260)),
+                    ) {
                         Box(
                             Modifier
                                 .fillMaxSize()
@@ -1302,6 +1316,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             moe.rukamori.archivetune.ui.screens.onboarding.OnboardingRoute(
                                 onLoginRequested = { navController.navigate("login") },
+                                onCompleted = { showOnboarding = false },
                             )
                         }
                     }

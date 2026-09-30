@@ -137,9 +137,13 @@ enum class VideoQuality {
     Q360, Q720, Q1080
 }
 
-enum class SliderStyle {
-    DEFAULT, WAVY, SLIM, SQUIGGLY
-}
+// Round 180 audit fix: muso and ArchiveTune each declared a SliderStyle with
+// identical entries - two DISTINCT types. PlayerSliderByStyle takes this
+// (muso) enum and passes it straight into StyledPlaybackSlider, whose
+// parameter is moe.rukamori.archivetune.constants.SliderStyle - a type
+// mismatch that breaks the build. One enum now serves both: this alias
+// points at ArchiveTune's, whose entries are exactly the same five.
+typealias SliderStyle = moe.rukamori.archivetune.constants.SliderStyle
 
 val DefaultOpenTabKey = stringPreferencesKey("defaultOpenTab")
 val GridCellSizeKey = stringPreferencesKey("gridCellSize")

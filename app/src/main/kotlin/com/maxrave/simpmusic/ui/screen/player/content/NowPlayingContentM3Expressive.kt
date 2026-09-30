@@ -278,7 +278,7 @@ private fun NowPlayingM3ExpressiveLayout(
                         Modifier
                             .height(screenInfo.hDP.dp)
                             .fillMaxWidth(),
-                    beyondViewportPageCount = 1,
+                    beyondViewportPageCount = 0,
                     userScrollEnabled = !isRepeatOne && state.artworkQueue.isNotEmpty(),
                     key = { idx ->
                         val vid = state.artworkQueue.getOrNull(idx)?.videoId.orEmpty()

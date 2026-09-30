@@ -88,6 +88,7 @@ import moe.rukamori.archivetune.onboarding.OnboardingViewModel
 fun OnboardingRoute(
     modifier: Modifier = Modifier,
     onLoginRequested: () -> Unit = {},
+    onCompleted: () -> Unit = {},
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.screenState.collectAsStateWithLifecycle()
@@ -118,6 +119,8 @@ fun OnboardingRoute(
                 }
 
                 OnboardingEvent.OpenLogin -> onLoginRequested()
+
+                OnboardingEvent.Completed -> onCompleted()
 
                 is OnboardingEvent.OpenUri -> {
                     runCatching {
@@ -280,6 +283,7 @@ private fun OnboardingSuccessContent(
     HorizontalPager(
         state = pagerState,
         userScrollEnabled = false,
+        beyondViewportPageCount = 1,
         modifier =
             Modifier
                 .fillMaxSize()

@@ -49,7 +49,7 @@ class DataStoreManager {
 
     val endlessQueue = MutableStateFlow("false")
     /** Liquid glass surfaces (navigation bar / mini player). Muso's Appearance setting feeds this. */
-    val enableLiquidGlass = MutableStateFlow(TRUE)
+    val enableLiquidGlass = MutableStateFlow(FALSE)
     val lyricsOffsetMs = MutableStateFlow(0)
     val crossfadeEnabled = MutableStateFlow("false")
     val playbackSpeed = MutableStateFlow(1f)

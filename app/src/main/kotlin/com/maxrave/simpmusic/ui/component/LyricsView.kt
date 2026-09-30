@@ -81,6 +81,7 @@ import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 import kotlin.math.abs
@@ -434,7 +435,10 @@ fun LyricsView(
     // that moment, and out-of-focus text is not readable. Dragged, not isScrollInProgress: the
     // latter is also true for the player's own animated scroll, which must stay blurred.
     val isDragging by listState.interactionSource.collectIsDraggedAsState()
-    val current by timeLine.collectAsStateWithLifecycle()
+
+    // IMPORTANT: do not collect the fast playback timeline as Compose state here. The player's timeline ticks frequently, and reading that state in this parent used to invalidate the
+    // entire lyrics screen on every tick. Playback state is now kept in a small stable holder;
+    // only the line that needs the clock reads the fast-changing currentTime state.
 
     // The listener's audio-delay correction, applied HERE rather than to the lyric rows: the rows
     // are cached in Room and shared with the community lyrics database, so a local correction must
@@ -455,19 +459,15 @@ fun LyricsView(
         // (Settings -> Player and audio, lyrics section).
         defaultValue = com.muso.music.constants.LyricsAnimationStyle.FLARE,
     )
-    // Round 173 interlock: only the enabled engine renders. Word-by-word off
-    // (or lyrics mode on) forces NONE, which renders lines statically - the
-    // lyrics-mode look. Only the enabled one ever applies.
+    // Round 182 (user request): the lyrics-mode engine switch is gone from
+    // settings - word-by-word is the ONLY lyrics engine, so its switch is the
+    // sole gate. Word-by-word off forces NONE, which renders lines statically.
     val wordByWordEnabled by com.muso.music.utils.rememberPreference(
         com.muso.music.constants.WordByWordLyricsEnabledKey,
         true,
     )
-    val lyricsModeEnabled by com.muso.music.utils.rememberPreference(
-        com.muso.music.constants.LyricsModeEnabledKey,
-        false,
-    )
     val effectiveEchoLyricsStyle =
-        if (wordByWordEnabled && !lyricsModeEnabled) {
+        if (wordByWordEnabled) {
             echoLyricsStyle
         } else {
             com.muso.music.constants.LyricsAnimationStyle.NONE
@@ -530,12 +530,12 @@ fun LyricsView(
             }
         }
 
-    val currentLineIndex by remember(timedLineIndexes) {
-        derivedStateOf {
-            val now = current.current - lyricsOffsetMs
-            if (now <= 0L) -1 else timedLineIndexes.activeIndexAt(now)
-        }
-    }
+    val playbackState = rememberLyricsPlaybackState(
+        timeLine = timeLine,
+        timedLineIndexes = timedLineIndexes,
+        lyricsOffsetMs = lyricsOffsetMs,
+    )
+    val currentLineIndex by playbackState.currentLineIndex
 
     // Read off the SAME list the blur fix built, not off syncType: it is the timestamps that decide
     // whether a line can ever be "the sung one", and [timedLineIndexes] is already empty exactly
@@ -585,7 +585,14 @@ fun LyricsView(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = tailPadding),
         ) {
-            items(displayLines.lines.size) { index ->
+            items(
+                count = displayLines.lines.size,
+                key = { index ->
+                    val line = displayLines.lines[index]
+                    "lyrics-${index}-${line.startTimeMs}-${line.endTimeMs}"
+                },
+                contentType = { "lyric-line" },
+            ) { index ->
                 val line = displayLines.lines.getOrNull(index)
                 // A dots line stands for silence, so it has nothing to translate or romanize. Worth
                 // saying out loud for the translation: that map matches by TIME, and the silence
@@ -647,7 +654,7 @@ fun LyricsView(
                                         parsedLine = parsedLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        currentTimeMs = current.current - lyricsOffsetMs,
+                                        currentTimeMs = playbackState.currentTimeMs.value,
                                         isCurrent = index == currentLineIndex,
                                         style = effectiveEchoLyricsStyle,
                                     )
@@ -660,7 +667,7 @@ fun LyricsView(
                                         parsedLine = parsedLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        currentTimeMs = current.current - lyricsOffsetMs,
+                                        currentTimeMs = playbackState.currentTimeMs.value,
                                         isCurrent = index == currentLineIndex,
                                         customFontSize = if (appleStyle) AppleMusicLyricFontSize else null,
                                         glow = if (appleStyle && index == currentLineIndex) AppleMusicActiveLineGlow else null,
@@ -685,7 +692,7 @@ fun LyricsView(
                                                 Modifier
                                             } else {
                                                 Modifier.clickable {
-                                                    onLineClick(line.startTimeMs.toFloat() * 100 / timeLine.value.total)
+                                                    onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
                                                 }
                                             },
                                     )
@@ -714,7 +721,7 @@ fun LyricsView(
                                         modifier =
                                             Modifier
                                                 .clickable {
-                                                    onLineClick(line.startTimeMs.toFloat() * 100 / timeLine.value.total)
+                                                    onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
                                                 },
                                     )
                                 }
@@ -738,18 +745,58 @@ fun LyricsView(
 
                             // Line sync or unsynced: use existing LyricsLineItem
                             else -> {
-                                LyricsLineItem(
-                                    originalWords = words,
-                                    translatedWords = translatedWords,
-                                    romanizedWords = romanizedWords,
-                                    isBold = index <= currentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
-                                    isCurrent = index == currentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
-                                    modifier =
-                                        Modifier
-                                            .clickable(enabled = lyricsData.lyrics.syncType == "LINE_SYNCED") {
-                                                onLineClick(line.startTimeMs.toFloat() * 100 / timeLine.value.total)
+                                // Round 182 (user request, ArchiveTune classic styles):
+                                // the word-by-word style picker now drives LINE-synced
+                                // lyrics too. A line-synced line has no word timings, so
+                                // the whole line is synthesized as ONE word spanning the
+                                // line's own start/end - the same trick ArchiveTune's
+                                // classic renderers use. KARAOKE then fills across the
+                                // whole line, FADE/GLOW/SLIDE/APPLE animate the line as a
+                                // unit. FLARE needs real word timing and NONE is the
+                                // static look, so both keep the classic LyricsLineItem.
+                                if (lyricsData.lyrics.syncType == "LINE_SYNCED" &&
+                                    effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.FLARE &&
+                                    effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.NONE
+                                ) {
+                                    val singleWordLine =
+                                        remember(words, line.startTimeMs, line.endTimeMs) {
+                                            com.maxrave.simpmusic.extension.ParsedRichSyncLine(
+                                                words = listOf(
+                                                    com.maxrave.simpmusic.extension.WordTiming(
+                                                        text = words,
+                                                        startTimeMs = line.startTimeMs,
+                                                    ),
+                                                ),
+                                                lineStartTimeMs = line.startTimeMs,
+                                                lineEndTimeMs = line.endTimeMs,
+                                            )
+                                        }
+                                    EchoLyricsLine(
+                                        parsedLine = singleWordLine,
+                                        translatedWords = translatedWords,
+                                        romanizedWords = romanizedWords,
+                                        currentTimeMs = playbackState.currentTimeMs.value,
+                                        isCurrent = index == currentLineIndex,
+                                        style = effectiveEchoLyricsStyle,
+                                        modifier =
+                                            Modifier.clickable {
+                                                onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
                                             },
-                                )
+                                    )
+                                } else {
+                                    LyricsLineItem(
+                                        originalWords = words,
+                                        translatedWords = translatedWords,
+                                        romanizedWords = romanizedWords,
+                                        isBold = index <= currentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
+                                        isCurrent = index == currentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
+                                        modifier =
+                                            Modifier
+                                                .clickable(enabled = lyricsData.lyrics.syncType == "LINE_SYNCED") {
+                                                    onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
+                                                },
+                                    )
+                                }
                             }
                         }
                     }
@@ -779,7 +826,7 @@ fun LyricsView(
                                         enabled = lyricsData.lyrics.syncType == "LINE_SYNCED" ||
                                             lyricsData.lyrics.syncType == "RICH_SYNCED",
                                     ) {
-                                        onLineClick(line.startTimeMs.toFloat() * 100 / timeLine.value.total)
+                                        onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
                                     },
                         ) {
                             // Blur spans the FULL width; the gutter is applied inside it. Ordered
@@ -906,6 +953,45 @@ fun LyricsLineItem(
             Spacer(modifier = Modifier.height(12.dp))
         }
     }
+}
+
+/**
+ * Stable bridge between the fast player timeline and the lyrics composition tree.
+ *
+ * The object itself is remembered once. Its mutable states are deliberately read only by the
+ * small parts of the lyrics UI that need them, instead of making the whole LyricsView observe the
+ * playback clock. This is particularly important for rich-sync lyrics, where the active line may
+ * contain many animated words.
+ */
+private class LyricsPlaybackState {
+    val currentTimeMs = mutableLongStateOf(0L)
+    val currentLineIndex = mutableIntStateOf(-1)
+    val totalMs = mutableLongStateOf(1L)
+}
+
+@Composable
+private fun rememberLyricsPlaybackState(
+    timeLine: StateFlow<TimeLine>,
+    timedLineIndexes: List<TimedLineIndex>,
+    lyricsOffsetMs: Long,
+): LyricsPlaybackState {
+    val state = remember { LyricsPlaybackState() }
+
+    LaunchedEffect(timeLine, timedLineIndexes, lyricsOffsetMs) {
+        timeLine.collectLatest { timeline ->
+            val now = timeline.current - lyricsOffsetMs
+            state.currentTimeMs.longValue = now
+            state.totalMs.longValue = timeline.total.coerceAtLeast(1L)
+            state.currentLineIndex.intValue =
+                if (now <= 0L || timedLineIndexes.isEmpty()) {
+                    -1
+                } else {
+                    timedLineIndexes.activeIndexAt(now)
+                }
+        }
+    }
+
+    return state
 }
 
 /**

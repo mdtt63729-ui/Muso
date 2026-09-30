@@ -60,7 +60,7 @@ fun BoxScope.MusoNavbarHost(
     isScrolledToTop: Boolean,
     onReloadTab: () -> Unit,
 ) {
-    val liquidGlass by rememberPreference(LiquidGlassNavBarKey, defaultValue = true)
+    val liquidGlass by rememberPreference(LiquidGlassNavBarKey, defaultValue = false)
 
     // The pill DESIGN is the user's choice now (Appearance), decoupled from the
     // Liquid Glass effect: glass style keeps the bar-integrated pill when glass

@@ -38,7 +38,6 @@ import androidx.navigation.NavHostController
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.searchResult.songs.Artist
 import com.maxrave.domain.data.model.searchResult.songs.Thumbnail
-import com.maxrave.domain.data.model.streams.TimeLine
 import com.maxrave.domain.mediaservice.handler.ControlState
 import com.maxrave.domain.mediaservice.handler.RepeatState
 import com.maxrave.simpmusic.extension.GradientAngle
@@ -69,7 +68,6 @@ import kotlinx.coroutines.flow.collectLatest
 import com.muso.music.ui.component.SuiteRes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
 
@@ -131,6 +129,7 @@ fun MusoSuiteHost(
     val canvasUrl by playerConnection.service.videoStreamUrl.collectAsState()
 
     val player = playerConnection.player
+    val sharedViewModel: com.maxrave.simpmusic.viewModel.SharedViewModel = org.koin.compose.koinInject()
 
     // ---------- queue as SimpMusic Tracks ----------
     val artworkQueue = remember(queueWindows) {
@@ -160,18 +159,10 @@ fun MusoSuiteHost(
     val currentOrderIndex = remember(artworkQueue) { player.currentMediaItemIndex.coerceIn(0, (artworkQueue.size - 1).coerceAtLeast(0)) }
 
     // ---------- timeline ----------
-    val timelineFlow = remember { MutableStateFlow(TimeLine(0, 0, 0, loading = false)) }
-    LaunchedEffect(player) {
-        while (isActive) {
-            timelineFlow.value = TimeLine(
-                current = player.currentPosition,
-                total = player.duration.takeIf { it != C.TIME_UNSET } ?: 0,
-                bufferedPercent = player.bufferedPercentage,
-                loading = false,
-            )
-            delay(250)
-        }
-    }
+    // The shared bridge below is the single timeline publisher for the suite.
+    // Keeping a second 250ms polling loop here duplicated player reads and
+    // state invalidations while the fullscreen player was animating.
+    val timelineFlow = sharedViewModel.timeline
     val timelineState by timelineFlow.collectAsState()
 
     // ---------- slider latch ----------
@@ -396,10 +387,8 @@ fun MusoSuiteHost(
     // from sharedViewModel.nowPlayingScreenData (NOT from the state we pass
     // down), so mirror the built screenData into it - without this the
     // lyrics view showed the empty initial data and lyrics never appeared.
-    val sharedViewModelForScreenData: com.maxrave.simpmusic.viewModel.SharedViewModel =
-        org.koin.compose.koinInject()
     LaunchedEffect(screenData) {
-        sharedViewModelForScreenData.nowPlayingScreenData.value = screenData
+        sharedViewModel.nowPlayingScreenData.value = screenData
     }
 
     val currentLyricLineIndex = remember(timelineState, lyricsData, lyricsOffsetMs) {

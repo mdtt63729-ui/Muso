@@ -104,7 +104,6 @@ import com.muso.music.constants.LoudnessPreset
 import com.muso.music.constants.LoudnessPresetKey
 import com.muso.music.constants.LyricsAnimationStyle
 import com.muso.music.constants.LyricsAnimationStyleKey
-import com.muso.music.constants.LyricsModeEnabledKey
 import com.muso.music.constants.WordByWordLyricsEnabledKey
 import com.muso.music.constants.LyricsAutoScrollKey
 import com.muso.music.constants.LyricsBlurEnabledKey
@@ -216,7 +215,7 @@ fun PreferenceGroupScope.musoThemeRows() {
     val (pureBlack, onPureBlackChange) = rememberPreference(key = com.muso.music.constants.PureBlackKey, defaultValue = false)
     val (translucentNavBar, onTranslucentNavBarChange) = rememberPreference(key = TranslucentNavigationBarKey, defaultValue = false)
     val (playerBackgroundStyle, onPlayerBackgroundStyleChange) = rememberEnumPreference(key = PlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
-    val (liquidGlassNavBar, onLiquidGlassNavBarChange) = rememberPreference(key = LiquidGlassNavBarKey, defaultValue = true)
+    val (liquidGlassNavBar, onLiquidGlassNavBarChange) = rememberPreference(key = LiquidGlassNavBarKey, defaultValue = false)
     val (highRefreshRate, onHighRefreshRateChange) = rememberPreference(key = HighRefreshRateKey, defaultValue = false)
 
     val isSystemInDarkTheme = isSystemInDarkTheme()
@@ -376,7 +375,7 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
     val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(key = PlayerStyleKey, defaultValue = PlayerStyle.EXPRESSIVE)
     val (miniPlayerStyle, onMiniPlayerStyleChange) = rememberEnumPreference(key = MiniPlayerStyleKey, defaultValue = MiniPlayerStyle.GLASS)
     val (playerBackgroundStyle, onPlayerBackgroundStyleChange) = rememberEnumPreference(key = PlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
-    val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(key = com.muso.music.constants.SliderStyleKey, defaultValue = com.muso.music.constants.SliderStyle.SQUIGGLY)
+    val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(key = com.muso.music.constants.SliderStyleKey, defaultValue = com.muso.music.constants.SliderStyle.Standard)
     val (playerButtonsStyle, onPlayerButtonsStyleChange) = rememberEnumPreference(key = PlayerButtonsStyleKey, defaultValue = PlayerButtonsStyle.DEFAULT)
     val (hidePlayerSlider, onHidePlayerSliderChange) = rememberPreference(key = HidePlayerSliderKey, defaultValue = false)
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(key = HidePlayerThumbnailKey, defaultValue = false)
@@ -388,136 +387,69 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
     if (showSliderOptionDialog) {
         DefaultDialog(
             buttons = {
-                TextButton(
-                    onClick = { showSliderOptionDialog = false },
-                ) {
+                TextButton(onClick = { showSliderOptionDialog = false }) {
                     Text(text = stringResource(android.R.string.cancel))
                 }
             },
             onDismiss = { showSliderOptionDialog = false },
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, if (sliderStyle == com.muso.music.constants.SliderStyle.DEFAULT) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                        .clickable {
-                            onSliderStyleChange(com.muso.music.constants.SliderStyle.DEFAULT)
-                            showSliderOptionDialog = false
-                        }
-                        .padding(16.dp),
+            val sliderStyles = listOf(
+                com.muso.music.constants.SliderStyle.Standard,
+                com.muso.music.constants.SliderStyle.Wavy,
+                com.muso.music.constants.SliderStyle.Thick,
+                com.muso.music.constants.SliderStyle.Circular,
+                com.muso.music.constants.SliderStyle.Simple,
+            )
+            sliderStyles.chunked(3).forEach { rowStyles ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    var sliderValue by remember { mutableFloatStateOf(0.5f) }
-                    Slider(
-                        value = sliderValue,
-                        valueRange = 0f..1f,
-                        onValueChange = { sliderValue = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onPress = {},
+                    rowStyles.forEach { style ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .weight(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .border(
+                                    1.dp,
+                                    if (sliderStyle == style) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.outlineVariant,
+                                    RoundedCornerShape(16.dp),
                                 )
-                            },
-                    )
-                    Text(
-                        text = stringResource(R.string.default_),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, if (sliderStyle == com.muso.music.constants.SliderStyle.SQUIGGLY) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                        .clickable {
-                            onSliderStyleChange(com.muso.music.constants.SliderStyle.SQUIGGLY)
-                            showSliderOptionDialog = false
+                                .clickable {
+                                    onSliderStyleChange(style)
+                                    showSliderOptionDialog = false
+                                }
+                                .padding(16.dp),
+                        ) {
+                            com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
+                                style = style,
+                                position = 0.5f,
+                                onSeek = {},
+                                onSeekFinished = {},
+                                accent = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f),
+                                isPlaying = style == com.muso.music.constants.SliderStyle.Wavy ||
+                                    style == com.muso.music.constants.SliderStyle.Circular,
+                            )
+                            Text(
+                                text = when (style) {
+                                    com.muso.music.constants.SliderStyle.Standard -> stringResource(R.string.slider_style_standard)
+                                    com.muso.music.constants.SliderStyle.Wavy -> stringResource(R.string.slider_style_wavy)
+                                    com.muso.music.constants.SliderStyle.Thick -> stringResource(R.string.slider_style_thick)
+                                    com.muso.music.constants.SliderStyle.Circular -> stringResource(R.string.slider_style_circular)
+                                    com.muso.music.constants.SliderStyle.Simple -> stringResource(R.string.slider_style_simple)
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                            )
                         }
-                        .padding(16.dp),
-                ) {
-                    var sliderValue by remember { mutableFloatStateOf(0.5f) }
-                    // Player parity: the player's SQUIGGLY is
-                    // PlayerSliderByStyle's squiggle branch.
-                    com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
-                        style = com.muso.music.constants.SliderStyle.SQUIGGLY,
-                        position = sliderValue,
-                        onSeek = { sliderValue = it },
-                        onSeekFinished = { },
-                        accent = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = stringResource(R.string.squiggly),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, if (sliderStyle == com.muso.music.constants.SliderStyle.WAVY) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                        .clickable {
-                            onSliderStyleChange(com.muso.music.constants.SliderStyle.WAVY)
-                            showSliderOptionDialog = false
-                        }
-                        .padding(16.dp),
-                ) {
-                    com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
-                        style = com.muso.music.constants.SliderStyle.WAVY,
-                        position = 0.5f,
-                        onSeek = {},
-                        onSeekFinished = {},
-                        accent = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = stringResource(R.string.wavy),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, if (sliderStyle == com.muso.music.constants.SliderStyle.SLIM) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                        .clickable {
-                            onSliderStyleChange(com.muso.music.constants.SliderStyle.SLIM)
-                            showSliderOptionDialog = false
-                        }
-                        .padding(16.dp),
-                ) {
-                    com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
-                        style = com.muso.music.constants.SliderStyle.SLIM,
-                        position = 0.5f,
-                        onSeek = {},
-                        onSeekFinished = {},
-                        accent = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = stringResource(R.string.slim),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                    }
+                    repeat(3 - rowStyles.size) {
+                        Spacer(modifier = Modifier.aspectRatio(1f).weight(1f))
+                    }
                 }
             }
         }
@@ -580,10 +512,11 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
         PreferenceEntry(
             title = { Text(stringResource(R.string.player_slider_style)) },
             description = when (sliderStyle) {
-                com.muso.music.constants.SliderStyle.DEFAULT -> stringResource(R.string.default_)
-                com.muso.music.constants.SliderStyle.WAVY -> stringResource(R.string.wavy)
-                com.muso.music.constants.SliderStyle.SLIM -> stringResource(R.string.slim)
-                com.muso.music.constants.SliderStyle.SQUIGGLY -> stringResource(R.string.squiggly)
+                com.muso.music.constants.SliderStyle.Standard -> stringResource(R.string.slider_style_standard)
+                com.muso.music.constants.SliderStyle.Wavy -> stringResource(R.string.slider_style_wavy)
+                com.muso.music.constants.SliderStyle.Thick -> stringResource(R.string.slider_style_thick)
+                com.muso.music.constants.SliderStyle.Circular -> stringResource(R.string.slider_style_circular)
+                com.muso.music.constants.SliderStyle.Simple -> stringResource(R.string.slider_style_simple)
             },
             icon = { Icon(painterResource(R.drawable.tune), null) },
             onClick = { showSliderOptionDialog = true },
@@ -1149,7 +1082,6 @@ fun PreferenceGroupScope.musoMiscPlayerRows() {
 fun PreferenceGroupScope.musoLyricsRows() {
     val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.FLARE)
     val (wordByWordEnabled, onWordByWordEnabledChange) = rememberPreference(key = WordByWordLyricsEnabledKey, defaultValue = true)
-    val (lyricsModeEnabled, onLyricsModeEnabledChange) = rememberPreference(key = LyricsModeEnabledKey, defaultValue = false)
     val (lyricsTextPosition, onLyricsTextPositionChange) = rememberEnumPreference(key = LyricsTextPositionKey, defaultValue = LyricsPosition.CENTER)
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(key = LyricsTextSizeKey, defaultValue = 26)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(key = LyricsLineSpacingKey, defaultValue = 1.3f)
@@ -1164,12 +1096,7 @@ fun PreferenceGroupScope.musoLyricsRows() {
         if (showWordByWordDialog) {
             WordByWordStyleDialog(
                 enabled = wordByWordEnabled,
-                onEnabledChange = { checked ->
-                    onWordByWordEnabledChange(checked)
-                    // Interlock (user request, ArchiveTune-style): turning word-by-word
-                    // on automatically turns the lyrics mode engine off.
-                    if (checked) onLyricsModeEnabledChange(false)
-                },
+                onEnabledChange = onWordByWordEnabledChange,
                 selectedStyle = lyricsAnimationStyle,
                 onStyleSelected = onLyricsAnimationStyleChange,
                 onDismiss = { showWordByWordDialog = false },

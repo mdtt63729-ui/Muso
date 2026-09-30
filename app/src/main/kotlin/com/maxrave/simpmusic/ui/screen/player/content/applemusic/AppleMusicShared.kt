@@ -828,16 +828,16 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
     // wrong here too).
     val playerSliderStyle by com.muso.music.utils.rememberEnumPreference(
         key = com.muso.music.constants.SliderStyleKey,
-        defaultValue = com.muso.music.constants.SliderStyle.DEFAULT,
+        defaultValue = com.muso.music.constants.SliderStyle.Standard,
     )
     val sliderShellHeight =
         when (playerSliderStyle) {
-            com.muso.music.constants.SliderStyle.SQUIGGLY -> 52.dp
-            com.muso.music.constants.SliderStyle.WAVY -> 32.dp
+            com.muso.music.constants.SliderStyle.Circular -> 52.dp
+            com.muso.music.constants.SliderStyle.Wavy -> 32.dp
             else -> 26.dp
         }
     Box(modifier = Modifier.fillMaxWidth().height(sliderShellHeight), contentAlignment = Alignment.Center) {
-        if (playerSliderStyle == com.muso.music.constants.SliderStyle.DEFAULT) {
+        if (playerSliderStyle == com.muso.music.constants.SliderStyle.Standard) {
             AppleMusicThinSlider(
                 value = state.sliderValue / 100f,
                 activeColor = if (state.timelineState.isCrossfading) state.sliderTrackColor else AppleMusicTrackActive,

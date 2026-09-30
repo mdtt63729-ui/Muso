@@ -114,6 +114,7 @@ class OnboardingViewModel
             completionJob =
                 viewModelScope.launch {
                     completeOnboardingUseCase()
+                    mutableEvents.emit(OnboardingEvent.Completed)
                 }
         }
     }

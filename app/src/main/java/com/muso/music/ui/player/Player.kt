@@ -63,6 +63,7 @@ import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 
 /**
  * MUSO PLAYER — SimpMusic suite only.
@@ -230,15 +231,17 @@ fun BottomSheetPlayer(
             }
         }
 
-        // === THE REAL SIMPMUSIC PLAYER (reference NowPlayingScreen) =============
-        // The reference's own player screen, ported byte-for-byte: it builds
-        // its state from the shared view models (fed by MusoSuiteBridge in
-        // the navbar host), does its own palette extraction and renders
-        // edge-to-edge inside its own full-black modal sheet - true
-        // fullscreen, exactly like the reference app. Muso's player sheet
-        // below it stays collapsed around this content.
-        com.maxrave.simpmusic.ui.screen.player.NowPlayingScreen(
+        // === REAL SIMPMUSIC PLAYER ============================================
+        // The parent Muso BottomSheet is already the fullscreen transition host.
+        // Do NOT create a second ModalBottomSheet here: doing so forced a heavy
+        // nested sheet to be composed/animated at the exact same moment as the
+        // parent sheet, which caused a visible hitch when opening/closing the
+        // player (especially while a video surface was active). The content is
+        // rendered directly inside the single parent sheet now.
+        com.maxrave.simpmusic.ui.screen.player.NowPlayingScreenContent(
             navController = navController as NavHostController,
+            isExpanded = state.isExpanded,
+            dismissIcon = com.maxrave.simpmusic.ui.icon.SimpIcons.KeyboardArrowDown,
             onDismiss = { state.collapseSoft() },
         )
 

@@ -298,7 +298,7 @@ fun NowPlayingContentSpotify(
                         Modifier
                             .height(screenInfo.hDP.dp)
                             .fillMaxWidth(),
-                    beyondViewportPageCount = 1,
+                    beyondViewportPageCount = 0,
                     userScrollEnabled = !isRepeatOne && state.artworkQueue.isNotEmpty(),
                     key = { idx ->
                         val vid = state.artworkQueue.getOrNull(idx)?.videoId.orEmpty()
@@ -1831,14 +1831,14 @@ internal fun ColumnScope.SpotifyPlaybackControls(
     // buffer bar below and the slider itself both branch on it.
     val playerSliderStyle by com.muso.music.utils.rememberEnumPreference(
         key = com.muso.music.constants.SliderStyleKey,
-        defaultValue = com.muso.music.constants.SliderStyle.DEFAULT,
+        defaultValue = com.muso.music.constants.SliderStyle.Standard,
     )
-    val isDefaultSliderStyle = playerSliderStyle == com.muso.music.constants.SliderStyle.DEFAULT
+    val isDefaultSliderStyle = playerSliderStyle == com.muso.music.constants.SliderStyle.Standard
     // Shell height per style: the Echo renderers draw at their own height
     // (SQUIGGLY 48dp, WAVY with its thumb) and must not be clipped into the
     // times row below.
     val sliderShellHeight =
-        if (playerSliderStyle == com.muso.music.constants.SliderStyle.SQUIGGLY) 52.dp else 24.dp
+        if (playerSliderStyle == com.muso.music.constants.SliderStyle.Circular) 52.dp else 24.dp
     Box(
         Modifier
             .padding(
