@@ -1,6 +1,20 @@
 package com.maxrave.simpmusic.ui.screen.player.content
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import com.muso.music.constants.ITAG
 import androidx.compose.animation.core.AnimationVector4D
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.pager.PagerState
@@ -71,6 +85,55 @@ internal fun String?.toAudioCodecLabel(): String? {
         codec.contains("opus", ignoreCase = true) -> "OPUS"
         codec.contains("mp4a", ignoreCase = true) || codec.contains("aac", ignoreCase = true) -> "AAC"
         else -> null
+    }
+}
+
+/**
+ * Quality-family label from the stream's itag — the same numbers the Audio
+ * Quality setting picks (Round 184, user request: the capsule under the
+ * slider must read Low / Medium / Opus / AAC, not only the codec name).
+ * 250 = Opus ~66 kbps ("Low"), 251 = Opus ~129 kbps ("Medium"),
+ * 774 = Opus high, 141 = AAC high. Null for anything else.
+ */
+internal fun itagQualityLabel(itag: Int?): String? = when (itag) {
+    ITAG.AUDIO_OPUS_LOW -> "Low"
+    ITAG.AUDIO_OPUS_MEDIUM -> "Medium"
+    ITAG.AUDIO_OPUS_HIGH -> "Opus"
+    ITAG.AUDIO_AAC_HIGH -> "AAC"
+    else -> null
+}
+
+/**
+ * The codec/quality capsule rendered under the player slider of EVERY player
+ * style when the "Show codec on player" setting is on (user request). Real
+ * data only: [NowPlayingContentState.audioCodecLabel] stays null until the
+ * resolved stream's FormatEntity is known, so nothing ever fakes a value.
+ */
+@Composable
+internal fun PlayerCodecCapsule(
+    state: NowPlayingContentState,
+    modifier: Modifier = Modifier,
+    containerColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f),
+    contentColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f),
+) {
+    val label = state.audioCodecLabel ?: return
+    if (!state.showCodecBadge) return
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(containerColor)
+                .padding(horizontal = 10.dp, vertical = 3.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+            )
+        }
     }
 }
 

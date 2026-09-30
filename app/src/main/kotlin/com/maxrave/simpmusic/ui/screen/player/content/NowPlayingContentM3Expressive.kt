@@ -882,6 +882,15 @@ internal fun ColumnScope.ExpressivePlaybackControls(
             textAlign = TextAlign.Right,
         )
     }
+    // Codec/quality capsule below the times row (user request, round 185).
+    // Theme-adaptive colors: M3 Expressive is the one style that also runs on
+    // the light theme, where a white-on-white pill would vanish.
+    PlayerCodecCapsule(
+        state = state,
+        modifier = Modifier.padding(top = 4.dp),
+        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+        contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+    )
     Spacer(
         modifier =
             Modifier

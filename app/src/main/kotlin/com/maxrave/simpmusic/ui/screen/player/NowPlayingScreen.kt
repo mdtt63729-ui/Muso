@@ -92,6 +92,7 @@ import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentM3Express
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentSpotify
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
 import com.maxrave.simpmusic.ui.screen.player.content.PlayerBackdropColor
+import com.maxrave.simpmusic.ui.screen.player.content.itagQualityLabel
 import com.maxrave.simpmusic.ui.screen.player.content.toAudioCodecLabel
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetUIEvent
@@ -209,6 +210,41 @@ fun NowPlayingScreenContent(
     // ⚠️ Use track.videoId (already prefix-stripped at MediaServiceHandlerImpl.kt:386).
     // Do NOT use mediaItem.mediaId — it carries the "Video" prefix for video items.
     val nowPlayingVideoId: String? = nowPlayingState?.track?.videoId
+
+    // ---------- real codec/bitrate feed for the player capsule ----------
+    // sharedViewModel.format is what the codec capsule under the slider (and
+    // the player menu's format sheet) read, but nothing LIVE ever emitted into
+    // it: the only feed lived inside the dead MusoSuiteHost composable, so
+    // the capsule never rendered. Feed it HERE, from the muso FormatEntity of
+    // the track actually playing. REAL values only: until the stream resolves
+    // there is no row and the capsule stays hidden, and the takeIf on videoId
+    // at the label build below keeps the previous song's replayed format from
+    // ever showing as this song's codec.
+    val formatDb = com.muso.music.LocalDatabase.current
+    LaunchedEffect(nowPlayingVideoId) {
+        val id = nowPlayingVideoId ?: return@LaunchedEffect
+        formatDb.format(id).collect { f ->
+            sharedViewModel.format.emit(
+                f?.let {
+                    com.maxrave.domain.data.entities.NewFormatEntity(
+                        videoId = it.id,
+                        itag = it.itag,
+                        mimeType = it.mimeType,
+                        codecs = it.codecs,
+                        bitrate = it.bitrate,
+                        sampleRate = it.sampleRate,
+                        contentLength = it.contentLength,
+                        loudnessDb = it.loudnessDb?.toFloat(),
+                        lengthSeconds = null,
+                        playbackTrackingVideostatsPlaybackUrl = null,
+                        playbackTrackingAtrUrl = null,
+                        playbackTrackingVideostatsWatchtimeUrl = null,
+                        cpn = null,
+                    )
+                }
+            )
+        }
+    }
     // currentOrderIndex() is a plain getter over the player, NOT Compose state, so it is read
     // inside this remember block — whose keys (the queue, and the track now playing) are exactly
     // the two things that can move the player's position. nowPlayingState is published FROM the
@@ -419,9 +455,14 @@ fun NowPlayingScreenContent(
     // Palette state
     val paletteState = rememberPaletteState()
 
+    // Round 188: start from the palette seed already stored for THIS track (if any) so
+    // reopening the player from the mini player doesn't visibly re-derive colors - the
+    // M3-Expressive scheme snaps to the artwork palette from the first frame instead of
+    // sweeping from the black fallback (the "all colors change" report).
     val startColor =
         remember {
-            Animatable(Color.Black)
+            val knownSeed = sharedViewModel.playerPaletteSeed.value
+            Animatable(knownSeed?.takeIf { it.first == nowPlayingVideoId }?.second ?: Color.Black)
         }
     val endColor =
         remember {
@@ -459,8 +500,12 @@ fun NowPlayingScreenContent(
         snapshotFlow { paletteState.palette }
             .distinctUntilChanged()
             .collectLatest {
-                spotShadowColor = it.getColorFromPalette()
-                startColor.animateTo(it.getColorFromPalette())
+                val seed = it.getColorFromPalette()
+                spotShadowColor = seed
+                nowPlayingVideoId?.let { vid ->
+                    sharedViewModel.playerPaletteSeed.value = vid to seed
+                }
+                startColor.animateTo(seed)
                 // Lands on the same backdrop colour the fade and the area below the gradient
                 // use, so the palette ramp resolves into the surface instead of a black patch.
                 endColor.animateTo(PlayerBackdropColor)
@@ -477,6 +522,25 @@ fun NowPlayingScreenContent(
     var sliderValue by rememberSaveable {
         mutableFloatStateOf(0f)
     }
+
+    // Round 187 (user report: changing the player slider style mid-song froze
+    // the song at whatever position it had reached). Switching the style
+    // REPLACES the slider composable, and the squiggly renderers (Wavy /
+    // Circular) emit a stray onValueChange while composing in - which armed
+    // the drag latch below, while no onValueChangeFinished ever followed. The
+    // latch then stayed true forever, so the timeline stopped following
+    // playback from that moment on. A style switch voids any half-open drag
+    // by definition, so the latch is dropped here the moment the style
+    // changes. (The same-value guard in onSliderChange covers the stray
+    // emission on every other recomposition of the slider.)
+    val playerSliderStyleNow by com.muso.music.utils.rememberEnumPreference(
+        key = com.muso.music.constants.SliderStyleKey,
+        defaultValue = com.muso.music.constants.SliderStyle.Standard,
+    )
+    LaunchedEffect(playerSliderStyleNow) {
+        isSliding = false
+    }
+
     LaunchedEffect(key1 = timelineState, key2 = isSliding) {
         if (!isSliding) {
             sliderValue =
@@ -652,12 +716,20 @@ fun NowPlayingScreenContent(
             // `audio/webm; codecs="opus"` with a regex and stores the two halves in SEPARATE
             // columns: mimeType keeps "audio/webm", codecs keeps "opus". Asking mimeType for the
             // codec therefore never matched anything and the badge never rendered, on any track.
-            // REAL codec + bitrate from the resolved stream's FormatEntity —
-            // e.g. "OPUS • 129 kbps". Null when unknown, so nothing fakes.
-            audioCodecLabel = formatState?.let { f ->
-                f.codecs.toAudioCodecLabel()?.let { codec ->
-                    val kbps = f.bitrate?.takeIf { it > 0 }?.let { b -> "${b / 1000} kbps" }
-                    if (kbps != null) "$codec • $kbps" else codec
+            // REAL quality + bitrate from the resolved stream's FormatEntity —
+            // e.g. "Medium • 129 kbps". The itag decides the quality family
+            // (Low/Medium/Opus/AAC, the same numbers the Audio Quality setting
+            // picks); the codec name is only the fallback. Null when unknown,
+            // so nothing fakes.
+            audioCodecLabel = formatState
+                ?.takeIf { f -> f.videoId == nowPlayingVideoId }
+                ?.let { f ->
+                val quality = itagQualityLabel(f.itag) ?: f.codecs.toAudioCodecLabel()
+                val kbps = f.bitrate?.takeIf { it > 0 }?.let { b -> "${b / 1000} kbps" }
+                when {
+                    quality != null && kbps != null -> "$quality • $kbps"
+                    quality != null -> quality
+                    else -> null
                 }
             },
             videoAspectRatio = rememberVideoAspectRatio(MAIN_PLAYER) ?: 16f / 9,
@@ -670,8 +742,14 @@ fun NowPlayingScreenContent(
             },
             onArtworkBitmap = { sharedViewModel.setBitmap(it) },
             onSliderChange = { newValue ->
-                isSliding = true
-                sliderValue = newValue
+                // A freshly composed slider (the squiggly renderers fire one
+                // as they come up) repeating the current value is NOT a drag.
+                // Without this guard the latch armed with no finish callback
+                // to clear it, freezing the progress at that point.
+                if (newValue != sliderValue) {
+                    isSliding = true
+                    sliderValue = newValue
+                }
             },
             onSliderChangeFinished = {
                 isSliding = false

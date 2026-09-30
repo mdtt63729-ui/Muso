@@ -750,6 +750,10 @@ fun MusoSuiteBridge(
             thumbnailURL = hqYtThumb(md?.thumbnailUrl),
             canvasData = canvasUrlBridge?.let { NowPlayingScreenData.CanvasData(isVideo = true, url = it) },
             lyricsData = lyricsData,
+            // Round 188: the fetch has concluded without lyrics only when the service
+            // published the NOT_FOUND marker - a null raw while the request is still
+            // running must keep reading as "loading", not "unavailable".
+            lyricsUnavailable = raw == LyricsEntity.LYRICS_NOT_FOUND,
             songInfoData = null,
             bitmap = bitmapBridge,
         )

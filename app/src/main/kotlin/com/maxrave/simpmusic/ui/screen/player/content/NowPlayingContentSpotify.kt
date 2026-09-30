@@ -1285,11 +1285,23 @@ fun NowPlayingContentSpotify(
                                             // While the lyrics fetch is still running the
                                             // section used to be a blank hole - now it reads as
                                             // loading, and the page stays scrollable meanwhile.
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                color = Color.White.copy(alpha = 0.6f),
-                                                strokeWidth = 2.dp,
-                                            )
+                                            // Round 188: once the fetch has CONCLUDED without
+                                            // lyrics, stop the spinner and say so - the
+                                            // indicator only runs while lyrics are loading.
+                                            if (state.screenData.lyricsUnavailable) {
+                                                Text(
+                                                    text = stringResource(R.string.simp_unavailable),
+                                                    style = typo().bodyMedium,
+                                                    color = Color.White.copy(alpha = 0.6f),
+                                                    maxLines = 1,
+                                                )
+                                            } else {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    color = Color.White.copy(alpha = 0.6f),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            }
                                         }
                                     }
 
@@ -1985,32 +1997,10 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             }
         }
     }
-    // Real codec + bitrate under the progress bar (user request): a pill like
-    // the Apple style's badge, shown only when the setting is on AND the
+    // Real quality + bitrate under the progress bar (user request): the shared
+    // capsule every style uses, shown only when the setting is on AND the
     // format is actually known - never a placeholder.
-    val codecBadgeLabel = state.audioCodecLabel
-    if (state.showCodecBadge && codecBadgeLabel != null) {
-        Row(
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterVertically)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(Color.White.copy(alpha = 0.16f))
-                    .padding(horizontal = 10.dp, vertical = 3.dp),
-            ) {
-                Text(
-                    text = codecBadgeLabel,
-                    style = typo().bodySmall.copy(color = Color.White.copy(alpha = 0.9f)),
-                )
-            }
-        }
-    }
+    PlayerCodecCapsule(state = state, modifier = Modifier.padding(top = 8.dp))
 
     // Time Layout
     Row(

@@ -123,14 +123,20 @@ object YouTube {
             val shelf = section.musicShelfRenderer
             when {
                 card != null -> {
-                    val title = card.header.musicCardShelfHeaderBasicRenderer.title.runs?.firstOrNull()?.text
+                    // The All-search top-result card lost its header/contents; it
+                    // now carries the item directly (title/subtitle/thumbnail/
+                    // onTap). The old direct .header access crashed the whole
+                    // search when the field disappeared, leaving the All filter
+                    // on an endless skeleton.
+                    val title = card.header?.musicCardShelfHeaderBasicRenderer?.title?.runs?.firstOrNull()?.text
+                        ?: "Top result"
                     val items = (listOfNotNull(SearchSummaryPage.fromMusicCardShelfRenderer(card))
                         + (card.contents
                             ?.mapNotNull { it.musicResponsiveListItemRenderer }
                             ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
                             .orEmpty()))
                         .distinctBy { it.id }
-                    if (title != null && items.isNotEmpty()) summaries.add(SearchSummary(title, items))
+                    if (items.isNotEmpty()) summaries.add(SearchSummary(title, items))
                 }
                 shelf != null -> {
                     val title = shelf.title?.runs?.firstOrNull()?.text

@@ -56,7 +56,9 @@ class DownloadUtil @Inject constructor(
     @DownloadCache val downloadCache: SimpleCache,
     @PlayerCache val playerCache: SimpleCache,
     private val lyricsHelper: com.muso.music.lyrics.LyricsHelper,
+    private val artworkRepository: moe.rukamori.archivetune.downloads.DownloadedArtworkRepository,
 ) {
+    private val appContext = context
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.HIGH_OPUS)
 
@@ -144,9 +146,32 @@ class DownloadUtil @Inject constructor(
                         runCatching { dataSource.close() }
                     }
                 }
+                // Offline extras (user request): once the audio is fully
+                // cached, the song's high-quality thumbnail and its lyrics are
+                // saved too, so a cached song is completely usable offline.
+                runCatching { cacheArtworkForSong(songId) }
+                runCatching { fetchLyricsForSong(songId) }
             } finally {
                 cachingSongs.remove(songId)
             }
+        }
+    }
+
+    /**
+     * Saves the song's artwork in the highest quality the server has (max-res
+     * first, with fallbacks), keyed by the song's thumbnail URLs, so the
+     * thumbnail renders with no network connection at all.
+     */
+    private suspend fun cacheArtworkForSong(songId: String) {
+        runCatching {
+            val song = database.song(songId).first() ?: return
+            artworkRepository.cache(
+                mediaId = songId,
+                sourceUrls = listOfNotNull(
+                    song.song.thumbnailUrl,
+                    song.album?.thumbnailUrl,
+                ),
+            )
         }
     }
 
@@ -157,6 +182,10 @@ class DownloadUtil @Inject constructor(
      */
     private suspend fun fetchLyricsForSong(songId: String) {
         runCatching {
+            // Offline: skip entirely. Writing LYRICS_NOT_FOUND while offline
+            // would permanently mark a song as lyric-less even once the
+            // network returns.
+            if (!com.muso.music.utils.isInternetAvailable(appContext)) return
             val song = database.song(songId).first() ?: return
             if (database.lyrics(songId).first() == null) {
                 val lyrics = lyricsHelper.getLyrics(song.toMediaMetadata())
@@ -178,7 +207,14 @@ class DownloadUtil @Inject constructor(
                 )
         ) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
-            val length = if (dataSpec.length >= 0) dataSpec.length else 1
+            // Offline downloads (user request): a song that is FULLY cached in
+            // the player cache must resolve without any network at all, so the
+            // check has to cover the entire remaining content. The old 1-byte
+            // probe accepted partially cached songs too, which then fell off
+            // the cached span mid-download onto a bogus internal URI and
+            // failed; and a full check also lets fully cached songs download
+            // with the network completely off.
+            val length = if (dataSpec.length >= 0) dataSpec.length else Long.MAX_VALUE
 
             if (playerCache.isCached(mediaId, dataSpec.position, length)) {
                 return@Factory dataSpec
@@ -276,11 +312,55 @@ class DownloadUtil @Inject constructor(
                         }
                     }
                     if (download.state == Download.STATE_COMPLETED) {
-                        cacheScope.launch { fetchLyricsForSong(download.request.id) }
+                        // Offline extras (user request): a finished download also
+                        // carries its high-quality thumbnail and its lyrics.
+                        cacheScope.launch {
+                            cacheArtworkForSong(download.request.id)
+                            fetchLyricsForSong(download.request.id)
+                        }
+                    }
+                }
+
+                override fun onDownloadRemoved(downloadManager: DownloadManager, download: Download) {
+                    downloads.update { map ->
+                        map - download.request.id
+                    }
+                    // Keep the artwork when the audio is still fully present in
+                    // the player cache - only drop it when the song is gone for
+                    // good.
+                    cacheScope.launch {
+                        val stillFullyCached =
+                            runCatching { playerCache.isCached(download.request.id, 0, Long.MAX_VALUE) }.getOrDefault(false)
+                        if (!stillFullyCached) {
+                            runCatching { artworkRepository.remove(download.request.id) }
+                        }
                     }
                 }
             }
         )
+
+        // Offline artwork (user request): keep a high-quality thumbnail on
+        // disk for every downloaded OR fully player-cached song so thumbnails
+        // survive with no network. Existing files are kept as-is, so this only
+        // performs actual downloads for songs that don't have artwork yet.
+        cacheScope.launch {
+            val downloadedIds = result.keys
+            // Failure-safe: if the player cache cannot be listed, skip the
+            // retention pass entirely instead of pruning cached songs' artwork.
+            val fullyCachedIds = runCatching {
+                playerCache.keys.filter { id -> playerCache.isCached(id, 0, Long.MAX_VALUE) }
+            }.getOrNull()
+            if (fullyCachedIds != null) {
+                runCatching {
+                    artworkRepository.retainForDownloads(downloadedIds + fullyCachedIds)
+                }
+            }
+            (downloadedIds.filter { id -> result[id]?.state == Download.STATE_COMPLETED } + (fullyCachedIds ?: emptyList()))
+                .distinct()
+                .forEach { songId ->
+                    runCatching { cacheArtworkForSong(songId) }
+                }
+        }
 
         // Echo Player and Audio: keep downloads waiting for Wi-Fi while enabled.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {

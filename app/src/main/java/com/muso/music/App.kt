@@ -15,6 +15,8 @@ import coil.request.SuccessResult
 import coil.request.ImageResult
 import coil.intercept.Interceptor
 import coil.disk.DiskCache
+import coil.map.Mapper
+import dagger.hilt.android.EntryPointAccessors
 import com.zionhuang.innertube.YouTube
 import com.zionhuang.innertube.models.YouTubeLocale
 import com.zionhuang.kugou.KuGou
@@ -125,13 +127,30 @@ class App : Application(), ImageLoaderFactory {
                     single { com.maxrave.simpmusic.viewModel.SharedViewModel(get(), get()) }
                     viewModel { com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel() }
                     single { com.maxrave.domain.mediaservice.handler.MediaPlayerHandler() }
-                    single { com.maxrave.domain.manager.DataStoreManager() }
+                    single { com.maxrave.domain.manager.DataStoreManager(this@App) }
                 viewModel { com.maxrave.simpmusic.viewModel.PlaylistViewModel(get(), get(), get()) }
                 viewModel { com.maxrave.simpmusic.viewModel.SongSelectionViewModel(get(), get()) }
                 }
             )
         }.koin
         com.maxrave.simpmusic.ui.component.SuiteRes.context = this
+
+        // Coil 3 (used by the embedded SimpMusic player suite): install the
+        // same offline artwork lookup + high-resolution upgrade the main
+        // image loader has, so suite player thumbnails also work offline.
+        runCatching {
+            val artworkRepository = EntryPointAccessors
+                .fromApplication(this, com.muso.music.suite.SuiteEntryPoint::class.java)
+                .downloadedArtworkRepository()
+            coil3.SingletonImageLoader.setSafe { context ->
+                coil3.ImageLoader.Builder(context)
+                    .components {
+                        add(artworkRepository.coilMapper())
+                        add(HqThumbnailInterceptor3())
+                    }
+                    .build()
+            }
+        }
 
         // Crash log capture: writes the stack trace of any uncaught crash to
         // files/crash.log so the next start can show it in-app without adb -
@@ -225,18 +244,102 @@ class App : Application(), ImageLoaderFactory {
         }
     }
 
-    override fun newImageLoader() = ImageLoader.Builder(this)
-        .components { add(HqThumbnailInterceptor()) }
-        .crossfade(true)
-        .respectCacheHeaders(false)
-        .allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-        .diskCache(
-            DiskCache.Builder()
-                .directory(cacheDir.resolve("coil"))
-                .maxSizeBytes((dataStore[MaxImageCacheSizeKey] ?: 512) * 1024 * 1024L)
-                .build()
-        )
-        .build()
+    override fun newImageLoader(): ImageLoader {
+        // Resolved lazily: newImageLoader() can be called before Hilt has
+        // fully populated the singleton graph, so the artwork repository is
+        // only looked up on the first actual image request that needs it.
+        val downloadedArtwork by lazy {
+            EntryPointAccessors.fromApplication(this, com.muso.music.suite.SuiteEntryPoint::class.java)
+                .downloadedArtworkRepository()
+        }
+        return ImageLoader.Builder(this)
+            .components {
+                // Offline artwork (user request): when a song is downloaded or
+                // fully cached, its thumbnail file resolves here BEFORE any
+                // network attempt, so thumbnails work with no connection.
+                // Custom mappers are checked ahead of the built-in ones.
+                add(
+                    Mapper<String, Any> { data, _ ->
+                        downloadedArtwork.findDownloadedArtwork(data)
+                    },
+                )
+                add(HqThumbnailInterceptor())
+            }
+            .crossfade(true)
+            .respectCacheHeaders(false)
+            .allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+            .diskCache(
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("coil"))
+                    .maxSizeBytes((dataStore[MaxImageCacheSizeKey] ?: 512) * 1024 * 1024L)
+                    .build()
+            )
+            .build()
+    }
+}
+
+/**
+ * Coil 3 twin of [HqThumbnailInterceptor] for the embedded SimpMusic player
+ * suite, which loads its artwork through the coil3 singleton image loader.
+ */
+private class HqThumbnailInterceptor3 : coil3.intercept.Interceptor {
+    private val whPattern = Regex("=w(\\d+)-h(\\d+)[^ ]*$")
+    private val sPattern = Regex("=s(\\d+)([^ ]*)$")
+
+    private suspend fun tryLoad(
+        chain: coil3.intercept.Interceptor.Chain,
+        url: String,
+    ): coil3.request.ImageResult? =
+        runCatching {
+            chain.proceed(chain.request.newBuilder().data(url).build())
+        }.getOrNull()?.takeIf { it is coil3.request.SuccessResult }
+
+    override suspend fun intercept(chain: coil3.intercept.Interceptor.Chain): coil3.request.ImageResult {
+        val data = chain.request.data
+        if (data is String) {
+            val isGoogleArt = data.contains("googleusercontent.com/") || data.contains("ggpht.com")
+            if (isGoogleArt) {
+                val wh = whPattern.find(data)
+                if (wh != null) {
+                    val width = wh.groupValues[1].toIntOrNull() ?: 0
+                    if (0 < width && width < 2160) {
+                        for (suffix in listOf(
+                            "=w2160-h2160-p-l90-rj",
+                            "=w1200-h1200-p-l90-rj",
+                        )) {
+                            tryLoad(chain, whPattern.replace(data, suffix))?.let { return it }
+                        }
+                    }
+                } else {
+                    val sm = sPattern.find(data)
+                    if (sm != null) {
+                        val size = sm.groupValues[1].toIntOrNull() ?: 0
+                        val flags = sm.groupValues[2]
+                        if (0 < size && size < 2160) {
+                            for (s in listOf(2160, 1200)) {
+                                tryLoad(chain, sPattern.replace(data, "=s$s$flags"))?.let { return it }
+                            }
+                        }
+                    }
+                }
+            }
+            if (data.contains("i.ytimg.com/vi/") &&
+                !data.contains("/maxresdefault") && !data.contains("/hq720")
+            ) {
+                val base = data.substring(0, data.indexOf("/vi/") + 4)
+                val id = data.substringAfter("/vi/").substringBefore("/")
+                if (id.isNotBlank()) {
+                    for (url in listOf(
+                        "${base}maxresdefault.jpg",
+                        "${base}hq720.jpg",
+                    )) {
+                        tryLoad(chain, url)?.let { return it }
+                    }
+                }
+            }
+        }
+        return chain.proceed(chain.request)
+    }
 }
 
 /**

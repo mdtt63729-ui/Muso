@@ -92,13 +92,13 @@ fun OnlineSearchScreen(
             }
     }
 
-    // Instant results: a 450ms pause on 2+ characters opens the online
+    // Instant results: a 300ms pause on 2+ characters opens the online
     // results by itself. Cancels on every keystroke, so it only fires once
     // per typing burst; returning to this screen with an unchanged query
     // does not re-fire (LaunchedEffect key unchanged).
     LaunchedEffect(query) {
         if (query.length >= 2) {
-            delay(450)
+            delay(300)
             onAutoSearch(query)
         }
     }

@@ -1,5 +1,6 @@
 package com.maxrave.simpmusic.viewModel
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import com.maxrave.domain.data.entities.NewFormatEntity
 import com.maxrave.domain.data.model.browse.album.Track
@@ -30,6 +31,17 @@ class SharedViewModel(
     private val mediaPlayerHandler: com.maxrave.domain.mediaservice.handler.MediaPlayerHandler? = null,
 ) {
     private val _lastPlayerViewTab = MutableStateFlow<String?>(null)
+
+    /**
+     * Round 188: the artwork palette seed of the last-resolved track, as (videoId, color).
+     * The player screen's startColor Animatable used to restart from Color.Black on every
+     * fresh composition - so each time the fullscreen player was expanded from the mini
+     * player the M3-Expressive scheme visibly swept from the fallback seed to the artwork
+     * palette ("all colors change"). The shell now starts this Animatable from the value
+     * stored here whenever it still belongs to the track now playing, so reopening the
+     * player for the same song snaps straight to its palette.
+     */
+    val playerPaletteSeed = MutableStateFlow<Pair<String?, Color>?>(null)
     val lastPlayerViewTab: StateFlow<String?> = _lastPlayerViewTab.asStateFlow()
     fun setLastPlayerViewTab(tabName: String) {
         _lastPlayerViewTab.value = tabName
@@ -169,6 +181,13 @@ data class NowPlayingScreenData(
     val thumbnailURL: String?,
     val canvasData: CanvasData? = null,
     val lyricsData: LyricsData? = null,
+    /**
+     * Round 188: true only once the lyrics fetch has CONCLUDED without lyrics. While the
+     * fetch is still running this is false and lyricsData is null, which lets the lyrics
+     * UIs distinguish "still loading - keep the loading indicator running" (user request)
+     * from "this track has no lyrics - show the unavailable line".
+     */
+    val lyricsUnavailable: Boolean = false,
     val songInfoData: SongInfoEntity? = null,
     val bitmap: ImageBitmap? = null,
 ) {

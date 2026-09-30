@@ -18,6 +18,7 @@ import com.muso.music.utils.get
 import com.muso.music.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,13 +39,18 @@ class OnlineSearchViewModel @Inject constructor(
             filter.collect { filter ->
                 if (filter == null) {
                     if (summaryPage == null) {
-                        YouTube.searchSummary(query)
-                            .onSuccess {
-                                summaryPage = it.filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                            }
-                            .onFailure {
-                                reportException(it)
-                            }
+                        // Ultra-fast All tab: one retry, then an empty page. The
+                        // old failure path left summaryPage null forever, which
+                        // kept the All filter on an endless skeleton.
+                        var result = YouTube.searchSummary(query)
+                        if (result.isFailure) {
+                            reportException(result.exceptionOrNull() ?: Exception("searchSummary failed"))
+                            delay(1500)
+                            result = YouTube.searchSummary(query)
+                        }
+                        summaryPage = result.getOrNull()
+                            ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                            ?: SearchSummaryPage(emptyList())
                     }
                 } else {
                     if (viewStateMap[filter.value] == null) {

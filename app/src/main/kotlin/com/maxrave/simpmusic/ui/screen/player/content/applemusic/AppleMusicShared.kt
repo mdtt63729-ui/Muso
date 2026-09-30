@@ -857,6 +857,8 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
         }
     }
     AppleMusicTimesRow(state = state, typography = typography, modifier = Modifier.padding(top = 8.dp))
+    // Codec/quality capsule below the times row (user request, round 185).
+    com.maxrave.simpmusic.ui.screen.player.content.PlayerCodecCapsule(state = state)
     Spacer(modifier = Modifier.height(12.dp))
     AppleMusicTransportRow(
         controllerState = state.controllerState,

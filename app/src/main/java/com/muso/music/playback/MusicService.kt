@@ -80,6 +80,7 @@ import com.muso.music.constants.AudioOffloadKey
 import android.database.ContentObserver
 import android.media.AudioManager
 import com.muso.music.constants.AutoLoadMoreKey
+import com.muso.music.constants.EndlessQueueKey
 import com.muso.music.constants.AutoSkipNextOnErrorKey
 import com.muso.music.constants.AutoDownloadLikedSongsKey
 import com.muso.music.constants.DiscordTokenKey
@@ -257,6 +258,17 @@ class MusicService : MediaLibraryService(),
     private val currentFormat = currentMediaMetadata.flatMapLatest { mediaMetadata ->
         database.format(mediaMetadata?.id)
     }
+
+    /** In-memory throttle for retrying LYRICS_NOT_FOUND rows (see the lyrics collector). */
+    private val lyricsNotFoundRetries = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    // Endless queue (user request): the queue sheet's Endless queue switch used
+    // to write into a no-op stub, so it never did anything. The preference is
+    // now real (EndlessQueueKey); when enabled, a radio tail of similar songs
+    // is appended before the queue runs out so playback never stops.
+    private var endlessQueueEnabled = false
+    private val endlessQueueAppendedIds = mutableSetOf<String>()
+    private var endlessQueueJob: Job? = null
 
     private val normalizeFactor = MutableStateFlow(1f)
     val playerVolume = MutableStateFlow(dataStore.get(PlayerVolumeKey, 1f).coerceIn(0f, 1f))
@@ -469,23 +481,59 @@ class MusicService : MediaLibraryService(),
             }
         }
 
-        // Lyrics are fetched for EVERY song (cached in the DB; the not-found
-        // marker prevents refetch loops). The old gate on the persisted
-        // show-lyrics preference broke fetching once the player moved to
-        // per-session lyrics state - the view then spun on its loader forever.
+        // Lyrics are fetched for EVERY song and stored in the local DB so they
+        // also load offline. Offline, the fetch is skipped entirely: writing
+        // LYRICS_NOT_FOUND without a connection would permanently mark the
+        // song as lyric-less even after the network returns. A stale NOT_FOUND
+        // row is retried once the connection is back.
         currentMediaMetadata.distinctUntilChangedBy { it?.id }.collectLatest(scope) { mediaMetadata ->
-            if (mediaMetadata != null && database.lyrics(mediaMetadata.id).first() == null) {
-                val lyrics = lyricsHelper.getLyrics(mediaMetadata)
-                database.query {
-                    upsert(
-                        LyricsEntity(
-                            id = mediaMetadata.id,
-                            lyrics = lyrics
-                        )
+            if (mediaMetadata != null) {
+                val existingLyrics = database.lyrics(mediaMetadata.id).first()
+                val online = isInternetAvailable(this@MusicService)
+                // Offline: never fetch and never write - a LYRICS_NOT_FOUND row
+                // written without a connection would permanently mark the song
+                // as lyric-less. A stale NOT_FOUND row is retried at most once
+                // every 24 hours while online (new lyrics can appear at
+                // providers over time); retry timestamps live in memory so the
+                // database schema stays untouched.
+                val now = System.currentTimeMillis()
+                val lastNotFoundRetry = lyricsNotFoundRetries[mediaMetadata.id] ?: 0L
+                val needsFetch =
+                    online && (
+                        existingLyrics == null ||
+                            (
+                                existingLyrics.lyrics == LyricsEntity.LYRICS_NOT_FOUND &&
+                                    lastNotFoundRetry < now - LYRICS_NOT_FOUND_RETRY_MS
+                                )
                     )
+                if (needsFetch) {
+                    if (existingLyrics != null) {
+                        lyricsNotFoundRetries[mediaMetadata.id] = now
+                    }
+                    val lyrics = lyricsHelper.getLyrics(mediaMetadata)
+                    if (lyrics != LyricsEntity.LYRICS_NOT_FOUND || existingLyrics == null) {
+                        database.query {
+                            upsert(
+                                LyricsEntity(
+                                    id = mediaMetadata.id,
+                                    lyrics = lyrics
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
+
+        dataStore.data
+            .map { it[EndlessQueueKey] ?: false }
+            .distinctUntilChanged()
+            .collect(scope) { enabled ->
+                endlessQueueEnabled = enabled
+                if (!enabled) {
+                    endlessQueueAppendedIds.clear()
+                }
+            }
 
         // Full-song streaming cache (user request): every song that STARTS
         // PLAYING is fully pulled into the player cache in the background, so
@@ -797,17 +845,58 @@ class MusicService : MediaLibraryService(),
         val nextIndex = player.currentMediaItemIndex + 1
         if (nextIndex >= player.mediaItemCount) return
         val nextId = player.getMediaItemAt(nextIndex).mediaId ?: return
-        if (dataStore.get(PreloadNextSongKey, false)) {
+        // Ultra-fast starts (user request): preloading the next song's audio and
+        // lyrics is ON by default now - the next track begins instantly and its
+        // lyrics are already in memory when the lyrics view opens.
+        if (dataStore.get(PreloadNextSongKey, true)) {
             scope.launch(Dispatchers.IO + SilentHandler) {
                 runCatching { downloadUtil.preloadSong(nextId) }
             }
         }
-        if (dataStore.get(PreloadLyricsKey, false)) {
+        if (dataStore.get(PreloadLyricsKey, true)) {
             scope.launch(Dispatchers.IO + SilentHandler) {
                 runCatching {
                     database.song(nextId).first()?.let { song ->
                         lyricsHelper.getLyrics(song.toMediaMetadata())
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Endless queue: with fewer than 3 songs left and no more queue pages,
+     * fetch a radio (similar-songs) tail for the current song and append the
+     * tracks that are not already queued. Best-effort and silent on failure;
+     * one extension job at a time, and the songs already appended are never
+     * appended twice.
+     */
+    private fun maybeExtendEndlessQueue() {
+        if (!endlessQueueEnabled) return
+        if (currentQueue.hasNextPage()) return // auto-load-more handles paged queues
+        if (player.mediaItemCount - player.currentMediaItemIndex > 3) return
+        if (endlessQueueJob?.isActive == true) return
+        val currentId = player.currentMediaItem?.mediaId ?: return
+        val existingIds = buildSet {
+            for (index in 0 until player.mediaItemCount) {
+                add(player.getMediaItemAt(index).mediaId)
+            }
+            addAll(endlessQueueAppendedIds)
+        }
+        endlessQueueJob = scope.launch(SilentHandler) {
+            runCatching {
+                val radioItems = withContext(Dispatchers.IO) {
+                    YouTube.next(WatchEndpoint(currentId))
+                }
+                    .getOrNull()
+                    ?.items
+                    .orEmpty()
+                    .map { it.toMediaItem() }
+                    .filter { it.mediaId !in existingIds }
+                    .filterExplicit(dataStore.get(HideExplicitKey, false))
+                if (radioItems.isNotEmpty() && player.playbackState != STATE_IDLE) {
+                    endlessQueueAppendedIds += radioItems.map { it.mediaId }
+                    player.addMediaItems(radioItems)
                 }
             }
         }
@@ -831,6 +920,12 @@ class MusicService : MediaLibraryService(),
                     player.addMediaItems(mediaItems)
                 }
             }
+        }
+
+        // Endless queue: append a radio tail while the queue is about to run
+        // out (the queue's own pages are handled by auto-load-more above).
+        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
+            maybeExtendEndlessQueue()
         }
 
         preloadNext()
@@ -859,6 +954,7 @@ class MusicService : MediaLibraryService(),
             currentQueue = EmptyQueue
             player.shuffleModeEnabled = false
             queueTitle = null
+            endlessQueueAppendedIds.clear()
         }
 
         // Crossfade: never leave the volume faded down when playback stops or ends.
@@ -1247,6 +1343,8 @@ class MusicService : MediaLibraryService(),
     }
 
     companion object {
+        private const val LYRICS_NOT_FOUND_RETRY_MS = 24L * 60 * 60 * 1000
+
         const val ROOT = "root"
         const val SONG = "song"
         const val ARTIST = "artist"

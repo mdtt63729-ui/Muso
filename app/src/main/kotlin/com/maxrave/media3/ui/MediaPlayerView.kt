@@ -71,11 +71,117 @@ import com.maxrave.logger.Logger
 import com.maxrave.media3.ui.extension.KeepScreenOn
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // Muso (PRD §8): the canvas loop segment, 5-15 seconds. 15 s = the allowed maximum.
 private const val CANVAS_LOOP_START_MS = 0L
 private const val CANVAS_LOOP_END_MS = 15_000L
+
+/**
+ * Muso (Round 191): the one shared canvas player for the whole session.
+ *
+ * Every canvas surface used to build its OWN ExoPlayer in remember {} and release
+ * it on disposal. Expanding the player from the mini player therefore built a
+ * new player mid-sheet-animation (heavy main-thread work = the visible lag) and
+ * re-buffered the canvas from zero (the black video area until the first frame -
+ * the "screen goes black" report). This controller keeps ONE player alive:
+ * attaching a surface just re-binds it to the already-prepared player (its first
+ * frame is immediate and the presentation state knows the video size at once,
+ * so the cover shutter never trips), and detaching the last surface only PAUSES
+ * it instead of releasing - so the mini <-> fullscreen transitions neither
+ * construct nor destroy anything heavy on the animation frame.
+ */
+@androidx.annotation.OptIn(UnstableApi::class)
+private object CanvasVideoController {
+    private var player: ExoPlayer? = null
+    private var loopJob: Job? = null
+    private var currentUrl: String? = null
+    private var attachCount = 0
+
+    fun attach(context: Context, canvasCache: SimpleCache, url: String): ExoPlayer {
+        val p = player ?: createPlayer(context.applicationContext, canvasCache).also { player = it }
+        if (url != currentUrl) {
+            currentUrl = url
+            p.setMediaItem(MediaItem.fromUri(url))
+            p.repeatMode = Player.REPEAT_MODE_OFF
+            p.prepare()
+            p.play()
+            startLoop(p)
+        } else {
+            p.play()
+        }
+        attachCount += 1
+        return p
+    }
+
+    fun detach() {
+        attachCount = (attachCount - 1).coerceAtLeast(0)
+        if (attachCount == 0) {
+            // Keep the (already prepared, cache-backed) player alive and
+            // positioned; just stop burning decode cycles while nothing
+            // observes it. The next attach resumes it within a frame.
+            player?.pause()
+        }
+    }
+
+    // The PRD §12/§13 loop controller, previously a per-view polling effect.
+    // One loop per URL for the whole app now: poll the position and seek back
+    // to the segment start just before its end. The initial segment is
+    // preloaded into the canvas cache by MusicService (PRD §14), so the
+    // boundary seek is served from cache and the loop stays seamless.
+    private fun startLoop(p: ExoPlayer) {
+        loopJob?.cancel()
+        loopJob = CoroutineScope(Dispatchers.Main).launch {
+            while (isActive) {
+                delay(100)
+                val loop = runCatching {
+                    val duration = p.duration
+                    duration != C.TIME_UNSET &&
+                        duration > CANVAS_LOOP_END_MS &&
+                        p.currentPosition >= CANVAS_LOOP_END_MS - 120
+                }.getOrDefault(false)
+                if (loop) {
+                    runCatching { p.seekTo(CANVAS_LOOP_START_MS) }
+                } else if (runCatching {
+                        val duration = p.duration
+                        duration != C.TIME_UNSET && duration <= CANVAS_LOOP_END_MS
+                    }.getOrDefault(false)) {
+                    p.repeatMode = Player.REPEAT_MODE_ONE
+                }
+            }
+        }
+    }
+
+    private fun createPlayer(appContext: Context, canvasCache: SimpleCache): ExoPlayer {
+        val cacheSink = CacheDataSink.Factory().setCache(canvasCache)
+        val upstreamFactory = DefaultDataSource.Factory(appContext, DefaultHttpDataSource.Factory())
+        val downStreamFactory = FileDataSource.Factory()
+        val cacheDataSourceFactory =
+            CacheDataSource
+                .Factory()
+                .setCache(canvasCache)
+                .setCacheWriteDataSinkFactory(cacheSink)
+                .setCacheReadDataSourceFactory(downStreamFactory)
+                .setUpstreamDataSourceFactory(upstreamFactory)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        return ExoPlayer
+            .Builder(appContext)
+            .setLoadControl(
+                DefaultLoadControl
+                    .Builder()
+                    .setPrioritizeTimeOverSizeThresholds(false)
+                    .build(),
+            ).setMediaSourceFactory(
+                DefaultMediaSourceFactory(cacheDataSourceFactory),
+            ).build()
+    }
+}
 
 private val RICH_SYNC_TIMESTAMP_REGEX = Regex("""<\d{2}:\d{2}\.\d{2,3}>\s*""")
 
@@ -119,82 +225,19 @@ fun MediaPlayerView(
             }
         }
 
-    // Initialize ExoPlayer
-    val exoPlayer =
-        remember {
-            val cacheSink =
-                CacheDataSink
-                    .Factory()
-                    .setCache(canvasCache)
-            val upstreamFactory = DefaultDataSource.Factory(context, DefaultHttpDataSource.Factory())
-            val downStreamFactory = FileDataSource.Factory()
-            val cacheDataSourceFactory =
-                CacheDataSource
-                    .Factory()
-                    .setCache(canvasCache)
-                    .setCacheWriteDataSinkFactory(cacheSink)
-                    .setCacheReadDataSourceFactory(downStreamFactory)
-                    .setUpstreamDataSourceFactory(upstreamFactory)
-                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-            ExoPlayer
-                .Builder(context)
-                .setLoadControl(
-                    DefaultLoadControl
-                        .Builder()
-                        .setPrioritizeTimeOverSizeThresholds(false)
-                        .build(),
-                ).setMediaSourceFactory(
-                    DefaultMediaSourceFactory(cacheDataSourceFactory),
-                ).build()
-                .apply {
-                    addListener(playerListener)
-                    videoScalingMode = C.VIDEO_SCALING_MODE_DEFAULT
-                }
-        }
-
-    // Create a MediaSource
-    val mediaSource =
-        remember(url) {
-            MediaItem.fromUri(url)
-        }
-
-    // Set MediaSource to ExoPlayer
-    // Muso (PRD §12/§13, text-2.txt): REPEAT_MODE_ONE alone repeats the WHOLE
-    // video, but the spec only allows a 5-15 s segment to loop. This is the
-    // PRD's custom loop controller: poll the position and seek back to the
-    // segment start just before its end. The initial segment is preloaded
-    // into the canvas cache by MusicService (PRD §14), so the boundary seek
-    // is served from cache and the loop stays visually seamless. Sources
-    // shorter than the segment fall back to whole-item repeat.
-    LaunchedEffect(mediaSource) {
-        exoPlayer.setMediaItem(mediaSource)
-        exoPlayer.prepare()
-        exoPlayer.play()
-        exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
-        while (true) {
-            kotlinx.coroutines.delay(100)
-            val loop = runCatching {
-                val duration = exoPlayer.duration
-                duration != androidx.media3.common.C.TIME_UNSET &&
-                    duration > CANVAS_LOOP_END_MS &&
-                    exoPlayer.currentPosition >= CANVAS_LOOP_END_MS - 120
-            }.getOrDefault(false)
-            if (loop) {
-                runCatching { exoPlayer.seekTo(CANVAS_LOOP_START_MS) }
-            } else if (runCatching {
-                    val duration = exoPlayer.duration
-                    duration != androidx.media3.common.C.TIME_UNSET && duration <= CANVAS_LOOP_END_MS
-                }.getOrDefault(false)) {
-                exoPlayer.repeatMode = Player.REPEAT_MODE_ONE
-            }
-        }
-    }
-
-    // Manage lifecycle events
-    DisposableEffect(Unit) {
+    // Round 191: bind to the shared session player (see CanvasVideoController).
+    // No per-composition ExoPlayer construction, no per-disposal release - the
+    // mini <-> fullscreen sheet transitions only attach/detach a surface.
+    var exoPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
+    DisposableEffect(url) {
+        val p = CanvasVideoController.attach(context, canvasCache, url)
+        p.addListener(playerListener)
+        p.videoScalingMode = C.VIDEO_SCALING_MODE_DEFAULT
+        exoPlayer = p
         onDispose {
-            exoPlayer.removeListener(playerListener)
-            exoPlayer.release()
+            p.removeListener(playerListener)
+            exoPlayer = null
+            CanvasVideoController.detach()
         }
     }
 
@@ -202,44 +245,47 @@ fun MediaPlayerView(
         KeepScreenOn()
     }
 
-    val presentationState = rememberPresentationState(exoPlayer)
-    if (cropToBounds) {
-        // Center scale-to-cover (ContentScale.Crop) into whatever frame the caller gives us.
-        // resizeWithContentScale keeps the true video aspect ratio (no stretch), scales it
-        // to fully cover the frame using the real videoSizeDp, then clips the overflow.
-        Box(modifier = modifier.graphicsLayer { clip = true }) {
-            PlayerSurface(
-                player = exoPlayer,
-                surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .resizeWithContentScale(
-                            contentScale = ContentScale.Crop,
-                            sourceSizeDp = presentationState.videoSizeDp,
-                        ),
-            )
+    val activePlayer = exoPlayer
+    if (activePlayer != null) {
+        val presentationState = rememberPresentationState(activePlayer)
+        if (cropToBounds) {
+            // Center scale-to-cover (ContentScale.Crop) into whatever frame the caller gives us.
+            // resizeWithContentScale keeps the true video aspect ratio (no stretch), scales it
+            // to fully cover the frame using the real videoSizeDp, then clips the overflow.
+            Box(modifier = modifier.graphicsLayer { clip = true }) {
+                PlayerSurface(
+                    player = activePlayer,
+                    surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .resizeWithContentScale(
+                                contentScale = ContentScale.Crop,
+                                sourceSizeDp = presentationState.videoSizeDp,
+                            ),
+                )
 
-            if (presentationState.coverSurface) {
-                // Cover the surface that is being prepared with a shutter
-                Box(Modifier.matchParentSize().background(Color.Black))
+                if (presentationState.coverSurface) {
+                    // Cover the surface that is being prepared with a shutter
+                    Box(Modifier.matchParentSize().background(Color.Black))
+                }
             }
-        }
-    } else {
-        Box(modifier = modifier.graphicsLayer { clip = true }) {
-            PlayerSurface(
-                player = exoPlayer,
-                surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
-                modifier =
-                    Modifier
-                        .fillMaxHeight()
-                        .width(with(density) { widthPx.toDp() })
-                        .align(Alignment.Center),
-            )
+        } else {
+            Box(modifier = modifier.graphicsLayer { clip = true }) {
+                PlayerSurface(
+                    player = activePlayer,
+                    surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .width(with(density) { widthPx.toDp() })
+                            .align(Alignment.Center),
+                )
 
-            if (presentationState.coverSurface) {
-                // Cover the surface that is being prepared with a shutter
-                Box(Modifier.background(Color.Black))
+                if (presentationState.coverSurface) {
+                    // Cover the surface that is being prepared with a shutter
+                    Box(Modifier.background(Color.Black))
+                }
             }
         }
     }

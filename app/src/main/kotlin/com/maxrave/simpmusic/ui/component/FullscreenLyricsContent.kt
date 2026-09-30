@@ -50,6 +50,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -477,6 +478,7 @@ fun FullscreenLyricsContent(
                     ) {
                         FullscreenLyricsList(
                             lyricsData = screenDataState.lyricsData,
+                            lyricsUnavailable = screenDataState.lyricsUnavailable,
                             sharedViewModel = sharedViewModel,
                             color = color,
                         )
@@ -936,6 +938,7 @@ private fun FullscreenLyricsLandscape(
             ) {
                 FullscreenLyricsList(
                     lyricsData = state.screenData.lyricsData,
+                    lyricsUnavailable = state.screenData.lyricsUnavailable,
                     sharedViewModel = sharedViewModel,
                     color = color,
                 )
@@ -1085,11 +1088,13 @@ private fun FullscreenLyricsDesktopChrome(
     }
 }
 
-// The lyrics themselves, or the "unavailable" line when the track has none. The portrait and
-// landscape layouts show exactly the same thing, only boxed differently.
+// The lyrics themselves, or the loading indicator while the fetch runs, or the "unavailable"
+// line once it has concluded without lyrics. The portrait and landscape layouts show exactly
+// the same thing, only boxed differently.
 @Composable
 private fun FullscreenLyricsList(
     lyricsData: NowPlayingScreenData.LyricsData?,
+    lyricsUnavailable: Boolean,
     sharedViewModel: SharedViewModel,
     color: Color,
 ) {
@@ -1115,12 +1120,23 @@ private fun FullscreenLyricsList(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = stringResource(R.string.simp_unavailable),
-                    style = typo().bodyMedium,
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                )
+                if (lyricsUnavailable) {
+                    Text(
+                        text = stringResource(R.string.simp_unavailable),
+                        style = typo().bodyMedium,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                    )
+                } else {
+                    // Round 188 (user request): the fetch is still running, so the
+                    // playlist-style loading indicator keeps going until the lyrics
+                    // actually land - no premature "unavailable" line.
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        color = Color.White.copy(alpha = 0.7f),
+                        strokeWidth = 2.dp,
+                    )
+                }
             }
         }
     }

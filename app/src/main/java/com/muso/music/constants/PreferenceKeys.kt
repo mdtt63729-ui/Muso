@@ -220,6 +220,11 @@ val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
+
+// Endless queue (suite switch "Endless queue"): when on, playback never stops -
+// a radio tail of similar songs is appended whenever the queue is about to
+// run out. Backs the SimpMusic suite's DataStoreManager.endlessQueue.
+val EndlessQueueKey = booleanPreferencesKey("endlessQueue")
 val AutoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val StopMusicOnTaskClearKey = booleanPreferencesKey("stopMusicOnTaskClear")
 

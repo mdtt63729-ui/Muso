@@ -76,6 +76,15 @@ class DownloadedArtworkRepository
                 resolveLocalFile(data)
             }
 
+    /**
+     * Public offline lookup for image loaders: returns the locally saved
+     * artwork file for [sourceUrl] when one exists, otherwise null. Used by
+     * the Coil 2 mapper in the app's image loader so downloaded/cached songs
+     * show their thumbnail with no network connection at all.
+     */
+    fun findDownloadedArtwork(sourceUrl: String): File? =
+        if (sourceUrl.isBlank()) null else resolveLocalFile(sourceUrl)
+
         suspend fun cache(
             mediaId: String,
             sourceUrls: Collection<String?>,
@@ -86,6 +95,7 @@ class DownloadedArtworkRepository
                     sourceUrls
                         .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
                         .distinct()
+                        .let(::withHighQualityVariants)
                 if (downloadCandidates.isEmpty()) return@withContext false
 
                 updateMutex.withLock {
@@ -385,7 +395,48 @@ class DownloadedArtworkRepository
         }
 
         private fun youtubeThumbnailAlias(mediaId: String): String =
-            "https://i.ytimg.com/vi/$mediaId/hqdefault.jpg"
+            "https://i.ytimg.com/vi/$mediaId/maxresdefault.jpg"
+
+        /**
+         * Expands source URLs into high-quality download candidates, best
+         * quality first, the original URL kept as the last fallback:
+         *  - i.ytimg.com/vi/<id>/...  -> maxresdefault, then hq720
+         *  - googleusercontent/ggpht `=w###-h###` or `=s###` -> 2160px then 1200px
+         */
+        private fun withHighQualityVariants(sourceUrls: List<String>): List<String> =
+            sourceUrls
+                .flatMap { url ->
+                    when {
+                        url.contains("i.ytimg.com/vi/") -> {
+                            val videoId = url.substringAfter("/vi/", "").substringBefore("/")
+                            if (videoId.isBlank()) {
+                                listOf(url)
+                            } else {
+                                listOf(
+                                    "https://i.ytimg.com/vi/$videoId/maxresdefault.jpg",
+                                    "https://i.ytimg.com/vi/$videoId/hq720.jpg",
+                                    url,
+                                )
+                            }
+                        }
+
+                        url.contains("googleusercontent.com") || url.contains("ggpht.com") -> {
+                            val sizeSuffix = GOOGLE_IMAGE_SIZE_SUFFIX_REGEX.find(url)
+                            if (sizeSuffix == null) {
+                                listOf(url)
+                            } else {
+                                listOf(
+                                    url.replaceRange(sizeSuffix.range, "=w2160-h2160-p-l90-rj"),
+                                    url.replaceRange(sizeSuffix.range, "=w1200-h1200-p-l90-rj"),
+                                    url,
+                                )
+                            }
+                        }
+
+                        else -> listOf(url)
+                    }
+                }
+                .distinct()
 
         private companion object {
             const val INDEX_FILE_NAME = "downloaded_artwork_index.json"
