@@ -385,8 +385,7 @@ fun LyricsV2(
                 Modifier
                     .fillMaxSize()
                     .nestedScroll(nestedScrollConnection)
-                    .smoothFadingEdge(vertical = 80.dp)
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
+                    .smoothFadingEdge(vertical = 80.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             itemsIndexed(
@@ -464,15 +463,15 @@ fun LyricsV2(
                     val targetInstrBlur =
                         when {
                             !isSynced || isActive || isManualScrolling -> 0f
-                            distanceFromActive == 1 -> 2f
-                            distanceFromActive == 2 -> 5f
-                            else -> 12f
+                            distanceFromActive == 1 -> 1.5f
+                            distanceFromActive == 2 -> 3f
+                            else -> 0f
                         }
                     val animatedInstrBlur by androidx.compose.animation.core.animateFloatAsState(
                         targetValue = targetInstrBlur,
                         animationSpec =
                             androidx.compose.animation.core.tween(
-                                durationMillis = 300,
+                                durationMillis = 180,
                                 easing = androidx.compose.animation.core.FastOutSlowInEasing,
                             ),
                         label = "v2InstrumentalBlur",
@@ -584,15 +583,15 @@ fun LyricsV2(
                 val targetBlur =
                     when {
                         !isSynced || isActive || (isSelectionModeActive && isSelected) || isManualScrolling -> 0f
-                        distanceFromActive == 1 -> 2f
-                        distanceFromActive == 2 -> 5f
-                        else -> 12f
+                        distanceFromActive == 1 -> 1.5f
+                        distanceFromActive == 2 -> 3f
+                        else -> 0f
                     }
                 val animatedBlur by androidx.compose.animation.core.animateFloatAsState(
                     targetValue = targetBlur,
                     animationSpec =
                         androidx.compose.animation.core.tween(
-                            durationMillis = 300,
+                            durationMillis = 180,
                             easing = androidx.compose.animation.core.FastOutSlowInEasing,
                         ),
                     label = "v2LyricBlur",

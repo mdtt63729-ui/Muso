@@ -14,14 +14,24 @@ val SliderStyleKey = stringPreferencesKey("sliderStyle")
 val PlayerStyleKey = stringPreferencesKey("playerStyle")
 val PlayerStyleMigratedKey = booleanPreferencesKey("playerStyleMigratedV158")
 val MiniPlayerStyleKey = stringPreferencesKey("miniPlayerStyle")
+val MiniPlayerBackgroundStyleKey = stringPreferencesKey("miniPlayerBackgroundStyle")
+val MiniPlayerSwipeSensitivityKey = floatPreferencesKey("swipeSensitivity")
+val MiniPlayerSwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
+val EnableHapticFeedbackKey = booleanPreferencesKey("enableHapticFeedback")
 
 /** Design of the floating pill mini player, decoupled from the Liquid Glass effect. */
 enum class MiniPlayerStyle {
-    /** The glass-bar pill: the bar's integrated glass mini player when glass is on, the same design flat when it is off. */
-    GLASS,
+    /** Existing compact mini-player design. */
+    MINIFY,
 
-    /** The standalone pill that rides above the bar: flat-surface design, rendered with glass material when the effect is on. */
+    /** Premium Material 3 flat mini-player with artwork-backed surface. */
     FLAT,
+
+    /** Material 3 Flex mini-player design. */
+    M3_FLEX,
+
+    /** ArchiveTune-derived Classic Material 3 mini-player design. */
+    CLASSIC,
 }
 
 val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")

@@ -59,5 +59,5 @@ val BottomSheetAnimationSpec =
 val BottomSheetSoftAnimationSpec =
     spring<Dp>(
         dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessLow,
+        stiffness = Spring.StiffnessMediumLow,
     )

@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
@@ -64,10 +65,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -77,9 +82,6 @@ import moe.rukamori.archivetune.onboarding.OnboardingCommunityActionUiModel
 import moe.rukamori.archivetune.onboarding.OnboardingEvent
 import moe.rukamori.archivetune.onboarding.OnboardingLoginBenefitUiModel
 import moe.rukamori.archivetune.onboarding.OnboardingPageId
-import moe.rukamori.archivetune.onboarding.OnboardingPermissionAction
-import moe.rukamori.archivetune.onboarding.OnboardingPermissionStatus
-import moe.rukamori.archivetune.onboarding.OnboardingPermissionUiModel
 import moe.rukamori.archivetune.onboarding.OnboardingScreenState
 import moe.rukamori.archivetune.onboarding.OnboardingUiState
 import moe.rukamori.archivetune.onboarding.OnboardingViewModel
@@ -143,7 +145,6 @@ fun OnboardingRoute(
             onBack = viewModel::onBack,
             onComplete = viewModel::complete,
             onLogin = viewModel::onLogin,
-            onPermissionAction = viewModel::onPermissionAction,
             onCommunityAction = viewModel::onCommunityAction,
             modifier = modifier,
         )
@@ -157,7 +158,6 @@ fun OnboardingScreen(
     onBack: () -> Unit,
     onComplete: () -> Unit,
     onLogin: () -> Unit,
-    onPermissionAction: (OnboardingPermissionAction) -> Unit,
     onCommunityAction: (OnboardingCommunityActionUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -196,7 +196,6 @@ fun OnboardingScreen(
                     onNext = onNext,
                     onBack = onBack,
                     onLogin = onLogin,
-                    onPermissionAction = onPermissionAction,
                     onCommunityAction = onCommunityAction,
                     contentPadding = padding,
                 )
@@ -263,7 +262,6 @@ private fun OnboardingSuccessContent(
     onNext: () -> Unit,
     onBack: () -> Unit,
     onLogin: () -> Unit,
-    onPermissionAction: (OnboardingPermissionAction) -> Unit,
     onCommunityAction: (OnboardingCommunityActionUiModel) -> Unit,
     contentPadding: PaddingValues,
 ) {
@@ -296,16 +294,6 @@ private fun OnboardingSuccessContent(
                     pageIndex = pageIndex,
                     onBack = onBack,
                     onNext = onNext,
-                )
-            }
-
-            OnboardingPageId.PERMISSIONS -> {
-                PermissionsPage(
-                    uiState = uiState,
-                    pageIndex = pageIndex,
-                    onBack = onBack,
-                    onNext = onNext,
-                    onPermissionAction = onPermissionAction,
                 )
             }
 
@@ -633,8 +621,11 @@ private fun SunnyIdentityPanel(
             shadowElevation = 1.dp,
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painter = painterResource(iconResId),
+                // Keep the Material 3 Sunny shape, but use Muso's real multicolor logo
+                // without applying Compose Icon tinting. The logo colors stay exactly as
+                // provided by the app launcher artwork.
+                Image(
+                    painter = painterResource(R.drawable.muso_logo_onboarding),
                     contentDescription = null,
                     modifier = Modifier.size(150.dp),
                 )
@@ -675,53 +666,6 @@ private fun PassivePill(text: String) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun PermissionsPage(
-    uiState: OnboardingUiState,
-    pageIndex: Int,
-    onBack: () -> Unit,
-    onNext: () -> Unit,
-    onPermissionAction: (OnboardingPermissionAction) -> Unit,
-) {
-    val page = uiState.pages[pageIndex]
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = OnboardingPagePadding,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-    ) {
-        item(key = page.id.name, contentType = "header") {
-            ExpressivePageHeader(
-                iconResId = page.iconResId,
-                titleResId = page.titleResId,
-                subtitleResId = page.subtitleResId,
-            )
-        }
-        itemsIndexed(
-            items = uiState.permissions,
-            key = { _, item -> item.id.name },
-            contentType = { _, item -> "permission-${item.id.name}" },
-        ) { index, item ->
-            PermissionRow(
-                permission = item,
-                index = index,
-                count = uiState.permissions.size,
-                onPermissionAction = onPermissionAction,
-            )
-        }
-        item(key = "permission-actions", contentType = "actions") {
-            OnboardingInlineActions(
-                currentPage = pageIndex,
-                pageCount = uiState.pages.size,
-                onBack = onBack,
-                onNext = onNext,
-            )
-        }
     }
 }
 
@@ -854,132 +798,37 @@ private fun LargePageTitle(
     subtitleResId: Int,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val title = stringResource(titleResId)
+        val titleText =
+            if (titleResId == R.string.onboarding_welcome_title && title.endsWith("Muso")) {
+                buildAnnotatedString {
+                    append(title.removeSuffix("Muso"))
+                    withStyle(
+                        SpanStyle(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontStyle = FontStyle.Italic,
+                            letterSpacing = (-0.7).sp,
+                        ),
+                    ) {
+                        append("Muso")
+                    }
+                }
+            } else {
+                buildAnnotatedString { append(title) }
+            }
         Text(
-            text = stringResource(titleResId),
+            text = titleText,
             style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.SemiBold,
             fontStyle = FontStyle.Italic,
+            letterSpacing = (-0.35).sp,
         )
         Text(
             text = stringResource(subtitleResId),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun PermissionRow(
-    permission: OnboardingPermissionUiModel,
-    index: Int,
-    count: Int,
-    onPermissionAction: (OnboardingPermissionAction) -> Unit,
-) {
-    val onClick =
-        remember(permission.action, onPermissionAction) {
-            {
-                val action = permission.action
-                if (action != null) {
-                    onPermissionAction(action)
-                }
-            }
-        }
-
-    SegmentedListItem(
-        onClick = onClick,
-        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
-        modifier =
-            Modifier
-                .widthIn(max = OnboardingContentMaxWidth)
-                .fillMaxWidth()
-                .heightIn(min = 88.dp),
-        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        leadingContent = {
-            PermissionIcon(permission = permission)
-        },
-        supportingContent = {
-            Text(
-                text = stringResource(permission.descriptionResId),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        trailingContent = {
-            PermissionStatusAction(
-                permission = permission,
-                onPermissionAction = onPermissionAction,
-            )
-        },
-    ) {
-        Text(
-            text = stringResource(permission.titleResId),
-            style = MaterialTheme.typography.titleMedium,
-        )
-    }
-}
-
-@Composable
-private fun PermissionIcon(permission: OnboardingPermissionUiModel) {
-    val containerColor =
-        when (permission.status) {
-            OnboardingPermissionStatus.ALLOWED -> MaterialTheme.colorScheme.primary
-            OnboardingPermissionStatus.NEEDS_ACTION -> MaterialTheme.colorScheme.tertiary
-            OnboardingPermissionStatus.ALLOWED_BY_INSTALL -> MaterialTheme.colorScheme.secondary
-            OnboardingPermissionStatus.UNAVAILABLE -> MaterialTheme.colorScheme.surfaceVariant
-        }
-    val contentColor =
-        when (permission.status) {
-            OnboardingPermissionStatus.ALLOWED -> MaterialTheme.colorScheme.onPrimary
-            OnboardingPermissionStatus.NEEDS_ACTION -> MaterialTheme.colorScheme.onTertiary
-            OnboardingPermissionStatus.ALLOWED_BY_INSTALL -> MaterialTheme.colorScheme.onSecondary
-            OnboardingPermissionStatus.UNAVAILABLE -> MaterialTheme.colorScheme.onSurfaceVariant
-        }
-
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = containerColor,
-        contentColor = contentColor,
-        modifier = Modifier.size(56.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(permission.iconResId),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun PermissionStatusAction(
-    permission: OnboardingPermissionUiModel,
-    onPermissionAction: (OnboardingPermissionAction) -> Unit,
-) {
-    val action = permission.action
-
-    if (action != null) {
-        FilledTonalButton(
-            onClick = { onPermissionAction(action) },
-            shapes = ButtonDefaults.shapes(),
-            contentPadding = ButtonDefaults.SmallContentPadding,
-        ) {
-            Text(text = stringResource(R.string.allow))
-        }
-    } else {
-        Surface(
-            shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ) {
-            Text(
-                text = stringResource(permission.status.labelResId()),
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
     }
 }
 
@@ -1132,14 +981,6 @@ private fun OnboardingNextButton(
         )
     }
 }
-
-private fun OnboardingPermissionStatus.labelResId(): Int =
-    when (this) {
-        OnboardingPermissionStatus.ALLOWED -> R.string.permission_status_allowed
-        OnboardingPermissionStatus.NEEDS_ACTION -> R.string.allow
-        OnboardingPermissionStatus.ALLOWED_BY_INSTALL -> R.string.onboarding_permission_allowed_by_install
-        OnboardingPermissionStatus.UNAVAILABLE -> R.string.onboarding_permission_unavailable
-    }
 
 private val OnboardingContentMaxWidth = 680.dp
 private val OnboardingPagePadding = PaddingValues(horizontal = 24.dp, vertical = 28.dp)

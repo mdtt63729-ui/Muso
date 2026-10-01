@@ -186,12 +186,6 @@ class BuildOnboardingUiStateUseCase
                         iconResId = R.drawable.small_icon,
                     ),
                     OnboardingPageUiModel(
-                        id = OnboardingPageId.PERMISSIONS,
-                        titleResId = R.string.onboarding_permissions_title,
-                        subtitleResId = R.string.onboarding_permissions_subtitle,
-                        iconResId = R.drawable.security,
-                    ),
-                    OnboardingPageUiModel(
                         id = OnboardingPageId.LOGIN,
                         titleResId = R.string.onboarding_login_title,
                         subtitleResId = R.string.onboarding_login_subtitle,

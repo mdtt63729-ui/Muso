@@ -151,6 +151,7 @@ import moe.rukamori.archivetune.constants.PlayerHorizontalPadding
 import moe.rukamori.archivetune.constants.SliderStyle
 import moe.rukamori.archivetune.db.entities.FormatEntity
 import moe.rukamori.archivetune.db.entities.codecLabel
+import moe.rukamori.archivetune.db.entities.playerCodecCapsule
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
 import moe.rukamori.archivetune.models.MediaMetadata
@@ -1840,6 +1841,7 @@ fun PlayerControlsContent(
     onSliderValueChange: (Long) -> Unit,
     onSliderValueChangeFinished: () -> Unit,
     currentFormat: FormatEntity? = null,
+    showCodecOnPlayer: Boolean = false,
 ) {
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val currentSongLiked = currentSong?.song?.liked == true
@@ -1907,40 +1909,12 @@ fun PlayerControlsContent(
         textBackgroundColor = textBackgroundColor,
         showRemainingTime = playerDesignStyle == PlayerDesignStyle.V7,
         centerContent =
-            if (playerDesignStyle == PlayerDesignStyle.V7 && currentFormat != null) {
+            if (showCodecOnPlayer && currentFormat != null) {
                 {
-                    val codec = currentFormat.mimeType.substringAfter("/").uppercase()
-                    val label =
-                        when {
-                            codec.contains("FLAC") || codec.contains("ALAC") -> "Lossless"
-                            codec.contains("OPUS") -> codec
-                            codec.contains("AAC") -> codec
-                            codec.contains("MP4A") -> "AAC"
-                            codec.contains("VORBIS") -> "Vorbis"
-                            else -> codec
-                        }
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = textBackgroundColor.copy(alpha = 0.12f),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.graphic_eq),
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = textBackgroundColor.copy(alpha = 0.8f),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = textBackgroundColor.copy(alpha = 0.8f),
-                            )
-                        }
-                    }
+                    CodecQualityCapsule(
+                        currentFormat = currentFormat,
+                        foreground = textBackgroundColor,
+                    )
                 }
             } else {
                 null
@@ -2098,6 +2072,7 @@ fun V8PlayerControlsContent(
                 position = position,
                 duration = duration,
                 currentFormat = currentFormat,
+                showCodecOnPlayer = showCodecOnPlayer,
                 foreground = foreground,
                 onSliderValueChange = onSliderValueChange,
                 onSliderValueChangeFinished = onSliderValueChangeFinished,
@@ -2152,6 +2127,7 @@ fun V8PlayerContent(
     menuState: MenuState,
     bottomSheetPageState: BottomSheetPageState,
     currentFormat: FormatEntity?,
+    showCodecOnPlayer: Boolean = false,
     canvasSource: CanvasSource?,
     canvasPrimaryUrl: String?,
     canvasFallbackUrl: String?,
@@ -2411,6 +2387,7 @@ private fun V8PortraitContent(
                 position = position,
                 duration = duration,
                 currentFormat = currentFormat,
+                showCodecOnPlayer = showCodecOnPlayer,
                 foreground = foreground,
                 onSliderValueChange = onSliderValueChange,
                 onSliderValueChangeFinished = onSliderValueChangeFinished,
@@ -2542,6 +2519,7 @@ private fun V8LandscapeContent(
                     position = position,
                     duration = duration,
                     currentFormat = currentFormat,
+                showCodecOnPlayer = showCodecOnPlayer,
                     foreground = foreground,
                     onSliderValueChange = onSliderValueChange,
                     onSliderValueChangeFinished = onSliderValueChangeFinished,
@@ -2753,6 +2731,7 @@ private fun V8PlaybackProgress(
     position: Long,
     duration: Long,
     currentFormat: FormatEntity?,
+    showCodecOnPlayer: Boolean = false,
     foreground: Color,
     onSliderValueChange: (Long) -> Unit,
     onSliderValueChangeFinished: () -> Unit,
@@ -2788,7 +2767,7 @@ private fun V8PlaybackProgress(
                 modifier = Modifier.align(Alignment.CenterStart),
             )
 
-            if (currentFormat != null) {
+            if (showCodecOnPlayer && currentFormat != null) {
                 V8QualityChip(
                     currentFormat = currentFormat,
                     foreground = foreground,
@@ -2809,45 +2788,53 @@ private fun V8PlaybackProgress(
 }
 
 @Composable
-private fun V8QualityChip(
+private fun CodecQualityCapsule(
     currentFormat: FormatEntity,
     foreground: Color,
     modifier: Modifier = Modifier,
 ) {
-    val label =
-        remember(currentFormat.mimeType, currentFormat.codecs) {
-            currentFormat.codecLabel()
-        }
-
     Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = foreground.copy(alpha = 0.1f),
-        border =
-            androidx.compose.foundation.BorderStroke(
-                width = 1.dp,
-                color = foreground.copy(alpha = 0.13f),
-            ),
+        shape = RoundedCornerShape(999.dp),
+        color = foreground.copy(alpha = 0.10f),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = foreground.copy(alpha = 0.13f),
+        ),
         modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
         ) {
             Icon(
                 painter = painterResource(R.drawable.graphic_eq),
                 contentDescription = null,
                 tint = foreground.copy(alpha = 0.72f),
-                modifier = Modifier.size(15.dp),
+                modifier = Modifier.size(14.dp),
             )
             Text(
-                text = label,
+                text = currentFormat.playerCodecCapsule(),
                 style = MaterialTheme.typography.labelSmall,
-                color = foreground.copy(alpha = 0.72f),
+                color = foreground.copy(alpha = 0.82f),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
+}
+
+@Composable
+private fun V8QualityChip(
+    currentFormat: FormatEntity,
+    foreground: Color,
+    modifier: Modifier = Modifier,
+) {
+    CodecQualityCapsule(
+        currentFormat = currentFormat,
+        foreground = foreground,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -3078,6 +3065,8 @@ fun V9PlayerContent(
     modifier: Modifier = Modifier,
     landscape: Boolean = false,
     gradientColors: List<Color> = emptyList(),
+    currentFormat: FormatEntity? = null,
+    showCodecOnPlayer: Boolean = false,
 ) {
     val baseArtworkUrl = mediaMetadata.thumbnailUrl?.highRes()
     val thumbnailSwapState =
@@ -3163,6 +3152,8 @@ fun V9PlayerContent(
             onSliderValueChangeFinished = onSliderValueChangeFinished,
             shuffleModeEnabled = shuffleModeEnabled,
             repeatMode = repeatMode,
+            currentFormat = currentFormat,
+            showCodecOnPlayer = showCodecOnPlayer,
             onShuffleClick = onShuffleClick,
             onRepeatClick = onRepeatClick,
             onMenuClick = onMenuClick,
@@ -3200,6 +3191,8 @@ fun V9PlayerContent(
             onSliderValueChangeFinished = onSliderValueChangeFinished,
             liked = liked,
             onToggleLike = onToggleLike,
+            currentFormat = currentFormat,
+            showCodecOnPlayer = showCodecOnPlayer,
             modifier = modifier,
         )
     }
@@ -3238,6 +3231,8 @@ private fun V9PortraitContent(
     onArtistClick: (artistId: String) -> Unit,
     liked: Boolean,
     onToggleLike: () -> Unit,
+    currentFormat: FormatEntity? = null,
+    showCodecOnPlayer: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -3400,6 +3395,14 @@ private fun V9PortraitContent(
                         modifier = Modifier.align(Alignment.CenterEnd)
                     )
                 }
+
+                if (showCodecOnPlayer && currentFormat != null) {
+                    Spacer(Modifier.height(8.dp))
+                    CodecQualityCapsule(
+                        currentFormat = currentFormat,
+                        foreground = textBackgroundColor,
+                    )
+                }
             }
 
             Spacer(Modifier.height(if (compactHeight) 16.dp else 24.dp))
@@ -3460,6 +3463,8 @@ private fun V9LandscapeContent(
     onArtistClick: (artistId: String) -> Unit,
     shuffleModeEnabled: Boolean,
     repeatMode: Int,
+    currentFormat: FormatEntity? = null,
+    showCodecOnPlayer: Boolean = false,
     onShuffleClick: () -> Unit,
     onRepeatClick: () -> Unit,
     onMenuClick: () -> Unit,
@@ -3526,6 +3531,8 @@ private fun V9LandscapeContent(
                     activeColor = textBackgroundColor,
                     inactiveColor = textBackgroundColor.copy(alpha = 0.24f),
                     textColor = textBackgroundColor,
+                    currentFormat = currentFormat,
+                    showCodecOnPlayer = showCodecOnPlayer,
                     onSliderValueChange = onSliderValueChange,
                     onSliderValueChangeFinished = onSliderValueChangeFinished,
                 )
@@ -3753,6 +3760,8 @@ private fun V9PlaybackProgress(
     activeColor: Color,
     inactiveColor: Color,
     textColor: Color,
+    currentFormat: FormatEntity? = null,
+    showCodecOnPlayer: Boolean = false,
     onSliderValueChange: (Long) -> Unit,
     onSliderValueChangeFinished: () -> Unit,
 ) {
@@ -3799,6 +3808,13 @@ private fun V9PlaybackProgress(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (showCodecOnPlayer && currentFormat != null) {
+                CodecQualityCapsule(
+                    currentFormat = currentFormat,
+                    foreground = textColor,
+                )
+            }
+
             Text(
                 text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
                 style = MaterialTheme.typography.titleMedium,
@@ -4452,6 +4468,8 @@ fun V10PlayerContent(
     onAddToPlaylistClick: () -> Unit,
     modifier: Modifier = Modifier,
     landscape: Boolean = false,
+    currentFormat: FormatEntity? = null,
+    showCodecOnPlayer: Boolean = false,
 ) {
     val baseArtworkUrl = mediaMetadata.thumbnailUrl?.highRes()
     val thumbnailSwapState =
@@ -4799,6 +4817,14 @@ fun V10PlayerContent(
                             text = formatEditorialTime(duration.coerceAtLeast(0L)),
                             style = MaterialTheme.typography.labelMedium,
                             color = accent.copy(alpha = 0.8f)
+                        )
+                    }
+
+                    if (showCodecOnPlayer && currentFormat != null) {
+                        Spacer(Modifier.height(8.dp))
+                        CodecQualityCapsule(
+                            currentFormat = currentFormat,
+                            foreground = accent,
                         )
                     }
                 }

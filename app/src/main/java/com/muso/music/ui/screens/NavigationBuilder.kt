@@ -347,11 +347,6 @@ fun NavGraphBuilder.navigationBuilder(
             moe.rukamori.archivetune.ui.screens.settings.PlayerSettings(navController)
         }
     }
-    composable("settings/canvas") {
-        moe.rukamori.archivetune.KitSettingsHost {
-            moe.rukamori.archivetune.ui.screens.settings.CanvasSettings(navController)
-        }
-    }
     composable("settings/android_auto") {
         moe.rukamori.archivetune.KitSettingsHost {
             moe.rukamori.archivetune.ui.screens.settings.AndroidAutoSettings(navController)

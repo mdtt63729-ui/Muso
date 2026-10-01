@@ -46,6 +46,15 @@ fun FormatEntity.codecLabel(): String {
 
 fun FormatEntity.formattedBitrate(): String? = bitrate.takeIf { it > 0 }?.let { "${it / 1000} kbps" }
 
+/**
+ * Player-facing codec information. Never invents a bitrate: when the resolved
+ * format does not expose one, the bitrate part is omitted.
+ */
+fun FormatEntity.playerCodecCapsule(): String {
+    val codec = codecLabel()
+    return formattedBitrate()?.let { "$codec • $it" } ?: codec
+}
+
 fun FormatEntity.formattedSampleRate(): String? =
     sampleRate?.takeIf { it > 0 }?.let {
         "${(it / 100.0).roundToInt() / 10.0} kHz"

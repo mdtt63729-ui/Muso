@@ -870,12 +870,16 @@ class MainActivity : ComponentActivity() {
                             // RuntimeShader with a render-feedback loop).
                             modifier = Modifier
                                 .layerBackdrop(glassBackdrop)
-                                .nestedScroll(
+                                .then(
                                     if (isTopLevelTab(navBackStackEntry?.destination) ||
                                         navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
-                                        searchBarScrollBehavior.nestedScrollConnection
+                                        Modifier.nestedScroll(searchBarScrollBehavior.nestedScrollConnection)
                                     } else {
-                                        topAppBarScrollBehavior.nestedScrollConnection
+                                        // Screen-local LazyColumn/Scaffold containers own their
+                                        // nested-scroll chain. Do not attach the Activity's global
+                                        // app-bar connection here: it competed with Settings and
+                                        // CachedScreen and made vertical drags feel stuck.
+                                        Modifier
                                     }
                                 ),
                             navController = navController,

@@ -130,7 +130,6 @@ import androidx.media3.common.Player.STATE_READY
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.palette.graphics.Palette
 import coil3.compose.AsyncImage
 import coil3.imageLoader
@@ -169,6 +168,7 @@ import moe.rukamori.archivetune.constants.PlayerCustomImageUriKey
 import moe.rukamori.archivetune.constants.PlayerDesignStyle
 import moe.rukamori.archivetune.constants.PlayerDesignStyleKey
 import moe.rukamori.archivetune.constants.QueuePeekHeight
+import com.muso.music.constants.ShowCodecOnPlayerKey
 import moe.rukamori.archivetune.constants.ShowPlayerVolumeBarKey
 import moe.rukamori.archivetune.constants.SliderStyle
 import moe.rukamori.archivetune.constants.SliderStyleKey
@@ -360,7 +360,7 @@ fun BottomSheetPlayer(
     val (blurRadius) = rememberPreference(BlurRadiusKey, 48f)
     val (backdropEnabled) = rememberPreference(BackdropEnabledKey, defaultValue = true)
     val (backdropBlurAmount) = rememberPreference(BackdropBlurAmountKey, defaultValue = 60)
-    val (showCodecOnPlayer) = rememberPreference(booleanPreferencesKey("show_codec_on_player"), false)
+    val (showCodecOnPlayer) = rememberPreference(ShowCodecOnPlayerKey, true)
     val (incrementalSeekSkipEnabled) = rememberPreference(moe.rukamori.archivetune.constants.SeekExtraSeconds, defaultValue = false)
     var keyboardSkipMultiplier by remember { mutableStateOf(1) }
     var lastKeyboardTapTime by remember { mutableLongStateOf(0L) }
@@ -516,7 +516,11 @@ fun BottomSheetPlayer(
         }
     }
 
-    LaunchedEffect(mediaMetadata?.id, playerSwapState.displayUrl, playerBackground, playerDesignStyle) {
+    // Palette extraction must follow the actual media item, not the transient thumbnail swap.
+    // playerSwapState.displayUrl changes during artwork transitions and previously caused this
+    // effect to reset/extract the palette repeatedly for the same song, producing visible color
+    // flicker (old palette -> fallback palette -> new palette).
+    LaunchedEffect(mediaMetadata?.id, mediaMetadata?.thumbnailUrl, playerBackground, playerDesignStyle) {
         if (aodModeEnabled) return@LaunchedEffect
         if (playerDesignStyle == PlayerDesignStyle.V9 || playerDesignStyle == PlayerDesignStyle.V10 ||
             playerBackground == PlayerBackgroundStyle.GRADIENT || playerBackground == PlayerBackgroundStyle.COLORING ||
@@ -525,7 +529,9 @@ fun BottomSheetPlayer(
             playerBackground == PlayerBackgroundStyle.GLOW_ANIMATED
         ) {
             val currentMetadata = mediaMetadata
-            val displayThumbnail = playerSwapState.displayUrl
+            // Always extract from the stable media thumbnail URL. The displayed thumbnail may be
+            // crossfading/swapping and must never drive the theme palette lifecycle.
+            val displayThumbnail = currentMetadata?.thumbnailUrl
             if (currentMetadata != null && displayThumbnail != null) {
                 // Check cache first
                 val cachedColors = gradientColorsCache[currentMetadata.id]
@@ -1268,7 +1274,8 @@ fun BottomSheetPlayer(
                 context = context,
                 onSliderValueChange = onSliderValueChange,
                 onSliderValueChangeFinished = onSliderValueChangeFinished,
-                currentFormat = if (playerDesignStyle == PlayerDesignStyle.V7) currentFormat else null,
+                currentFormat = currentFormat,
+                showCodecOnPlayer = showCodecOnPlayer,
             )
         }
 
@@ -1426,6 +1433,7 @@ fun BottomSheetPlayer(
                                 menuState = menuState,
                                 bottomSheetPageState = bottomSheetPageState,
                                 currentFormat = currentFormat,
+                                showCodecOnPlayer = showCodecOnPlayer,
                                 canvasSource = artworkCanvas?.source,
                                 canvasPrimaryUrl = artworkCanvas?.animated,
                                 canvasFallbackUrl = artworkCanvas?.videoUrl,
@@ -1473,6 +1481,8 @@ fun BottomSheetPlayer(
                             onSliderValueChangeFinished = onSliderValueChangeFinished,
                             landscape = true,
                             gradientColors = gradientColors,
+                            currentFormat = currentFormat,
+                            showCodecOnPlayer = showCodecOnPlayer,
                             modifier =
                                 Modifier
                                     .fillMaxSize()
@@ -1516,6 +1526,8 @@ fun BottomSheetPlayer(
                             },
                             sleepTimerEnabled = sleepTimerEnabled,
                             sleepTimerTimeLeft = sleepTimerTimeLeft,
+                            currentFormat = currentFormat,
+                            showCodecOnPlayer = showCodecOnPlayer,
                             onMenuClick = {
                                 menuState.show {
                                     PlayerMenu(
@@ -1719,6 +1731,7 @@ fun BottomSheetPlayer(
                                 menuState = menuState,
                                 bottomSheetPageState = bottomSheetPageState,
                                 currentFormat = currentFormat,
+                                showCodecOnPlayer = showCodecOnPlayer,
                                 canvasSource = artworkCanvas?.source,
                                 canvasPrimaryUrl = artworkCanvas?.animated,
                                 canvasFallbackUrl = artworkCanvas?.videoUrl,

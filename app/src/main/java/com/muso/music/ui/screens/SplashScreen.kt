@@ -97,7 +97,7 @@ private const val T_EXIT_END = 1.95f
 
 /** After the animation completes, the whole overlay fades out over this duration
  * so the home screen appears through a smooth transition, never a hard cut. */
-private const val SPLASH_HANDOFF = 0.18f
+private const val SPLASH_HANDOFF = 0.24f
 private const val WAVE_DELAY = 0.035f
 
 // ---------- Original logo geometry (heights relative to the center bar) ----------
@@ -346,7 +346,7 @@ internal fun MusoSplash(
         // settle phase instead of after the animation, so the exit fade has
         // real rendered frames underneath it and the handoff reads as one
         // continuous motion.
-        val contentRequestT = if (reduced) 0.20f else 1.45f
+        val contentRequestT = if (reduced) 0.12f else 1.28f
         var contentRequested = false
         withTimeoutOrNull(SPLASH_SAFETY_TIMEOUT_MS) {
             while (true) {

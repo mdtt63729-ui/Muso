@@ -222,7 +222,9 @@ fun Lyrics(
             return@LaunchedEffect
         }
         while (isActive) {
-            delay(50)
+            // 60 Hz position sampling keeps karaoke progress visually continuous.
+            // The UI only recomposes the active line and its immediate neighbour.
+            delay(16)
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
             playbackPosition = sliderPosition ?: playerConnection.player.currentPosition
@@ -542,14 +544,14 @@ private fun KaraokeWord(
     val floatOffset by animateFloatAsState(
         targetValue = targetFloat,
         animationSpec = tween(
-            durationMillis = if (isWordActive) 50 else 350,
+            durationMillis = if (isWordActive) 16 else 220,
             easing = FastOutSlowInEasing,
         ),
         label = "WordFloatOffset",
     )
 
-    val glowAlpha = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 0.35f else 0f
-    val glowRadius = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 12f else 0f
+    val glowAlpha = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 0.18f else 0f
+    val glowRadius = if (isWordActive) (progress * 2f).coerceAtMost(1f) * 6f else 0f
 
     val style = MaterialTheme.typography.headlineMedium.copy(
         fontSize = fontSize.sp,

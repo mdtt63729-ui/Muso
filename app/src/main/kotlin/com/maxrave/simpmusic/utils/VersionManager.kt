@@ -1,6 +1,6 @@
 package com.maxrave.simpmusic.utils
 
-import com.maxrave.simpmusic.BuildKonfig
+import com.muso.music.BuildConfig
 
 object VersionManager {
     private var versionName: String? = null
@@ -9,7 +9,7 @@ object VersionManager {
         if (versionName == null) {
             versionName =
                 try {
-                    BuildKonfig.versionName
+                    BuildConfig.VERSION_NAME
                 } catch (_: Exception) {
                     String()
                 }

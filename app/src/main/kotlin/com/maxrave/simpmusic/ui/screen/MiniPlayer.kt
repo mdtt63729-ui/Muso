@@ -60,6 +60,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -144,7 +145,10 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
+import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.R
+import com.muso.music.constants.MiniPlayerStyle
+import com.muso.music.constants.MiniPlayerStyleKey
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlin.time.Duration.Companion.seconds
@@ -164,6 +168,12 @@ fun MiniPlayer(
     val isLiquidGlassEnabled by sharedViewModel.getEnableLiquidGlass().collectAsStateWithLifecycle(DataStoreManager.FALSE)
     val controllerState by sharedViewModel.controllerState.collectAsStateWithLifecycle()
     val timelineState by sharedViewModel.timeline.collectAsStateWithLifecycle()
+    val miniPlayerStyle by rememberEnumPreference(
+        MiniPlayerStyleKey,
+        defaultValue = MiniPlayerStyle.MINIFY,
+    )
+    val usePremiumFlatStyle = miniPlayerStyle == MiniPlayerStyle.FLAT
+    val useM3FlexStyle = miniPlayerStyle == MiniPlayerStyle.M3_FLEX
 
     val layer = rememberGraphicsLayer()
     val luminanceAnimation = remember { Animatable(0f) }
@@ -173,6 +183,9 @@ fun MiniPlayer(
     // text colour. Leaving them gated left the capsule with luminance stuck at 0: a 2dp blur and a
     // 0.12 darken, which is why it looked like a smear rather than glass. The setting still governs
     // the Android card below.
+    // Liquid Glass is an effect layer, independent of the selected mini-player design.
+    // Every mini-player style, including M3 Flex, must receive the same glass treatment when
+    // the user enables Liquid Glass.
     val useGlassSurface = isLiquidGlassEnabled == DataStoreManager.TRUE
 
     val isDarkTheme = LocalIsDarkTheme.current
@@ -292,17 +305,20 @@ fun MiniPlayer(
         // One shape for both the Card and the clip below. They must not diverge: the clip wraps
         // the Card's own background draw, so the larger radius wins and silently becomes the
         // visible one.
-        val miniPlayerShape = CircleShape
+        val miniPlayerShape =
+            if (useM3FlexStyle) RoundedCornerShape(32.dp) else CircleShape
         // Without glass the card follows the theme, not the playing artwork.
         val cardColor =
-            if (isLiquidGlassEnabled == DataStoreManager.TRUE) {
+            if (useGlassSurface) {
+                Color.Transparent
+            } else if (usePremiumFlatStyle) {
                 Color.Transparent
             } else {
-                // Same 85% as the bottom bar capsule, so the two floating surfaces read as one set.
+                // Existing Minify surface when Liquid Glass is off.
                 MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.85f)
             }
-        // The flat (default) card: round artwork and controls sitting in filled circles. Glass keeps its own look.
-        val isFlat = isLiquidGlassEnabled != DataStoreManager.TRUE
+        // Minify keeps the existing compact layout. Flat is the new premium M3 layout.
+        val isFlat = isLiquidGlassEnabled != DataStoreManager.TRUE || usePremiumFlatStyle
         Card(
             shape = miniPlayerShape,
             colors =
@@ -313,8 +329,13 @@ fun MiniPlayer(
             modifier =
                 modifier
                     .then(
-                        if (isLiquidGlassEnabled == DataStoreManager.TRUE) {
-                            Modifier.liquidGlass(backdrop, layer, luminanceAnimation.value, RoundedCornerShape(16.dp))
+                        if (useGlassSurface) {
+                            Modifier.liquidGlass(
+                                backdrop,
+                                layer,
+                                luminanceAnimation.value,
+                                if (useM3FlexStyle) RoundedCornerShape(32.dp) else RoundedCornerShape(16.dp),
+                            )
                         } else {
                             Modifier
                         },
@@ -362,7 +383,21 @@ fun MiniPlayer(
                             },
                     ),
         ) {
-            Box(modifier = Modifier.fillMaxHeight()) {
+            if ((usePremiumFlatStyle || useM3FlexStyle) && !useGlassSurface) {
+                FlatMiniPlayerBackground(thumbnail = songEntity?.thumbnails)
+            }
+            if (useM3FlexStyle) {
+                M3FlexMiniPlayerContent(
+                    songEntity = songEntity,
+                    liked = liked,
+                    isPlaying = isPlaying,
+                    loading = loading,
+                    textColor = textColor,
+                    animatedProgress = animatedProgress,
+                    offsetX = offsetX.value,
+                    sharedViewModel = sharedViewModel,
+                )
+            } else Box(modifier = Modifier.fillMaxHeight()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
@@ -383,32 +418,33 @@ fun MiniPlayer(
                                                 change: PointerInputChange,
                                                 dragAmount: Float,
                                                 ->
+                                                change.consume()
                                                 coroutineScope.launch {
-                                                    change.consume()
-                                                    offsetX.animateTo(offsetX.value + dragAmount * 2)
-                                                    Logger.w("MiniPlayer", "Dragged ${offsetX.value}")
+                                                    // Follow the finger directly. Animating every pointer
+                                                    // event caused the old mini player to lag behind fast swipes.
+                                                    offsetX.snapTo((offsetX.value + dragAmount).coerceIn(-220f, 220f))
                                                 }
                                             },
                                             onDragCancel = {
-                                                Logger.w("MiniPlayer", "Drag Cancelled")
                                                 coroutineScope.launch {
-                                                    if (offsetX.value > 200) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Previous)
-                                                    } else if (offsetX.value < -120) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Next)
-                                                    }
-                                                    offsetX.animateTo(0f)
+                                                    offsetX.animateTo(0f, tween(180))
                                                 }
                                             },
                                             onDragEnd = {
-                                                Logger.w("MiniPlayer", "Drag Ended")
                                                 coroutineScope.launch {
-                                                    if (offsetX.value > 200) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Previous)
-                                                    } else if (offsetX.value < -120) {
-                                                        sharedViewModel.onUIEvent(UIEvent.Next)
+                                                    val current = offsetX.value
+                                                    val direction = when {
+                                                        current > 110f -> 1
+                                                        current < -110f -> -1
+                                                        else -> 0
                                                     }
-                                                    offsetX.animateTo(0f)
+                                                    if (direction != 0) {
+                                                        offsetX.animateTo(direction * 220f, tween(150))
+                                                        sharedViewModel.onUIEvent(if (direction > 0) UIEvent.Previous else UIEvent.Next)
+                                                        offsetX.snapTo(0f)
+                                                    } else {
+                                                        offsetX.animateTo(0f, tween(180))
+                                                    }
                                                 }
                                             },
                                         )
@@ -417,7 +453,7 @@ fun MiniPlayer(
                             Box(
                                 modifier =
                                     Modifier
-                                        .size(40.dp)
+                                        .size(if (usePremiumFlatStyle) 48.dp else 40.dp)
                                         // The wavy progress ring paints slightly outside its
                                         // circle at full amplitude; without the clip its green
                                         // arc bled past the artwork and showed as a neon
@@ -455,7 +491,13 @@ fun MiniPlayer(
                                     contentScale = if (isFlat) ContentScale.Crop else ContentScale.FillWidth,
                                     modifier =
                                         Modifier
-                                            .size(if (isFlat) 26.dp else 40.dp)
+                                            .size(
+                                                when {
+                                                    usePremiumFlatStyle -> 44.dp
+                                                    isFlat -> 26.dp
+                                                    else -> 40.dp
+                                                },
+                                            )
                                             .clip(if (isFlat) CircleShape else RoundedCornerShape(4.dp)),
                                 )
                             }
@@ -549,6 +591,20 @@ fun MiniPlayer(
                     val controlSize = if (isFlat) 40.dp else 48.dp
                     val playColor = if (isFlat) MaterialTheme.colorScheme.onPrimary else textColor
                     Spacer(modifier = Modifier.width(if (isFlat) 8.dp else 15.dp))
+                    if (usePremiumFlatStyle) {
+                        IconButton(
+                            onClick = { sharedViewModel.onUIEvent(UIEvent.Previous) },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.skip_previous),
+                                contentDescription = "Previous",
+                                modifier = Modifier.size(20.dp),
+                                tint = textColor,
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(2.dp))
+                    }
                     // background(shape), not clip: the heart's like-burst draws outside its bounds.
                     Box(
                         modifier =
@@ -587,6 +643,20 @@ fun MiniPlayer(
                                     sharedViewModel.onUIEvent(UIEvent.PlayPause)
                                 }
                             }
+                        }
+                    }
+                    if (usePremiumFlatStyle) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        IconButton(
+                            onClick = { sharedViewModel.onUIEvent(UIEvent.Next) },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.skip_next),
+                                contentDescription = "Next",
+                                modifier = Modifier.size(20.dp),
+                                tint = textColor,
+                            )
                         }
                     }
 
@@ -1292,5 +1362,168 @@ private fun CapsuleProgress(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun M3FlexMiniPlayerContent(
+    songEntity: SongEntity?,
+    liked: Boolean,
+    isPlaying: Boolean,
+    loading: Boolean,
+    textColor: Color,
+    animatedProgress: Float,
+    offsetX: Float,
+    sharedViewModel: SharedViewModel,
+) {
+    val titleColor = if (textColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else textColor
+    val secondaryColor = titleColor.copy(alpha = 0.72f)
+    Row(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Artwork is intentionally circular, with the playback progress ring outside it, matching
+        // the supplied M3 Flex reference.
+        Box(
+            modifier = Modifier.size(60.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularWavyProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier.fillMaxSize(),
+                color = titleColor.copy(alpha = 0.9f),
+                trackColor = titleColor.copy(alpha = 0.16f),
+            )
+            AsyncImage(
+                model =
+                    ImageRequest.Builder(LocalPlatformContext.current)
+                        .data(songEntity?.thumbnails)
+                        .crossfade(260)
+                        .build(),
+                placeholder = rememberHolderPainter(),
+                error = rememberHolderPainter(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(48.dp).clip(CircleShape),
+            )
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f).offset { IntOffset(offsetX.roundToInt(), 0) },
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = songEntity?.title.orEmpty(),
+                style = typo().titleMediumEmphasized,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().basicMarquee(
+                    iterations = Int.MAX_VALUE,
+                    animationMode = MarqueeAnimationMode.Immediately,
+                ),
+            )
+            Text(
+                text = songEntity?.artistName?.connectArtists().orEmpty(),
+                style = typo().bodyMedium,
+                color = secondaryColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().basicMarquee(
+                    iterations = Int.MAX_VALUE,
+                    animationMode = MarqueeAnimationMode.Immediately,
+                ),
+            )
+        }
+
+        IconButton(
+            onClick = { /* artist action intentionally reserved; matches reference affordance */ },
+            modifier = Modifier.size(44.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.person),
+                contentDescription = "Artist",
+                modifier = Modifier.size(30.dp),
+                tint = titleColor,
+            )
+        }
+
+        IconButton(
+            onClick = { sharedViewModel.onUIEvent(UIEvent.ToggleLike) },
+            modifier = Modifier.size(44.dp),
+        ) {
+            Icon(
+                painter = painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border),
+                contentDescription = if (liked) "Unlike" else "Like",
+                modifier = Modifier.size(27.dp),
+                tint = titleColor,
+            )
+        }
+
+        Box(
+            modifier = Modifier.size(58.dp).clip(MaterialShapes.Sunny.toShape(0)).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Crossfade(targetState = loading, label = "M3FlexPlayLoading") { isLoading ->
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        strokeWidth = 3.dp,
+                    )
+                } else {
+                    PlayPauseButton(
+                        isPlaying = isPlaying,
+                        modifier = Modifier.size(50.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ) {
+                        sharedViewModel.onUIEvent(UIEvent.PlayPause)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.width(4.dp))
+    }
+}
+
+@Composable
+private fun FlatMiniPlayerBackground(thumbnail: Any?) {
+    // Spotify-like artwork-backed surface, but implemented as normal M3 layers: the artwork is
+    // darkened and softly blended into a Material surface so text/buttons retain contrast.
+    Box(modifier = Modifier.fillMaxSize()) {
+        AsyncImage(
+            model =
+                ImageRequest
+                    .Builder(LocalPlatformContext.current)
+                    .data(thumbnail)
+                    .crossfade(280)
+                    .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+            alpha = 0.34f,
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.76f),
+                                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.72f),
+                            ),
+                        ),
+                    ),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.18f)),
+        )
     }
 }

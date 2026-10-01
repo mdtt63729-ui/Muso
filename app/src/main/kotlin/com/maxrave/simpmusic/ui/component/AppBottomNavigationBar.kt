@@ -50,6 +50,7 @@ fun AppBottomNavigationBar(
     showAnalyticsTab: Boolean = false,
     showMixForYouTab: Boolean = false,
     reloadDestinationIfNeeded: (KClass<*>) -> Unit = { _ -> },
+    isExpanded: Boolean = true,
 ) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     // `ordinal` identifies a tab, it is NOT the position — Mix for you and Analytics sit before
@@ -115,11 +116,33 @@ fun AppBottomNavigationBar(
     val capsuleColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.85f)
     val indicatorColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
-    Row(
+    if (!isExpanded) {
+        // Scroll-collapsed state mirrors the SimpMusic glass bar: the selected
+        // destination becomes a single compact button while the mini player
+        // can occupy the remaining horizontal space beside it. Keeping this
+        // state in the same composable avoids a one-frame layout jump when the
+        // scroll state changes.
+        val selectedScreen = bottomNavScreens.find { it.ordinal == selectedIndex } ?: BottomNavScreen.Home
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(indicatorColor)
+                .clickable {
+                    if (currentBackStackEntry?.destination?.hierarchy?.any {
+                            it.hasRoute(selectedScreen.destination::class)
+                        } == true
+                    ) reloadDestinationIfNeeded(selectedScreen.destination::class)
+                    else navController.navigate(selectedScreen.destination)
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            selectedScreen.icon()
+        }
+    } else Row(
         verticalAlignment = Alignment.CenterVertically,
         // One centred cluster — capsule, gap, FAB — exactly like the glass bar: fill = false keeps
-        // the capsule at its measured width, so the leftover goes around the cluster instead of
-        // wedging itself between the capsule and the search button.
+        // the capsule at its measured width, so the leftover goes around the capsule + search FAB.
         horizontalArrangement = Arrangement.Center,
         modifier =
             Modifier

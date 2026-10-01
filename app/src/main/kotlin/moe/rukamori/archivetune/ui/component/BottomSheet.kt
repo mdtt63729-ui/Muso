@@ -123,7 +123,12 @@ fun BottomSheet(
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            alpha = ((state.progress - 0.25f) * 4).coerceIn(0f, 1f)
+                            val reveal = ((state.progress - 0.14f) / 0.86f).coerceIn(0f, 1f)
+                            alpha = reveal
+                            // A tiny scale interpolation prevents the mini-to-full handoff from
+                            // looking like a hard layer swap while keeping the player fully legible.
+                            scaleX = 0.985f + reveal * 0.015f
+                            scaleY = 0.985f + reveal * 0.015f
                         },
                 content = content,
             )
@@ -134,7 +139,10 @@ fun BottomSheet(
                 modifier =
                     Modifier
                         .graphicsLayer {
-                            alpha = 1f - (state.progress * 4).coerceAtMost(1f)
+                            val collapse = (state.progress * 4f).coerceIn(0f, 1f)
+                            alpha = 1f - collapse
+                            scaleX = 1f - collapse * 0.015f
+                            scaleY = 1f - collapse * 0.015f
                         }.clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,

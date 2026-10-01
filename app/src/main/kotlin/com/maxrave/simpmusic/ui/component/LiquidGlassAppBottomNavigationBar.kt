@@ -41,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.ConstraintSet
@@ -277,26 +276,14 @@ fun LiquidGlassAppBottomNavigationBar(
         isExpanded = !isInSearchDestination
     }
 
-    var updateConstraints by remember {
-        mutableStateOf(true)
-    }
-
-    var constraintSet by remember {
-        mutableStateOf(
-            decoupledConstraints(isShowMiniPlayer, isExpanded),
-        )
-    }
-
-    LaunchedEffect(isShowMiniPlayer, isExpanded) {
-        constraintSet = decoupledConstraints(isShowMiniPlayer, isExpanded)
-        updateConstraints = false
-    }
-
-    LaunchedEffect(updateConstraints) {
-        if (updateConstraints) {
-            constraintSet = decoupledConstraints(isShowMiniPlayer, isExpanded)
-            updateConstraints = false
-        }
+    // Derive the constraint set directly from the two visual states. The old
+    // mutable constraint + onGloballyPositioned feedback loop could race with
+    // scroll-driven isExpanded changes: one frame would keep the previous
+    // constraint set and the mini player/nav animation appeared to work only
+    // intermittently. A remembered immutable target gives ConstraintLayout a
+    // new target on every state change, so its animateChangesSpec always runs.
+    val constraintSet = remember(isShowMiniPlayer, isExpanded) {
+        decoupledConstraints(isShowMiniPlayer, isExpanded)
     }
 
     LaunchedEffect(isScrolledToTop) {
@@ -362,8 +349,7 @@ fun LiquidGlassAppBottomNavigationBar(
                         } else {
                             Modifier.padding(start = 16.dp).wrapContentSize()
                         },
-                    ).layoutId("toolbar")
-                    .onGloballyPositioned { updateConstraints = true },
+                    ).layoutId("toolbar"),
         ) {
             if (isExpanded) {
                 // The FAB keeps its own slot beside the capsule — overlapping it reads fine on a

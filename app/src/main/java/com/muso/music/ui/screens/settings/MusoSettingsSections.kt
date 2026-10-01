@@ -120,6 +120,8 @@ import com.muso.music.constants.MaxImageCacheSizeKey
 import com.muso.music.constants.MaxSongCacheSizeKey
 import com.muso.music.constants.MiniPlayerStyle
 import com.muso.music.constants.MiniPlayerStyleKey
+import moe.rukamori.archivetune.constants.MiniPlayerBackgroundStyle
+import moe.rukamori.archivetune.constants.MiniPlayerBackgroundStyleKey
 import com.muso.music.constants.PauseListenHistoryKey
 import com.muso.music.constants.PauseOnMuteKey
 import com.muso.music.constants.PauseSearchHistoryKey
@@ -373,7 +375,12 @@ fun PreferenceGroupScope.musoThemeRows() {
 @Composable
 fun PreferenceGroupScope.musoPlayerStyleRows() {
     val (playerStyle, onPlayerStyleChange) = rememberEnumPreference(key = PlayerStyleKey, defaultValue = PlayerStyle.EXPRESSIVE)
-    val (miniPlayerStyle, onMiniPlayerStyleChange) = rememberEnumPreference(key = MiniPlayerStyleKey, defaultValue = MiniPlayerStyle.GLASS)
+    val (miniPlayerStyle, onMiniPlayerStyleChange) = rememberEnumPreference(key = MiniPlayerStyleKey, defaultValue = MiniPlayerStyle.MINIFY)
+    val (miniPlayerBackground, onMiniPlayerBackgroundChange) =
+        rememberEnumPreference(
+            key = MiniPlayerBackgroundStyleKey,
+            defaultValue = MiniPlayerBackgroundStyle.THEME,
+        )
     val (playerBackgroundStyle, onPlayerBackgroundStyleChange) = rememberEnumPreference(key = PlayerBackgroundStyleKey, defaultValue = PlayerBackgroundStyle.DEFAULT)
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(key = com.muso.music.constants.SliderStyleKey, defaultValue = com.muso.music.constants.SliderStyle.Standard)
     val (playerButtonsStyle, onPlayerButtonsStyleChange) = rememberEnumPreference(key = PlayerButtonsStyleKey, defaultValue = PlayerButtonsStyle.DEFAULT)
@@ -488,8 +495,25 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
             onValueSelected = onMiniPlayerStyleChange,
             valueText = {
                 when (it) {
-                    MiniPlayerStyle.GLASS -> stringResource(R.string.mini_player_style_glass)
+                    MiniPlayerStyle.MINIFY -> stringResource(R.string.mini_player_style_minify)
                     MiniPlayerStyle.FLAT -> stringResource(R.string.mini_player_style_flat)
+                    MiniPlayerStyle.M3_FLEX -> stringResource(R.string.mini_player_style_m3_flex)
+                    MiniPlayerStyle.CLASSIC -> stringResource(R.string.mini_player_style_classic)
+                }
+            },
+        )
+    }
+    item {
+        EnumListPreference(
+            title = { Text(stringResource(R.string.mini_player_background_style)) },
+            icon = { Icon(painterResource(R.drawable.gradient), null) },
+            selectedValue = miniPlayerBackground,
+            onValueSelected = onMiniPlayerBackgroundChange,
+            valueText = {
+                when (it) {
+                    MiniPlayerBackgroundStyle.THEME -> stringResource(R.string.mini_player_background_follow_theme)
+                    MiniPlayerBackgroundStyle.GRADIENT -> stringResource(R.string.mini_player_background_gradient)
+                    MiniPlayerBackgroundStyle.GLOW -> stringResource(R.string.mini_player_background_glow)
                 }
             },
         )
