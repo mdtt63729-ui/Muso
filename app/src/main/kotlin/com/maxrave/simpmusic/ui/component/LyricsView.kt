@@ -42,7 +42,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -629,13 +628,6 @@ fun LyricsView(
                     }
 
                 line?.words?.let { words ->
-                    // Animation style is a live preference. Keep it in the LazyColumn item
-                    // composition key so a style change immediately invalidates/replaces the
-                    // currently visible lyric row instead of waiting for the next line/track.
-                    // This is intentionally separate from the lyric identity key above: changing
-                    // style must not affect playback position, but it must affect the row renderer
-                    // right now.
-                    key(effectiveEchoLyricsStyle) {
                     // Signed distance from the line being sung. The shell is the only place that
                     // knows it, and it is the ONLY extra input the Apple Music renderer needs —
                     // which is why the split lives here and not inside the line items.
@@ -865,7 +857,8 @@ fun LyricsView(
                     }
                 }
             }
-            footerContent?.let { footer ->
+            val footer = footerContent
+            if (footer != null) {
                 item {
                     if (appleStyle) {
                         // Same gutter as the lyrics, and dimmed — but NOT blurred. Blur means
@@ -884,7 +877,6 @@ fun LyricsView(
                     } else {
                         footer()
                     }
-                }
                 }
             }
         }
@@ -1036,14 +1028,16 @@ private fun buildEstimatedLyricWindows(
 ): List<Pair<Long, Long>> {
     val safeTotal = totalMs.coerceAtLeast(lines.size.toLong())
     fun weight(text: String): Float =
-        text.codePoints().sumOf { cp ->
-            val c = cp.toChar()
-            when {
-                c.isWhitespace() -> 0.18
-                c.isLetterOrDigit() -> if (c in "aeiouAEIOU" || c in "অআইঈউঊএঐওঔ") 1.12 else 0.92
+        text.codePoints().toArray().fold(0.0) { total, cp ->
+            val chars = Character.toChars(cp)
+            val c = chars.concatToString()
+            val value = when {
+                Character.isWhitespace(cp) -> 0.18
+                Character.isLetterOrDigit(cp) -> if (c in listOf("a", "e", "i", "o", "u", "A", "E", "I", "O", "U", "অ", "আ", "ই", "ঈ", "উ", "ঊ", "এ", "ঐ", "ও", "ঔ")) 1.12 else 0.92
                 c in ".,!?;:'\"…，。！？；：‘’“”–—-" -> 0.28
                 else -> 0.70
-            }.toDouble()
+            }
+            total + value
         }.toFloat().coerceAtLeast(1f)
     val weights = lines.map { weight(it.words) }
     val totalWeight = weights.sum().coerceAtLeast(1f)

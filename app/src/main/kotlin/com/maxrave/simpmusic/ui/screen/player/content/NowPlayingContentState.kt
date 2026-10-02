@@ -1,21 +1,13 @@
 package com.maxrave.simpmusic.ui.screen.player.content
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -124,16 +116,8 @@ internal fun PlayerCodecCapsule(
     containerColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f),
     contentColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f),
 ) {
+    val label = state.audioCodecLabel ?: return
     if (!state.showCodecBadge) return
-
-    // Keep the capsule visible while the stream format is resolving. This is intentionally
-    // driven by the same playback loading state used by the player, so the indicator disappears
-    // as soon as the real codec/quality value becomes available without waiting for a recomposition
-    // from a separate settings or player state.
-    val loading = state.timelineState.loading && state.audioCodecLabel == null
-    val label = state.audioCodecLabel
-    if (!loading && label == null) return
-
     Row(
         horizontalArrangement = Arrangement.Center,
         modifier = modifier.fillMaxWidth(),
@@ -144,21 +128,11 @@ internal fun PlayerCodecCapsule(
                 .background(containerColor)
                 .padding(horizontal = 10.dp, vertical = 3.dp),
         ) {
-            if (loading) {
-                // Small, low-amplitude Material 3 loading indicator: deliberately sized to sit
-                // inside the existing capsule without changing its height or causing layout jump.
-                CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp),
-                    strokeWidth = 1.5.dp,
-                    color = contentColor,
-                )
-            } else {
-                Text(
-                    text = label.orEmpty(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = contentColor,
-                )
-            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+            )
         }
     }
 }

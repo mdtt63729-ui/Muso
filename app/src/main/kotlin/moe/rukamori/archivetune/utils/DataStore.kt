@@ -16,9 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.core.DataMigration
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.data
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import moe.rukamori.archivetune.constants.CustomThemeColorKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,10 +43,6 @@ import moe.rukamori.archivetune.constants.UpdateChannel
 import moe.rukamori.archivetune.constants.UpdateChannelKey
 import moe.rukamori.archivetune.extensions.toEnum
 import kotlin.properties.ReadOnlyProperty
-
-private val LegacyArchiveCustomThemeColorKey = stringPreferencesKey("customThemeColor")
-private val LegacyArchiveCrossfadeDurationKey = floatPreferencesKey("crossfadeDuration")
-private val LegacyArchiveLyricsTextSizeKey = floatPreferencesKey("lyricsTextSize")
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = "archivetune_settings",
@@ -80,83 +81,9 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
 
                 override suspend fun cleanUp() {}
             },
-            object : DataMigration<Preferences> {
-                override suspend fun shouldMigrate(currentData: Preferences): Boolean =
-                    currentData[LegacyArchiveCustomThemeColorKey] != null
-
-                override suspend fun migrate(currentData: Preferences): Preferences =
-                    currentData.toMutablePreferences().apply {
-                        currentData[LegacyArchiveCustomThemeColorKey]?.let { this[CustomThemeColorKey] = it }
-                        remove(LegacyArchiveCustomThemeColorKey)
-                    }
-
-                override suspend fun cleanUp() {}
-            },
-            object : DataMigration<Preferences> {
-                override suspend fun shouldMigrate(currentData: Preferences): Boolean =
-                    currentData[LegacyArchiveCrossfadeDurationKey] != null &&
-                        currentData[com.muso.music.constants.CrossfadeDurationKey] == null
-
-                override suspend fun migrate(currentData: Preferences): Preferences =
-                    currentData.toMutablePreferences().apply {
-                        currentData[LegacyArchiveCrossfadeDurationKey]?.let {
-                            this[com.muso.music.constants.CrossfadeDurationKey] = it.toInt().coerceIn(1, 12)
-                        }
-                        remove(LegacyArchiveCrossfadeDurationKey)
-                    }
-
-                override suspend fun cleanUp() {}
-            },
-            object : DataMigration<Preferences> {
-                override suspend fun shouldMigrate(currentData: Preferences): Boolean =
-                    currentData[LegacyArchiveLyricsTextSizeKey] != null &&
-                        currentData[com.muso.music.constants.LyricsTextSizeKey] == null
-
-                override suspend fun migrate(currentData: Preferences): Preferences =
-                    currentData.toMutablePreferences().apply {
-                        currentData[LegacyArchiveLyricsTextSizeKey]?.let {
-                            this[com.muso.music.constants.LyricsTextSizeKey] = it.toInt().coerceIn(8, 72)
-                        }
-                        remove(LegacyArchiveLyricsTextSizeKey)
-                    }
-
-                override suspend fun cleanUp() {}
-            },
         )
     },
 )
-
-/**
- * Legacy Muso preference file. Older Muso builds stored their settings here
- * under the name `settings`. The current app uses the ArchiveTune-backed
- * `archivetune_settings` store as the single source of truth, so we merge the
- * legacy file once on startup instead of silently resetting user settings.
- */
-val Context.legacyMusoDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-
-private val LegacySettingsMigratedKey = booleanPreferencesKey("musoLegacySettingsMigratedV1")
-
-/** Copy only keys that do not already exist in the canonical store. */
-suspend fun migrateLegacyMusoSettings(context: Context) {
-    val canonical = context.dataStore.data.first()
-    if (canonical[LegacySettingsMigratedKey] == true) return
-
-    val legacy = context.legacyMusoDataStore.data.first()
-    if (legacy.asMap().isNotEmpty()) {
-        context.dataStore.edit { prefs ->
-            val existingNames = prefs.asMap().keys.mapTo(hashSetOf()) { it.name }
-            for ((key, value) in legacy.asMap()) {
-                if (key.name !in existingNames && key.name != LegacySettingsMigratedKey.name) {
-                    @Suppress("UNCHECKED_CAST")
-                    prefs[key as Preferences.Key<Any>] = value
-                }
-            }
-            prefs[LegacySettingsMigratedKey] = true
-        }
-    } else {
-        context.dataStore.edit { it[LegacySettingsMigratedKey] = true }
-    }
-}
 
 object PreferenceStore {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

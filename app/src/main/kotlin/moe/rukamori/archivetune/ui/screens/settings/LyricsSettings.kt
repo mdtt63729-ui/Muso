@@ -162,7 +162,7 @@ fun LyricsSettings(
 
     val (lyricsClick, onLyricsClickChange) = rememberPreference(LyricsClickKey, defaultValue = true)
     val (lyricsScroll, onLyricsScrollChange) = rememberPreference(LyricsScrollKey, defaultValue = true)
-    val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 26)
+    val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(LyricsTextSizeKey, defaultValue = 26f)
     val (lyricsLineSpacing, onLyricsLineSpacingChange) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     // Round 182 (user request): the "Lyrics mode" engine switch is REMOVED from
     // settings. Word-by-word is the only lyrics engine now; its enable switch
@@ -265,11 +265,11 @@ fun LyricsSettings(
         var showLyricsTextSizeDialog by rememberSaveable { mutableStateOf(false) }
 
         if (showLyricsTextSizeDialog) {
-            var tempTextSize by remember { mutableFloatStateOf(lyricsTextSize.toFloat()) }
+            var tempTextSize by remember { mutableFloatStateOf(lyricsTextSize) }
 
             DefaultDialog(
                 onDismiss = {
-                    tempTextSize = lyricsTextSize.toFloat()
+                    tempTextSize = lyricsTextSize
                     showLyricsTextSizeDialog = false
                 },
                 buttons = {
@@ -284,7 +284,7 @@ fun LyricsSettings(
 
                     TextButton(
                         onClick = {
-                            tempTextSize = lyricsTextSize.toFloat()
+                            tempTextSize = lyricsTextSize
                             showLyricsTextSizeDialog = false
                         },
                         shapes = ButtonDefaults.shapes(),
@@ -293,7 +293,7 @@ fun LyricsSettings(
                     }
                     TextButton(
                         onClick = {
-                            onLyricsTextSizeChange(tempTextSize.roundToInt())
+                            onLyricsTextSizeChange(tempTextSize)
                             showLyricsTextSizeDialog = false
                         },
                         shapes = ButtonDefaults.shapes(),

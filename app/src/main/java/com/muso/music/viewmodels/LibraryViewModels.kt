@@ -331,7 +331,7 @@ class AutoPlaylistViewModel @Inject constructor(
     private suspend fun isFullyCached(songId: String): Boolean {
         if (playerCache.isCached(songId, 0L, Long.MAX_VALUE)) return true
         val recordedLength =
-            runCatching { database.format(songId).first().contentLength }.getOrNull() ?: -1L
+            runCatching { database.format(songId).first()?.contentLength }.getOrNull() ?: -1L
         if (recordedLength <= 0L) return false
         return playerCache.isCached(songId, 0L, recordedLength) ||
             (playerCache.isCached(songId, 0L, 1L) && playerCache.isCached(songId, recordedLength - 1L, 1L))

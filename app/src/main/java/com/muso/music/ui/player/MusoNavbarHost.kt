@@ -183,7 +183,7 @@ fun BoxScope.MusoNavbarHost(
                         onOpenNowPlaying = { playerBottomSheetState.expandSoft() },
                         navigationProximity = 0f,
                         backdrop = backdrop,
-                        useLiquidGlass = glassOn,
+                        useLiquidGlass = liquidGlass,
                         pureBlack = pureBlack,
                     )
                 } else {

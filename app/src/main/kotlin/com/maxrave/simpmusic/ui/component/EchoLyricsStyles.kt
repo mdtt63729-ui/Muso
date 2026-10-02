@@ -1,4 +1,5 @@
 package com.maxrave.simpmusic.ui.component
+import androidx.compose.ui.text.withStyle
 
 /*
  * Unified lyrics animation renderer. All six selectable styles consume the

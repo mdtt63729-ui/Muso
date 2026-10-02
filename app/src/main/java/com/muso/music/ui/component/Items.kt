@@ -1,4 +1,5 @@
 package com.muso.music.ui.component
+import androidx.compose.foundation.layout.fillMaxHeight
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandIn
@@ -872,12 +873,13 @@ fun ItemThumbnail(
         // The thumbnail itself is used as the progress surface: the dark
         // scrim retreats from bottom to top as Media3 reports bytes, so the
         // artwork reveal and the actual download percentage share one clock.
-        if (showDownloadProgress && download != null) {
-            val progress = (download.percentDownloaded / 100f)
+        val currentDownload = download
+        if (showDownloadProgress && currentDownload != null) {
+            val progress = (currentDownload.percentDownloaded / 100f)
                 .takeIf { it.isFinite() }
                 ?.coerceIn(0f, 1f)
                 ?: 0f
-            if (download.state != Download.STATE_COMPLETED && progress < 1f) {
+            if (currentDownload.state != Download.STATE_COMPLETED && progress < 1f) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -70,12 +70,6 @@ class App : Application(), ImageLoaderFactory {
         // if anything below this line crashes, it is already being logged.
         com.muso.music.utils.MusoLog.init(this)
         moe.rukamori.archivetune.AppInstanceHolder.application = this
-        // Start the shared preference cache before any service/repository reads settings.
-        // This keeps imperative consumers in sync with the same DataStore used by Compose settings.
-        moe.rukamori.archivetune.utils.PreferenceStore.start(this)
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            runCatching { moe.rukamori.archivetune.utils.migrateLegacyMusoSettings(this@App) }
-        }
         // The SimpMusic player suite resolves its few injected collaborators
         // (tab memory, sheet state, the queue-view handler) through Koin.
         koin = startKoin {
