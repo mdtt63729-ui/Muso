@@ -342,7 +342,8 @@ suspend fun LazyListState.animateScrollAndAnchorItemTop(
     if (index < 0) return
     val initiallyVisible = this.layoutInfo.visibleItemsInfo.any { it.index == index }
     if (!initiallyVisible) {
-        this.scrollToItem(index)
+        // Round 195: same instant-jump removal as animateScrollAndCentralizeItem.
+        this.animateScrollToItem(index)
     }
     withFrameNanos { }
     val itemInfo =
@@ -361,10 +362,14 @@ suspend fun LazyListState.animateScrollAndAnchorItemTop(
 
 suspend fun LazyListState.animateScrollAndCentralizeItem(index: Int) {
     if (index < 0) return
-    // If target item is not currently visible, jump close to it first so layoutInfo updates next frame.
+    // Round 195 (user request: lyrics motion smoother). This was an instant
+    // jump - the one visibly steppy moment in the whole lyrics sheet, hit
+    // whenever the target line sat off-screen (a far tap, a long interlude).
+    // A fast animated scroll lands on the same item but glides there, and the
+    // centering tween below then finishes the move.
     val initiallyVisible = this.layoutInfo.visibleItemsInfo.any { it.index == index }
     if (!initiallyVisible) {
-        this.scrollToItem(index)
+        this.animateScrollToItem(index)
     }
     // Wait for one frame so visibleItemsInfo reflects the latest layout pass.
     withFrameNanos { }

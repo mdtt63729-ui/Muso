@@ -33,6 +33,8 @@ import com.muso.music.db.MusicDatabase
 import com.muso.music.extensions.reversed
 import com.muso.music.extensions.toEnum
 import com.muso.music.playback.DownloadUtil
+import androidx.media3.datasource.cache.SimpleCache
+import com.muso.music.di.PlayerCache
 import com.muso.music.utils.dataStore
 import com.muso.music.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,6 +45,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -76,8 +79,21 @@ class LibrarySongsViewModel @Inject constructor(
                     database.allSongs()
                         .flowOn(Dispatchers.IO)
                         .map { songs ->
+                            // The Downloads section is a live download center:
+                            // completed, queued, active and paused items remain visible
+                            // while their Download object exists, so a newly tapped
+                            // download appears immediately instead of only after
+                            // completion.
                             songs.filter {
-                                downloads[it.id]?.state == Download.STATE_COMPLETED
+                                when (downloads[it.id]?.state) {
+                                    Download.STATE_COMPLETED,
+                                    Download.STATE_QUEUED,
+                                    Download.STATE_DOWNLOADING,
+                                    Download.STATE_RESTARTING,
+                                    Download.STATE_STOPPED,
+                                    Download.STATE_FAILED -> true
+                                    else -> false
+                                }
                             }
                         }
                         .map { songs ->
@@ -261,7 +277,7 @@ class LibraryMixViewModel @Inject constructor(
     /** Songs by latest listen, one row per song - the library home's
      * "Recently Played" section. Backed by the same streaming cache the
      * user asked for: play a song and it shows up here, playable offline. */
-    val recentSongs = database.events()
+    val recentSongs = database.recentEvents(limit = 100)
         .map { events -> events.mapNotNull { it.song }.distinctBy { it.id } }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -273,8 +289,9 @@ class LibraryMixViewModel @Inject constructor(
 @HiltViewModel
 class AutoPlaylistViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    database: MusicDatabase,
+    private val database: MusicDatabase,
     downloadUtil: DownloadUtil,
+    @PlayerCache private val playerCache: SimpleCache,
 ) : ViewModel() {
     val playlist: String = checkNotNull(savedStateHandle["playlist"])
 
@@ -288,10 +305,35 @@ class AutoPlaylistViewModel @Inject constructor(
                 .take(50)
                 .map { it.first }
         }.flowOn(Dispatchers.IO)
+        // "Downloaded": every song that plays offline - completed downloads AND
+        // fully player-cached songs (round 193: cached songs were missing here,
+        // which is why the offline library looked empty for streamed music).
+        // The work is off the main thread: while a song PLAYS, the song table
+        // re-emits constantly (play events), and filtering the whole library on
+        // the main thread each time is exactly what made opening this page lag.
         else -> downloadUtil.downloads.flatMapLatest { downloads ->
             database.allSongs().map { songs ->
-                songs.filter { downloads[it.id]?.state == Download.STATE_COMPLETED }
-            }
+                val cachedKeys = runCatching { playerCache.keys }.getOrNull().orEmpty()
+                songs.filter { song ->
+                    downloads[song.id]?.state == Download.STATE_COMPLETED ||
+                        (song.id in cachedKeys && isFullyCached(song.id))
+                }
+            }.flowOn(Dispatchers.IO)
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /**
+     * Exact whole-file cache probe for the (few) songs that have ANY cached
+     * span: the recorded content length gives a real span to check, with the
+     * unbounded probe kept as a fallback (same idiom the upstream ArchiveTune
+     * player uses: isCached(mediaId, 0L, contentLength)).
+     */
+    private suspend fun isFullyCached(songId: String): Boolean {
+        if (playerCache.isCached(songId, 0L, Long.MAX_VALUE)) return true
+        val recordedLength =
+            runCatching { database.format(songId).first().contentLength }.getOrNull() ?: -1L
+        if (recordedLength <= 0L) return false
+        return playerCache.isCached(songId, 0L, recordedLength) ||
+            (playerCache.isCached(songId, 0L, 1L) && playerCache.isCached(songId, recordedLength - 1L, 1L))
+    }
 }

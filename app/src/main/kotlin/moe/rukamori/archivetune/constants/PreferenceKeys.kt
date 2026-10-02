@@ -17,7 +17,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
-val CustomThemeColorKey = stringPreferencesKey("customThemeColor")
+val CustomThemeColorKey = stringPreferencesKey("archiveTuneCustomThemeColor")
 val RandomThemeOnStartupKey = booleanPreferencesKey("randomThemeOnStartup")
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
@@ -313,7 +313,7 @@ val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 val AudioOffload = booleanPreferencesKey("audioOffload")
 val CrossfadeEnabledKey = booleanPreferencesKey("crossfadeEnabled")
-val CrossfadeDurationKey = floatPreferencesKey("crossfadeDuration")
+val CrossfadeDurationKey = floatPreferencesKey("archiveTuneCrossfadeDuration")
 val CrossfadeGaplessKey = booleanPreferencesKey("crossfadeGapless")
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
@@ -707,7 +707,7 @@ val PlayerCustomBlurKey = floatPreferencesKey("playerCustomBlur")
 val PlayerCustomContrastKey = floatPreferencesKey("playerCustomContrast")
 val PlayerCustomBrightnessKey = floatPreferencesKey("playerCustomBrightness")
 
-val LyricsAnimationStyleKey = stringPreferencesKey("lyricsAnimationStyle")
+val LyricsAnimationStyleKey = stringPreferencesKey("archiveTuneLyricsAnimationStyle")
 
 enum class LyricsAnimationStyle {
     NONE,
@@ -718,7 +718,7 @@ enum class LyricsAnimationStyle {
     APPLE,
 }
 
-val LyricsTextSizeKey = floatPreferencesKey("lyricsTextSize")
+val LyricsTextSizeKey = com.muso.music.constants.LyricsTextSizeKey
 val LyricsLineSpacingKey = floatPreferencesKey("lyricsLineSpacing")
 val LyricsLineBlurKey = booleanPreferencesKey("lyricsLineBlur")
 val ShowLyricsPlayerControlsKey = booleanPreferencesKey("showLyricsPlayerControls")

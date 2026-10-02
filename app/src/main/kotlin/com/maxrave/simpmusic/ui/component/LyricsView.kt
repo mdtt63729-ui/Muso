@@ -42,9 +42,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -458,7 +460,7 @@ fun LyricsView(
         // User request: FLARE - the suite's own rich-sync wipe - is the default
         // again. The setting now lives with the other lyrics settings
         // (Settings -> Player and audio, lyrics section).
-        defaultValue = com.muso.music.constants.LyricsAnimationStyle.FLARE,
+        defaultValue = com.muso.music.constants.LyricsAnimationStyle.LYRICS_V2,
     )
     // Round 182 (user request): the lyrics-mode engine switch is gone from
     // settings - word-by-word is the ONLY lyrics engine, so its switch is the
@@ -506,28 +508,22 @@ fun LyricsView(
             buildDisplayLines(lyricsData.lyrics.lines, lyricsData.lyrics.syncType)
         }
 
+    // Resolve one stable timing window for EVERY lyric line. Providers frequently return mixed
+    // sheets (some lines timed, some plain) and older providers may return placeholder 0s.
+    // Treating only fully-timed sheets as synced was the reason a selected style could work on
+    // one song and silently fall back on another. The renderer now receives a complete timeline in
+    // all cases: provider timings are preserved where valid, missing windows are interpolated, and
+    // a completely untimed sheet is weighted across the track duration.
+    val totalDurationMs = timeLine.collectAsStateWithLifecycle(initialValue = TimeLine(current = 0L, total = 1L, bufferedPercent = 0)).value.total.coerceAtLeast(1L)
+    val resolvedLineWindows =
+        remember(displayLines.lines, totalDurationMs) {
+            buildResolvedLyricWindows(displayLines.lines, totalDurationMs)
+        }
+
     val timedLineIndexes =
-        remember(displayLines) {
-            val timed =
-                displayLines.lines
-                    .mapIndexedNotNull { index, line ->
-                        line.startTimeMs.toLongOrNull()?.let { TimedLineIndex(index, it) }
-                    }
-            // An unsynced sheet still carries a startTimeMs on every line — the literal "0", on all
-            // 307 unsynced rows of the author's own library. Those parse perfectly well, so this
-            // list came out full of zeros and [activeIndexAt], asked for "the last line at or before
-            // now", answered with the LAST LINE OF THE SONG from the first second onward. Every
-            // other line then sat at a huge distance from it and blurred to maximum: the whole
-            // sheet unreadable, with the one sharp line parked off the bottom of the screen.
-            //
-            // Tested on the timestamps rather than on syncType because it is the timestamps the
-            // search actually reads: one distinct value cannot order anything, whatever the sheet
-            // calls itself. With the list empty, currentLineIndex stays -1, and the renderer's
-            // no-active-line branch dims every line uniformly and blurs none of them.
-            if (timed.distinctBy { it.startTimeMs }.size <= 1) {
-                emptyList()
-            } else {
-                timed.sortedBy { it.startTimeMs }
+        remember(resolvedLineWindows) {
+            resolvedLineWindows.mapIndexed { index, window ->
+                TimedLineIndex(index, window.first)
             }
         }
 
@@ -536,15 +532,33 @@ fun LyricsView(
         timedLineIndexes = timedLineIndexes,
         lyricsOffsetMs = lyricsOffsetMs.toLong(),
     )
-    val currentLineIndex by playbackState.currentLineIndex
+
+    val estimatedLineWindows = resolvedLineWindows
+    val estimatedCurrentLineIndex by remember(estimatedLineWindows) {
+        derivedStateOf {
+            if (estimatedLineWindows.isEmpty()) {
+                -1
+            } else {
+                val now = playbackState.currentTimeMs.value
+                estimatedLineWindows.indexOfLast { now >= it.first }
+                    .coerceAtLeast(-1)
+                    .coerceAtMost(estimatedLineWindows.lastIndex)
+            }
+        }
+    }
+    // The resolved windows are authoritative for rendering and seeking. This is deliberately
+    // true even for fully timed sheets: it keeps the exact same renderer path for RICH/LRC/plain
+    // lyrics and prevents a provider-specific fallback from changing the selected style.
+    val useEstimatedSync = estimatedLineWindows.isNotEmpty()
+    val renderCurrentLineIndex = estimatedCurrentLineIndex
 
     // Read off the SAME list the blur fix built, not off syncType: it is the timestamps that decide
     // whether a line can ever be "the sung one", and [timedLineIndexes] is already empty exactly
     // when they cannot order anything. Every line then renders as the current line — white, fully
     // opaque, unblurred — because a sheet with no sung line has no line to contrast one against.
-    // Distinct from a SYNCED sheet's pre-roll, where currentLineIndex is also -1 but a sung line is
+    // Distinct from a SYNCED sheet's pre-roll, where renderCurrentLineIndex is also -1 but a sung line is
     // on its way and PRE_ROLL_LINE_ALPHA deliberately keeps the page dimmer than it.
-    val allLinesCurrent = timedLineIndexes.isEmpty()
+    val allLinesCurrent = timedLineIndexes.isEmpty() && !useEstimatedSync
 
     val syncedTranslatedWordsByLineIndex =
         remember(
@@ -557,9 +571,9 @@ fun LyricsView(
                 thresholdMs = 1000L,
             )
         }
-    LaunchedEffect(currentLineIndex, lyricsData.lyrics.syncType, appleStyle) {
-        if (currentLineIndex > -1 &&
-            (lyricsData.lyrics.syncType == "LINE_SYNCED" || lyricsData.lyrics.syncType == "RICH_SYNCED")
+    LaunchedEffect(renderCurrentLineIndex, lyricsData.lyrics.syncType, appleStyle) {
+        if (renderCurrentLineIndex > -1 &&
+            (lyricsData.lyrics.syncType == "LINE_SYNCED" || lyricsData.lyrics.syncType == "RICH_SYNCED" || useEstimatedSync)
         ) {
             if (appleStyle) {
                 // NEAR the top, not against it: Apple leaves exactly ONE physical row of the
@@ -568,9 +582,9 @@ fun LyricsView(
                 // lyric that wraps is one item spanning two or three rows, so the entire wrapped
                 // block hung above the sung line. Anchoring the sung line itself and backing off by
                 // one row's height is row-accurate no matter how the previous line wrapped.
-                listState.animateScrollAndAnchorItemTop(currentLineIndex, -exposedRowPx)
+                listState.animateScrollAndAnchorItemTop(renderCurrentLineIndex, -exposedRowPx)
             } else {
-                listState.animateScrollAndCentralizeItem(currentLineIndex)
+                listState.animateScrollAndCentralizeItem(renderCurrentLineIndex)
             }
         }
     }
@@ -615,10 +629,17 @@ fun LyricsView(
                     }
 
                 line?.words?.let { words ->
+                    // Animation style is a live preference. Keep it in the LazyColumn item
+                    // composition key so a style change immediately invalidates/replaces the
+                    // currently visible lyric row instead of waiting for the next line/track.
+                    // This is intentionally separate from the lyric identity key above: changing
+                    // style must not affect playback position, but it must affect the row renderer
+                    // right now.
+                    key(effectiveEchoLyricsStyle) {
                     // Signed distance from the line being sung. The shell is the only place that
                     // knows it, and it is the ONLY extra input the Apple Music renderer needs —
                     // which is why the split lives here and not inside the line items.
-                    val distanceFromCurrent = if (currentLineIndex < 0) 0 else index - currentLineIndex
+                    val distanceFromCurrent = if (renderCurrentLineIndex < 0) 0 else index - renderCurrentLineIndex
 
                     // Romanization is its OWN row, between the original and the translation, so the
                     // reader can follow the original script and still know how to pronounce it.
@@ -648,54 +669,43 @@ fun LyricsView(
                                         result
                                     }
 
-                                if (parsedLine != null && effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.FLARE) {
-                                    // Echo animation styles (Appearance setting): the same
-                                    // parsed word timings, a different word renderer.
+                                if (effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.NONE) {
+                                    // Every selected style must render consistently even when a
+                                    // provider's rich-sync text cannot be parsed. Keep provider
+                                    // word timing when available; otherwise synthesize a character
+                                    // timeline from the line window.
+                                    val renderableLine =
+                                        parsedLine
+                                            ?: synthesizeCharacterTimedLine(
+                                                words.stripRichSyncTimestamps(),
+                                                if (useEstimatedSync) estimatedLineWindows[index].first
+                                                else line.startTimeMs.toLongOrNull() ?: 0L,
+                                                if (useEstimatedSync) estimatedLineWindows[index].second
+                                                else line.endTimeMs.toLongOrNull()
+                                                    ?: estimatedLineWindows.getOrNull(index + 1)?.first
+                                                    ?: ((line.startTimeMs.toLongOrNull() ?: 0L) + 1_000L),
+                                            )
                                     EchoLyricsLine(
-                                        parsedLine = parsedLine,
+                                        parsedLine = renderableLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
                                         currentTimeMs = playbackState.currentTimeMs.value,
-                                        isCurrent = index == currentLineIndex,
+                                        isCurrent = index == renderCurrentLineIndex,
                                         style = effectiveEchoLyricsStyle,
                                     )
                                 } else if (parsedLine != null) {
-                                    // Reused verbatim by BOTH styles: word-by-word highlighting is
-                                    // already what Apple does with a rich-synced line, so there is
-                                    // nothing to re-implement — only the focus treatment differs,
-                                    // and that is applied by the wrapper below.
-                                    RichSyncLyricsLineItem(
-                                        parsedLine = parsedLine,
+                                    // NONE means genuinely static lyrics. Do not route it through
+                                    // RichSyncLyricsLineItem because that renderer performs its own
+                                    // word wipe and would make NONE animated on rich-sync songs.
+                                    LyricsLineItem(
+                                        originalWords = words.stripRichSyncTimestamps(),
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        currentTimeMs = playbackState.currentTimeMs.value,
-                                        isCurrent = index == currentLineIndex,
-                                        customFontSize = if (appleStyle) AppleMusicLyricFontSize else null,
-                                        glow = if (appleStyle && index == currentLineIndex) AppleMusicActiveLineGlow else null,
-                                        pendingColorOverride = if (appleStyle) AppleMusicPendingWordColor else null,
-                                        translatedColorOverride = if (appleStyle) AppleMusicTranslatedColor else null,
-                                        translatedStyleOverride =
-                                            if (appleStyle) {
-                                                typo().bodyMedium.copy(
-                                                    fontSize = AppleMusicSubLineFontSize,
-                                                    lineHeight = AppleMusicSubLineHeight,
-                                                )
-                                            } else {
-                                                null
-                                            },
-                                        customPadding = if (appleStyle) AppleMusicLyricGap else 12.dp,
-                                        wrappedLineSpacing = if (appleStyle) AppleMusicWrappedLineSpacing else 0.dp,
-                                        // Apple takes its click from the wrapper Column below, which
-                                        // covers the translation too; a click here as well would put
-                                        // a second, smaller target on top of it.
-                                        modifier =
-                                            if (appleStyle) {
-                                                Modifier
-                                            } else {
-                                                Modifier.clickable {
-                                                    onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
-                                                }
-                                            },
+                                        isBold = index <= renderCurrentLineIndex,
+                                        isCurrent = index == renderCurrentLineIndex,
+                                        modifier = Modifier.clickable {
+                                            onLineClick(estimatedLineWindows[index].first.toFloat() * 100 / playbackState.totalMs.value)
+                                        },
                                     )
                                 } else if (appleStyle) {
                                     // Parsing failed — fall back to a plain line, but still the
@@ -708,7 +718,7 @@ fun LyricsView(
                                         // be here too: [allLinesCurrent] already lifts this line's
                                         // opacity to full through appleMusicLyricFocus, so without it
                                         // the line would come out fully opaque in grey ink.
-                                        isCurrent = index == currentLineIndex || allLinesCurrent,
+                                        isCurrent = index == renderCurrentLineIndex || allLinesCurrent,
                                         romanizedWords = romanizedWords,
                                     )
                                 } else {
@@ -716,13 +726,13 @@ fun LyricsView(
                                     LyricsLineItem(
                                         originalWords = words,
                                         translatedWords = translatedWords,
-                                        isBold = index <= currentLineIndex,
-                                        isCurrent = index == currentLineIndex,
+                                        isBold = index <= renderCurrentLineIndex,
+                                        isCurrent = index == renderCurrentLineIndex,
                                         romanizedWords = romanizedWords,
                                         modifier =
                                             Modifier
                                                 .clickable {
-                                                    onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
+                                                    onLineClick((if (useEstimatedSync) estimatedLineWindows[index].first else line.startTimeMs.toLongOrNull() ?: 0L).toFloat() * 100 / playbackState.totalMs.value)
                                                 },
                                     )
                                 }
@@ -740,7 +750,7 @@ fun LyricsView(
                                     // [allLinesCurrent] is the narrow version: it fires only when the
                                     // timestamps genuinely cannot order anything, i.e. an unsynced
                                     // sheet, where every line being current is the wanted result.
-                                    isCurrent = index == currentLineIndex || allLinesCurrent,
+                                    isCurrent = index == renderCurrentLineIndex || allLinesCurrent,
                                 )
                             }
 
@@ -755,36 +765,29 @@ fun LyricsView(
                                 // whole line, FADE/GLOW/SLIDE/APPLE animate the line as a
                                 // unit. FLARE needs real word timing and NONE is the
                                 // static look, so both keep the classic LyricsLineItem.
-                                if (lyricsData.lyrics.syncType == "LINE_SYNCED" &&
-                                    effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.FLARE &&
-                                    effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.NONE
-                                ) {
+                                if (effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.NONE) {
+                                    val lineStart =
+                                        if (useEstimatedSync) estimatedLineWindows[index].first
+                                        else line.startTimeMs.toLongOrNull() ?: 0L
+                                    val lineEnd =
+                                        if (useEstimatedSync) estimatedLineWindows[index].second
+                                        else line.endTimeMs.toLongOrNull()
+                                            ?: estimatedLineWindows.getOrNull(index + 1)?.first
+                                            ?: (lineStart + 1_000L)
                                     val singleWordLine =
-                                        remember(words, line.startTimeMs, line.endTimeMs) {
-                                            // The line model carries String timestamps (the
-                                            // parser converts the same way: toLongOrNull, and
-                                            // a missing end time means "until the next line".
-                                            com.maxrave.simpmusic.extension.ParsedRichSyncLine(
-                                                words = listOf(
-                                                    com.maxrave.simpmusic.extension.WordTiming(
-                                                        text = words,
-                                                        startTimeMs = line.startTimeMs.toLongOrNull() ?: 0L,
-                                                    ),
-                                                ),
-                                                lineStartTimeMs = line.startTimeMs.toLongOrNull() ?: 0L,
-                                                lineEndTimeMs = line.endTimeMs.toLongOrNull() ?: Long.MAX_VALUE,
-                                            )
+                                        remember(words, lineStart, lineEnd) {
+                                            synthesizeCharacterTimedLine(words, lineStart, lineEnd)
                                         }
                                     EchoLyricsLine(
                                         parsedLine = singleWordLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
                                         currentTimeMs = playbackState.currentTimeMs.value,
-                                        isCurrent = index == currentLineIndex,
+                                        isCurrent = index == renderCurrentLineIndex,
                                         style = effectiveEchoLyricsStyle,
                                         modifier =
                                             Modifier.clickable {
-                                                onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
+                                                onLineClick((if (useEstimatedSync) estimatedLineWindows[index].first else line.startTimeMs.toLongOrNull() ?: 0L).toFloat() * 100 / playbackState.totalMs.value)
                                             },
                                     )
                                 } else {
@@ -792,12 +795,12 @@ fun LyricsView(
                                         originalWords = words,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        isBold = index <= currentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
-                                        isCurrent = index == currentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
+                                        isBold = index <= renderCurrentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
+                                        isCurrent = index == renderCurrentLineIndex || lyricsData.lyrics.syncType != "LINE_SYNCED",
                                         modifier =
                                             Modifier
                                                 .clickable(enabled = lyricsData.lyrics.syncType == "LINE_SYNCED") {
-                                                    onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
+                                                    onLineClick((if (useEstimatedSync) estimatedLineWindows[index].first else line.startTimeMs.toLongOrNull() ?: 0L).toFloat() * 100 / playbackState.totalMs.value)
                                                 },
                                     )
                                 }
@@ -830,7 +833,7 @@ fun LyricsView(
                                         enabled = lyricsData.lyrics.syncType == "LINE_SYNCED" ||
                                             lyricsData.lyrics.syncType == "RICH_SYNCED",
                                     ) {
-                                        onLineClick(line.startTimeMs.toFloat() * 100 / playbackState.totalMs.value)
+                                        onLineClick((if (useEstimatedSync) estimatedLineWindows[index].first else line.startTimeMs.toLongOrNull() ?: 0L).toFloat() * 100 / playbackState.totalMs.value)
                                     },
                         ) {
                             // Blur spans the FULL width; the gutter is applied inside it. Ordered
@@ -848,7 +851,7 @@ fun LyricsView(
                                         .appleMusicLyricFocus(
                                             distanceFromCurrent,
                                             blurEnabled = !isDragging,
-                                            hasActiveLine = currentLineIndex >= 0,
+                                            hasActiveLine = renderCurrentLineIndex >= 0,
                                             allLinesCurrent = allLinesCurrent,
                                         ),
                             ) {
@@ -881,6 +884,7 @@ fun LyricsView(
                     } else {
                         footer()
                     }
+                }
                 }
             }
         }
@@ -973,6 +977,86 @@ private class LyricsPlaybackState {
     val totalMs = mutableLongStateOf(1L)
 }
 
+internal fun buildResolvedLyricWindows(
+    lines: List<com.maxrave.domain.data.model.metadata.Line>,
+    totalMs: Long,
+): List<Pair<Long, Long>> {
+    if (lines.isEmpty()) return emptyList()
+    val safeTotal = totalMs.coerceAtLeast(lines.size.toLong())
+    val starts = LongArray(lines.size) { Long.MIN_VALUE }
+    val explicitEnds = LongArray(lines.size) { Long.MIN_VALUE }
+    lines.forEachIndexed { index, line ->
+        line.startTimeMs.toLongOrNull()?.takeIf { it >= 0L }?.let { starts[index] = it }
+        line.endTimeMs.toLongOrNull()?.takeIf { it > starts[index] && it >= 0L }?.let { explicitEnds[index] = it }
+    }
+
+    val meaningfulStarts = starts.withIndex().filter { it.value != Long.MIN_VALUE }.map { it.index }
+    val distinctStarts = meaningfulStarts.map { starts[it] }.distinct()
+    if (distinctStarts.size < 2) return buildEstimatedLyricWindows(lines, safeTotal)
+
+    // Fill missing starts by interpolating between the nearest known neighbours. Leading/trailing
+    // gaps are stretched between 0 and the track end. This preserves provider timing wherever it
+    // exists while making mixed-quality sheets use exactly the same animation path as rich sync.
+    val resolvedStarts = LongArray(lines.size)
+    for (i in lines.indices) {
+        if (starts[i] != Long.MIN_VALUE) {
+            resolvedStarts[i] = starts[i].coerceIn(0L, safeTotal)
+            continue
+        }
+        var prev = i - 1
+        while (prev >= 0 && starts[prev] == Long.MIN_VALUE) prev--
+        var next = i + 1
+        while (next < lines.size && starts[next] == Long.MIN_VALUE) next++
+        resolvedStarts[i] = when {
+            prev >= 0 && next < lines.size -> {
+                val a = starts[prev]
+                val b = starts[next]
+                a + ((b - a) * (i - prev).toDouble() / (next - prev).toDouble()).toLong()
+            }
+            prev >= 0 -> starts[prev] + ((safeTotal - starts[prev]) * (i - prev).toDouble() / (lines.lastIndex - prev).coerceAtLeast(1).toDouble()).toLong()
+            next < lines.size -> (starts[next] * (i + 1).toDouble() / (next + 1).toDouble()).toLong()
+            else -> 0L
+        }.coerceIn(0L, safeTotal)
+    }
+
+    return lines.indices.map { i ->
+        val start = resolvedStarts[i]
+        val explicitEnd = explicitEnds[i]
+        val nextStart = resolvedStarts.getOrNull(i + 1)
+        val end = (explicitEnd.takeIf { it != Long.MIN_VALUE } ?: nextStart ?: safeTotal)
+            .coerceAtLeast(start + 1L)
+            .coerceAtMost(safeTotal.coerceAtLeast(start + 1L))
+        start to end
+    }
+}
+
+private fun buildEstimatedLyricWindows(
+    lines: List<com.maxrave.domain.data.model.metadata.Line>,
+    totalMs: Long,
+): List<Pair<Long, Long>> {
+    val safeTotal = totalMs.coerceAtLeast(lines.size.toLong())
+    fun weight(text: String): Float =
+        text.codePoints().sumOf { cp ->
+            val c = cp.toChar()
+            when {
+                c.isWhitespace() -> 0.18
+                c.isLetterOrDigit() -> if (c in "aeiouAEIOU" || c in "অআইঈউঊএঐওঔ") 1.12 else 0.92
+                c in ".,!?;:'\"…，。！？；：‘’“”–—-" -> 0.28
+                else -> 0.70
+            }.toDouble()
+        }.toFloat().coerceAtLeast(1f)
+    val weights = lines.map { weight(it.words) }
+    val totalWeight = weights.sum().coerceAtLeast(1f)
+    var cursor = 0L
+    return weights.mapIndexed { index, w ->
+        val start = cursor
+        val end = if (index == weights.lastIndex) safeTotal
+        else (start + (safeTotal * (w / totalWeight)).toLong()).coerceAtLeast(start + 1L)
+        cursor = end
+        start to end
+    }
+}
+
 @Composable
 private fun rememberLyricsPlaybackState(
     timeLine: StateFlow<TimeLine>,
@@ -992,6 +1076,34 @@ private fun rememberLyricsPlaybackState(
                 } else {
                     timedLineIndexes.activeIndexAt(now)
                 }
+        }
+    }
+
+    // Round 194 (user report: word-synced lyrics were not fluid). The sung LINE
+    // used to be picked off the 250 ms tick as well, so a karaoke line could sit
+    // unlit for a quarter of a second after it started - and the per-word wipe
+    // only ever runs on the CURRENT line. Recomputing the index from the live
+    // player position once per frame fixes that; the state is read through
+    // derivedStateOf by the line items, so this recomposes only when the LINE
+    // actually changes, never per frame.
+    val playerConnection = com.muso.music.LocalPlayerConnectionOrNull.current
+    LaunchedEffect(playerConnection, timedLineIndexes, lyricsOffsetMs) {
+        val player = playerConnection?.player ?: return@LaunchedEffect
+        while (true) {
+            withFrameNanos {
+                if (player.isPlaying && timedLineIndexes.isNotEmpty()) {
+                    val now = player.currentPosition.coerceAtLeast(0L) - lyricsOffsetMs
+                    val index =
+                        if (now <= 0L) {
+                            -1
+                        } else {
+                            timedLineIndexes.activeIndexAt(now)
+                        }
+                    if (index != state.currentLineIndex.intValue) {
+                        state.currentLineIndex.intValue = index
+                    }
+                }
+            }
         }
     }
 
@@ -1022,20 +1134,44 @@ private fun rememberSmoothPlayhead(
     enabled: Boolean,
 ): State<Long> {
     val playhead = remember { mutableLongStateOf(rawMs) }
-    LaunchedEffect(rawMs, enabled) {
+    // Round 194 (user report: word-synced lyrics were not fluid). The wall-clock
+    // interpolation below is only as good as its cap: whenever a tick takes
+    // longer than PLAYHEAD_TICK_MS (a loaded main thread - exactly the case on
+    // the reporting device) the playhead advances to the cap and then FREEZES
+    // until the next tick, so the wipe stalls and jumps instead of sweeping.
+    // While a real player is connected and playing we can read ITS position once
+    // per frame instead: exact, no cap, no drift. The ticked value stays as the
+    // fallback for paused playback and for hosts with no player (previews).
+    val playerConnection = com.muso.music.LocalPlayerConnectionOrNull.current
+    val latestRawMs by rememberUpdatedState(rawMs)
+    LaunchedEffect(enabled, playerConnection) {
         if (!enabled) {
-            playhead.longValue = rawMs
+            playhead.longValue = latestRawMs
             return@LaunchedEffect
         }
-        // Keyed on rawMs, so the next real tick cancels this loop and restarts it from the truth —
-        // the interpolation can accumulate error for at most one tick before being corrected.
-        var baseNanos = -1L
-        while (true) {
-            withFrameNanos { frameNanos ->
-                if (baseNanos < 0L) baseNanos = frameNanos
-                val elapsedMs = (frameNanos - baseNanos) / 1_000_000L
-                playhead.longValue = rawMs + elapsedMs.coerceIn(0L, PLAYHEAD_TICK_MS)
+        val player = playerConnection?.player
+        if (player != null) {
+            while (true) {
+                withFrameNanos {
+                    if (player.isPlaying) {
+                        playhead.longValue = player.currentPosition.coerceAtLeast(0L)
+                    } else {
+                        playhead.longValue = latestRawMs.coerceAtLeast(0L)
+                    }
+                }
             }
+        }
+        var baseRawMs = latestRawMs
+        var baseNanos = 0L
+        while (true) {
+            val frameNanos = withFrameNanos { it }
+            val latest = latestRawMs
+            if (baseNanos == 0L || latest != baseRawMs) {
+                baseRawMs = latest
+                baseNanos = frameNanos
+            }
+            val elapsedMs = (frameNanos - baseNanos) / 1_000_000L
+            playhead.longValue = baseRawMs + elapsedMs.coerceIn(0L, PLAYHEAD_TICK_MS)
         }
     }
     return playhead

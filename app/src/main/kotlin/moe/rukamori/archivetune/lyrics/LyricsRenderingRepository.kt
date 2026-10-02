@@ -52,7 +52,7 @@ class LyricsRenderingRepository
                     LyricsRenderingPreferences(
                         clickEnabled = values[LyricsClickKey] ?: true,
                         scrollEnabled = values[LyricsScrollKey] ?: true,
-                        textSizeSp = values[LyricsTextSizeKey] ?: 26f,
+                        textSizeSp = (values[LyricsTextSizeKey] ?: 26).toFloat(),
                         lineSpacing = values[LyricsLineSpacingKey] ?: 1.3f,
                         lineBlurEnabled = values[LyricsLineBlurKey] ?: true,
                         v2BounceFactor = values[LyricsV2BounceFactorKey] ?: 1f,

@@ -1,5 +1,6 @@
 package com.muso.music.ui.player
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.collectAsState
@@ -18,6 +19,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +39,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.maxrave.domain.manager.DataStoreManager
@@ -62,6 +65,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 import com.muso.music.ui.player.classic.MusoClassicMiniPlayer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlin.math.roundToInt
 
 /**
@@ -179,7 +183,7 @@ fun BoxScope.MusoNavbarHost(
                         onOpenNowPlaying = { playerBottomSheetState.expandSoft() },
                         navigationProximity = 0f,
                         backdrop = backdrop,
-                        useLiquidGlass = liquidGlass,
+                        useLiquidGlass = glassOn,
                         pureBlack = pureBlack,
                     )
                 } else {
@@ -198,7 +202,16 @@ fun BoxScope.MusoNavbarHost(
                     )
                 }
             }
-        } else if (liquidGlass && miniPlayerStyle == MiniPlayerStyle.MINIFY) {
+        } else androidx.compose.animation.Crossfade(
+            // Round 194 (user request: "ekdom smooth change"): the glass <-> flat
+            // bar and mini-player swap used to be an instant cut - two completely
+            // different clusters replaced in one frame, which read as a jolt. A
+            // short crossfade makes the change glide instead.
+            targetState = liquidGlass,
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 180),
+            label = "liquidGlassBarSwap",
+        ) { glassOn ->
+        if (glassOn && miniPlayerStyle == MiniPlayerStyle.MINIFY) {
             // Glass style: the bar's integrated glass pill, exactly as before.
             LiquidGlassAppBottomNavigationBar(
                 startDestination = com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination,
@@ -211,7 +224,7 @@ fun BoxScope.MusoNavbarHost(
                 onOpenNowPlaying = { playerBottomSheetState.expandSoft() },
                 reloadDestinationIfNeeded = { onReloadTab() },
             )
-        } else if (liquidGlass) {
+        } else if (glassOn) {
             // Flat style with glass on: the standalone pill (rendered with the
             // glass material by itself) above the glass bar, whose integrated
             // pill is off.
@@ -230,7 +243,7 @@ fun BoxScope.MusoNavbarHost(
                             onOpenNowPlaying = { playerBottomSheetState.expandSoft() },
                             navigationProximity = if (isScrolledToTop) 0f else 1f,
                             backdrop = backdrop,
-                            useLiquidGlass = liquidGlass,
+                            useLiquidGlass = glassOn,
                             pureBlack = pureBlack,
                         )
                     } else {
@@ -286,6 +299,7 @@ fun BoxScope.MusoNavbarHost(
                 pureBlack = pureBlack,
             )
         }
+        }
     }
 }
 
@@ -319,7 +333,7 @@ private fun ClassicArchiveTuneMiniPlayer(
                 } / 25.0
                 glassLuminance.animateTo(average.coerceIn(0.3, 0.8).toFloat(), tween(500))
             }.onFailure { Logger.e("ClassicMiniPlayer", "Glass luminance sampling failed: ${it.message}") }
-            delay(1.seconds)
+            delay(5.seconds)
         }
     }
     var position by remember { mutableLongStateOf(connection.player.currentPosition.coerceAtLeast(0L)) }
@@ -330,7 +344,7 @@ private fun ClassicArchiveTuneMiniPlayer(
             val player = connection.player
             position = player.currentPosition.coerceAtLeast(0L)
             duration = player.duration.takeIf { it > 0L } ?: 0L
-            delay(50L)
+            delay(100L)
         }
     }
 
@@ -341,8 +355,8 @@ private fun ClassicArchiveTuneMiniPlayer(
                     Modifier.liquidGlass(
                         backdrop = backdrop,
                         layer = glassLayer,
-                        luminance = glassLuminance.value,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                        luminanceAnimation = glassLuminance.value,
+                        shape = RoundedCornerShape(28.dp),
                     )
                 } else {
                     Modifier

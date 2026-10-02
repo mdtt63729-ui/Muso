@@ -250,6 +250,7 @@ fun SongListItem(
     showLikedIcon: Boolean = true,
     showInLibraryIcon: Boolean = false,
     showDownloadIcon: Boolean = true,
+    showDownloadProgress: Boolean = false,
     badges: @Composable RowScope.() -> Unit = {
         if (showLikedIcon && song.song.liked) {
             Icon.Favorite()
@@ -265,11 +266,36 @@ fun SongListItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
-) = ListItem(
+) {
+    val liveDownload by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
+    val downloadStatus =
+        if (showDownloadProgress) {
+            when (liveDownload?.state) {
+                Download.STATE_QUEUED,
+                Download.STATE_RESTARTING,
+                -> "Preparing download"
+                Download.STATE_DOWNLOADING -> {
+                    val percent = liveDownload?.percentDownloaded
+                        ?.takeIf { it.isFinite() }
+                        ?.coerceIn(0f, 100f)
+                        ?.toInt()
+                    if (percent != null && percent > 0) "Downloading $percent%" else "Downloading"
+                }
+                Download.STATE_STOPPED -> "Download paused"
+                Download.STATE_FAILED -> "Download failed"
+                Download.STATE_COMPLETED -> "Downloaded"
+                else -> null
+            }
+        } else {
+            null
+        }
+
+    ListItem(
     title = song.song.title,
     subtitle = joinByBullet(
         song.artists.joinToString { it.name },
-        makeTimeString(song.song.duration * 1000L)
+        makeTimeString(song.song.duration * 1000L),
+        downloadStatus,
     ),
     badges = badges,
     thumbnailContent = {
@@ -279,12 +305,15 @@ fun SongListItem(
             isActive = isActive,
             isPlaying = isPlaying,
             shape = RoundedCornerShape(ThumbnailCornerRadius),
+            showDownloadProgress = showDownloadProgress,
+            downloadId = if (showDownloadProgress) song.id else null,
             modifier = Modifier.size(ListThumbnailSize)
         )
     },
     trailingContent = trailingContent,
     modifier = modifier
 )
+}
 
 @Composable
 fun SongGridItem(
@@ -796,7 +825,13 @@ fun ItemThumbnail(
     shape: Shape,
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
+    showDownloadProgress: Boolean = false,
+    downloadId: String? = null,
 ) {
+    val download by LocalDownloadUtil.current
+        .getDownload(downloadId)
+        .collectAsState(initial = null)
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -833,6 +868,36 @@ fun ItemThumbnail(
                     shape = shape
                 )
         )
+
+        // The thumbnail itself is used as the progress surface: the dark
+        // scrim retreats from bottom to top as Media3 reports bytes, so the
+        // artwork reveal and the actual download percentage share one clock.
+        if (showDownloadProgress && download != null) {
+            val progress = (download.percentDownloaded / 100f)
+                .takeIf { it.isFinite() }
+                ?.coerceIn(0f, 1f)
+                ?: 0f
+            if (download.state != Download.STATE_COMPLETED && progress < 1f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(1f - progress)
+                        .align(Alignment.TopCenter)
+                        .clip(shape)
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.62f))
+                )
+                CircularProgressIndicator(
+                    progress = { progress },
+                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(24.dp),
+                )
+                Text(
+                    text = "${(progress * 100f).toInt()}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                )
+            }
+        }
     }
 }
 

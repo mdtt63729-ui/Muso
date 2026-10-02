@@ -6,7 +6,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStore
 import com.muso.music.extensions.toEnum
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -16,7 +15,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.properties.ReadOnlyProperty
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+/**
+ * Muso and the embedded ArchiveTune settings UI share ONE Preferences store.
+ * Keeping a second DataStore instance/file here caused settings written by the
+ * settings screen to be invisible to player/service/lyrics consumers.
+ */
+val Context.dataStore: DataStore<Preferences>
+    get() = moe.rukamori.archivetune.utils.dataStore
 
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? =
     runBlocking(Dispatchers.IO) {
@@ -52,7 +57,7 @@ fun <T> rememberPreference(
         context.dataStore.data
             .map { it[key] ?: defaultValue }
             .distinctUntilChanged()
-    }.collectAsState(context.dataStore[key] ?: defaultValue)
+    }.collectAsState(defaultValue)
 
     return remember {
         object : MutableState<T> {
@@ -80,12 +85,11 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val initialValue = context.dataStore[key].toEnum(defaultValue = defaultValue)
     val state = remember {
         context.dataStore.data
             .map { it[key].toEnum(defaultValue = defaultValue) }
             .distinctUntilChanged()
-    }.collectAsState(initialValue)
+    }.collectAsState(defaultValue)
 
     return remember {
         object : MutableState<T> {

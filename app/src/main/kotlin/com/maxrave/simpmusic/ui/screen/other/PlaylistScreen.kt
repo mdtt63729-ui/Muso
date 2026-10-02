@@ -332,6 +332,15 @@ fun PlaylistScreen(
     val dominantColor = listColors.firstOrNull() ?: Color.Black
     // Apple Music-style page background from the artwork's dominant tone (see UIExt.toImmersiveBackground).
     val mutedPaletteBg = paletteState.palette.toImmersiveBackground()
+    // Round 193 (user request): the playlist page is BLACK in dark mode (exactly
+    // as before) and WHITE in light mode - everything else unchanged. The page
+    // and the header backdrops take the page colour; page-level text and icons
+    // invert; the artwork scrim and the white text sitting ON the artwork stay.
+    val isDark = com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme.current
+    val pageBg = if (isDark) mutedPaletteBg else Color.White
+    val onPage = if (isDark) Color.White else Color.Black
+    val pillBg = if (isDark) Color.White else Color.Black
+    val pillContent = if (isDark) Color.Black else Color.White
 
     // Loading dialog
     val showLoadingDialog by viewModel.showLoadingDialog.collectAsStateWithLifecycle()
@@ -357,7 +366,7 @@ fun PlaylistScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .background(mutedPaletteBg)
+                            .background(pageBg)
                             .hazeSource(hazeState),
                     state = lazyState,
                 ) {
@@ -551,7 +560,7 @@ fun PlaylistScreen(
                                             // so the recorded layer holds something to refract — and the glass buttons
                                             // are SIBLINGS placed with align(), never children of the source (that
                                             // nesting is the render-feedback loop that kills the RuntimeShader).
-                                            val headerBackdrop = rememberBackdrop(mutedPaletteBg)
+                                            val headerBackdrop = rememberBackdrop(pageBg)
                                             Box(modifier = Modifier.fillMaxWidth()) {
                                                 Column(
                                                     modifier =
@@ -598,7 +607,7 @@ fun PlaylistScreen(
                                                             Text(
                                                                 text = data.title,
                                                                 style = typo().headlineSmall,
-                                                                color = Color.White,
+                                                                color = onPage,
                                                                 maxLines = 2,
                                                             )
                                                             Spacer(modifier = Modifier.height(4.dp))
@@ -649,7 +658,7 @@ fun PlaylistScreen(
                                                                             Modifier
                                                                                 .size(48.dp)
                                                                                 .clip(CircleShape)
-                                                                                .background(Color.White.copy(alpha = 0.12f))
+                                                                                .background(onPage.copy(alpha = 0.12f))
                                                                                 .clickable {
                                                                                     viewModel.onUIEvent(PlaylistUIEvent.Shuffle)
                                                                                 },
@@ -658,7 +667,7 @@ fun PlaylistScreen(
                                                                         Icon(
                                                                             imageVector = SimpIcons.Shuffle,
                                                                             contentDescription = "Shuffle",
-                                                                            tint = Color.White,
+                                                                            tint = onPage,
                                                                             modifier = Modifier.size(22.dp),
                                                                         )
                                                                     }
@@ -669,7 +678,7 @@ fun PlaylistScreen(
                                                                             .height(48.dp)
                                                                             .widthIn(min = 110.dp)
                                                                             .clip(CircleShape)
-                                                                            .background(Color.White)
+                                                                            .background(pillBg)
                                                                             .clickable {
                                                                                 if (isThisPlaying) {
                                                                                     sharedViewModel.onUIEvent(UIEvent.PlayPause)
@@ -684,13 +693,13 @@ fun PlaylistScreen(
                                                                             imageVector =
                                                                                 if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
                                                                             contentDescription = null,
-                                                                            tint = Color.Black,
+                                                                            tint = pillContent,
                                                                             modifier = Modifier.size(22.dp),
                                                                         )
                                                                         Spacer(modifier = Modifier.width(4.dp))
                                                                         Text(
                                                                             text = if (isThisPlaying) "Pause" else "Play",
-                                                                            color = Color.Black,
+                                                                            color = pillContent,
                                                                             style = typo().labelLarge,
                                                                         )
                                                                     }
@@ -701,7 +710,7 @@ fun PlaylistScreen(
                                                                             Modifier
                                                                                 .size(48.dp)
                                                                                 .clip(CircleShape)
-                                                                                .background(Color.White.copy(alpha = 0.12f)),
+                                                                                .background(onPage.copy(alpha = 0.12f)),
                                                                         contentAlignment = Alignment.Center,
                                                                     ) {
                                                                         Crossfade(targetState = downloadState) { state ->
@@ -761,7 +770,7 @@ fun PlaylistScreen(
                                                                                     ) {
                                                                                         Icon(
                                                                                             imageVector = SimpIcons.DownloadForOffline,
-                                                                                            tint = Color.White,
+                                                                                            tint = onPage,
                                                                                             contentDescription = "Download",
                                                                                             modifier = Modifier.size(22.dp),
                                                                                         )
@@ -825,7 +834,7 @@ fun PlaylistScreen(
                                                             showSearchBar = !showSearchBar
                                                         },
                                                     ) {
-                                                        Icon(SimpIcons.Search, null, tint = Color.White)
+                                                        Icon(SimpIcons.Search, null, tint = onPage)
                                                     }
                                                     IconButton(
                                                         onClick = onPlaylistMoreClick,
@@ -833,7 +842,7 @@ fun PlaylistScreen(
                                                         Icon(
                                                             imageVector = SimpIcons.MoreVert,
                                                             contentDescription = "More",
-                                                            tint = Color.White,
+                                                            tint = onPage,
                                                         )
                                                     }
                                                 }
@@ -864,7 +873,7 @@ fun PlaylistScreen(
                                                                     Modifier
                                                                         .size(48.dp)
                                                                         .clip(CircleShape)
-                                                                        .background(Color.White.copy(alpha = 0.12f))
+                                                                        .background(onPage.copy(alpha = 0.12f))
                                                                         .clickable {
                                                                             viewModel.onUIEvent(PlaylistUIEvent.Shuffle)
                                                                         },
@@ -873,7 +882,7 @@ fun PlaylistScreen(
                                                                 Icon(
                                                                     imageVector = SimpIcons.Shuffle,
                                                                     contentDescription = "Shuffle",
-                                                                    tint = Color.White,
+                                                                    tint = onPage,
                                                                     modifier = Modifier.size(22.dp),
                                                                 )
                                                             }
@@ -884,7 +893,7 @@ fun PlaylistScreen(
                                                                     .height(48.dp)
                                                                     .widthIn(min = 110.dp)
                                                                     .clip(CircleShape)
-                                                                    .background(Color.White)
+                                                                    .background(pillBg)
                                                                     .clickable {
                                                                         if (isThisPlaying) {
                                                                             sharedViewModel.onUIEvent(UIEvent.PlayPause)
@@ -899,13 +908,13 @@ fun PlaylistScreen(
                                                                     imageVector =
                                                                         if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
                                                                     contentDescription = null,
-                                                                    tint = Color.Black,
+                                                                    tint = pillContent,
                                                                     modifier = Modifier.size(22.dp),
                                                                 )
                                                                 Spacer(modifier = Modifier.width(4.dp))
                                                                 Text(
                                                                     text = if (isThisPlaying) "Pause" else "Play",
-                                                                    color = Color.Black,
+                                                                    color = pillContent,
                                                                     style = typo().labelLarge,
                                                                 )
                                                             }
@@ -916,7 +925,7 @@ fun PlaylistScreen(
                                                                     Modifier
                                                                         .size(48.dp)
                                                                         .clip(CircleShape)
-                                                                        .background(Color.White.copy(alpha = 0.12f)),
+                                                                        .background(onPage.copy(alpha = 0.12f)),
                                                                 contentAlignment = Alignment.Center,
                                                             ) {
                                                                 Crossfade(targetState = downloadState) { state ->
@@ -976,7 +985,7 @@ fun PlaylistScreen(
                                                                             ) {
                                                                                 Icon(
                                                                                     imageVector = SimpIcons.DownloadForOffline,
-                                                                                    tint = Color.White,
+                                                                                    tint = onPage,
                                                                                     contentDescription = "Download",
                                                                                     modifier = Modifier.size(22.dp),
                                                                                 )
@@ -1020,7 +1029,7 @@ fun PlaylistScreen(
                                                                 "",
                                                             )
                                                         },
-                                                    color = Color.White,
+                                                    color = onPage,
                                                     style = typo().bodyMedium,
                                                     modifier = Modifier.padding(vertical = 8.dp),
                                                 )
@@ -1049,7 +1058,7 @@ fun PlaylistScreen(
                             Column(modifier = Modifier.animateItem()) {
                                 if (playingTrack?.videoId == item.videoId && isPlaying) {
                                     SongFullWidthItems(
-                                        forceDark = true,
+                                        forceDark = isDark,
                                         isPlaying = true,
                                         track = item,
                                         onMoreClickListener = { onItemMoreClick(it) },
@@ -1070,7 +1079,7 @@ fun PlaylistScreen(
                                     )
                                 } else {
                                     SongFullWidthItems(
-                                        forceDark = true,
+                                        forceDark = isDark,
                                         isPlaying = false,
                                         track = item,
                                         onMoreClickListener = { onItemMoreClick(it) },
@@ -1094,7 +1103,7 @@ fun PlaylistScreen(
                                     HorizontalDivider(
                                         modifier = Modifier.padding(start = 72.dp, end = 16.dp),
                                         thickness = 0.5.dp,
-                                        color = Color.White.copy(alpha = 0.12f),
+                                        color = onPage.copy(alpha = 0.12f),
                                     )
                                 }
                             }
@@ -1104,7 +1113,7 @@ fun PlaylistScreen(
                         ListState.IDLE -> {
                             // DO NOTHING
                             item {
-                                EndOfPage()
+                                EndOfPage(withoutCredit = true)
                             }
                         }
 
@@ -1122,7 +1131,7 @@ fun PlaylistScreen(
                                 }
                             }
                             item {
-                                EndOfPage()
+                                EndOfPage(withoutCredit = true)
                             }
                         }
 
@@ -1142,13 +1151,13 @@ fun PlaylistScreen(
                                 }
                             }
                             item {
-                                EndOfPage()
+                                EndOfPage(withoutCredit = true)
                             }
                         }
 
                         ListState.PAGINATION_EXHAUST -> {
                             item {
-                                EndOfPage()
+                                EndOfPage(withoutCredit = true)
                             }
                         }
                     }
@@ -1163,7 +1172,7 @@ fun PlaylistScreen(
                         Modifier
                             .fillMaxWidth()
                             .onGloballyPositioned { searchBarHeightPx = it.size.height }
-                            .hazeBlur(HazeInput.Sources(hazeState), barBlurStyle(mutedPaletteBg, 0.55f)),
+                            .hazeBlur(HazeInput.Sources(hazeState), barBlurStyle(pageBg, 0.55f)),
                     ) {
                         Row(
                             modifier =
@@ -1215,7 +1224,7 @@ fun PlaylistScreen(
                                     showSearchBar = !showSearchBar
                                 },
                             ) {
-                                Icon(SimpIcons.Close, null, tint = Color.White)
+                                Icon(SimpIcons.Close, null, tint = onPage)
                             }
                         }
                     }
@@ -1233,7 +1242,7 @@ fun PlaylistScreen(
                         },
                         onOpenActions = { showSelectionSheet = true },
                         modifier =
-                            Modifier.hazeBlur(HazeInput.Sources(hazeState), barBlurStyle(mutedPaletteBg, 0.55f)),
+                            Modifier.hazeBlur(HazeInput.Sources(hazeState), barBlurStyle(pageBg, 0.55f)),
                     )
                 }
                 if (showSelectionSheet) {
@@ -1355,7 +1364,7 @@ fun PlaylistScreen(
                                     showSearchBar = !showSearchBar
                                 },
                             ) {
-                                Icon(SimpIcons.Search, null, tint = Color.White)
+                                Icon(SimpIcons.Search, null, tint = onPage)
                             }
                         },
                         colors =
@@ -1363,7 +1372,7 @@ fun PlaylistScreen(
                                 containerColor = Color.Transparent,
                             ),
                         modifier =
-                            Modifier.hazeBlur(HazeInput.Sources(hazeState), barBlurStyle(mutedPaletteBg, 0.55f)),
+                            Modifier.hazeBlur(HazeInput.Sources(hazeState), barBlurStyle(pageBg, 0.55f)),
                     )
                 }
             }

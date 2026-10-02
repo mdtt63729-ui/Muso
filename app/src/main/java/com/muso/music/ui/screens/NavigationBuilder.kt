@@ -242,13 +242,13 @@ fun NavGraphBuilder.navigationBuilder(
         // The SimpMusic playlist screen replaces Muso's own: hero header,
         // action cluster, track list, in-page search and selection mode.
         val playlistId = entry.arguments?.getString("playlistId") ?: ""
-        com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-            com.maxrave.simpmusic.ui.screen.other.PlaylistScreen(
-                playlistId = playlistId,
-                isYourYouTubePlaylist = true,
-                navController = navController,
-            )
-        }
+        // Round 193 (user request): no ForceDarkContent here - the playlist page
+        // is theme-aware now (black in dark mode, white in light mode).
+        com.maxrave.simpmusic.ui.screen.other.PlaylistScreen(
+            playlistId = playlistId,
+            isYourYouTubePlaylist = true,
+            navController = navController,
+        )
     }
     composable(
         route = "local_playlist/{playlistId}",

@@ -55,8 +55,14 @@ object Motion {
     /** Pop: PRD band 220-320 ms - exits are always faster than entries. */
     const val POP: Int = 280
 
-    /** Top-level tab switch: short crossfade, never a slide (PRD §3.5). */
-    const val TAB: Int = 150
+    /**
+     * Top-level tab switch: short crossfade, never a slide (PRD §3.5).
+     * Round 195 (user request: the button-to-button switch felt laggy): 150 ms
+     * left the incoming screen's first composition - the heaviest frame of the
+     * whole switch - sitting inside a blink. 210 ms keeps it a crossfade while
+     * giving that frame room, which is what reads as smooth.
+     */
+    const val TAB: Int = 210
 
     /** Outgoing page parallax: PRD band 15-25% of screen width. */
     const val PARALLAX: Float = 0.20f

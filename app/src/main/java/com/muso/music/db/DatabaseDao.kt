@@ -573,6 +573,24 @@ interface DatabaseDao {
     @Query("SELECT * FROM event ORDER BY rowId DESC")
     fun events(): Flow<List<EventWithSong>>
 
+    @Transaction
+    @Query("SELECT * FROM event ORDER BY rowId DESC LIMIT :limit")
+    fun recentEvents(limit: Int = 100): Flow<List<EventWithSong>>
+
+    @Transaction
+    @Query("""
+        SELECT s.* FROM song AS s
+        INNER JOIN (
+            SELECT songId, MAX(rowId) AS latestRowId
+            FROM event
+            GROUP BY songId
+            ORDER BY latestRowId DESC
+            LIMIT :limit OFFSET :offset
+        ) AS recent ON recent.songId = s.id
+        ORDER BY recent.latestRowId DESC
+    """)
+    suspend fun recentSongs(limit: Int, offset: Int): List<Song>
+
     @Query("DELETE FROM event")
     fun clearListenHistory()
 

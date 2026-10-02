@@ -47,6 +47,7 @@ import androidx.compose.foundation.background
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -83,9 +84,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -609,7 +612,19 @@ class MainActivity : ComponentActivity() {
                     )
 
                     val (translucentNavBar, onTranslucentNavBarChange) = rememberPreference(TranslucentNavigationBarKey, defaultValue = false)
-                    val liquidGlassNavBar by rememberPreference(LiquidGlassNavBarKey, defaultValue = false)
+                    // Round 194 (user report: flipping the Liquid Glass switch and the
+                    // mini-player swap stuttered). The old `by` delegation READ the flag
+                    // during composition, so every toggle invalidated this whole Activity
+                    // scope - NavHost, every screen, the insets - a full-tree
+                    // recomposition for one switch. It is now held as a State and read
+                    // LAZILY: the NavHost transitions read it at transition time, and
+                    // FloatingNavBarEnv (a leaf) provides the two locals the glass
+                    // surfaces read.
+                    val liquidGlassState: State<Boolean> =
+                        dataStore.data
+                            .map { it[LiquidGlassNavBarKey] ?: false }
+                            .distinctUntilChanged()
+                            .collectAsState(initial = false)
 
                     // One-time: M3 Expressive is the default player style now (user
                     // request). Only a stored CLASSIC (the old default) migrates; after
@@ -646,23 +661,6 @@ class MainActivity : ComponentActivity() {
                         playerBottomSheetState.snapTo(playerBottomSheetState.dismissedBound)
                     }
 
-                    val playerAwareWindowInsets = remember(bottomInset, shouldShowNavigationBar, playerBottomSheetState.isDismissed, translucentNavBar, liquidGlassNavBar) {
-                        var bottom = bottomInset
-                        // With the translucent navigation bar the content scrolls behind it,
-                        // so its height is no longer part of the content's bottom inset.
-                        // Same for the floating glass bar + glass mini player: content
-                        // scrolls behind both (reference behaviour), otherwise every list
-                        // ended in a dead black strip under the mini player.
-                        val behindFloatingGlass = translucentNavBar || liquidGlassNavBar
-                        if (shouldShowNavigationBar && !behindFloatingGlass) bottom += NavigationBarHeight
-                        // The floating pill mini player rides above the bar in BOTH
-                        // modes now (glass and flat), so content always reserves
-                        // its height - no list item hides behind the flat pill.
-                        if (!playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
-                        windowsInsets
-                            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
-                            .add(WindowInsets(top = AppBarHeight, bottom = bottom))
-                    }
 
                     val searchBarScrollBehavior = appBarScrollBehavior(
                         canScroll = {
@@ -839,10 +837,13 @@ class MainActivity : ComponentActivity() {
                         LocalDatabase provides database,
                         LocalContentColor provides contentColorFor(MaterialTheme.colorScheme.surface),
                         LocalPlayerConnection provides playerConnection,
-                        LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
+                        // Round 194: the same value under a NULLABLE local, so
+                        // components that can legitimately run outside the player
+                        // tree (the lyrics renderers) can read the live player
+                        // without tripping the strict local's error default.
+                        LocalPlayerConnectionOrNull provides playerConnection,
                         LocalDownloadUtil provides downloadUtil,
                         LocalShimmerTheme provides ShimmerTheme,
-                        LocalLiquidGlassEnabled provides liquidGlassNavBar,
                         // Suite theme locals (the SimpMusic components read these
                         // instead of MaterialTheme): they were never provided, so
                         // LocalIsDarkTheme stayed on its static default TRUE - the
@@ -863,6 +864,13 @@ class MainActivity : ComponentActivity() {
                             // DownloadUtil — the app always opens even if the kit
                             // graph fails (Round 169 crash-loop fix).
                     ) {
+                        FloatingNavBarEnv(
+                            liquidGlassState = liquidGlassState,
+                            bottomInset = bottomInset,
+                            shouldShowNavigationBar = shouldShowNavigationBar,
+                            playerSheetDismissed = playerBottomSheetState.isDismissed,
+                            windowsInsets = windowsInsets,
+                        ) {
                         NavHost(
                             // The content layer the glass surfaces sample; the bar and
                             // its MiniPlayer stay SIBLINGS of this NavHost (never inside
@@ -898,10 +906,10 @@ class MainActivity : ComponentActivity() {
                             // 0.96 settle scale — same timing, same smoothness.
                             // Android 14+ predictive back rides navigation-compose's
                             // built-in seekable support with the same motion.
-                            enterTransition = { iosEnter(liquidGlassNavBar, animationsEnabled) },
-                            exitTransition = { iosExit(liquidGlassNavBar, animationsEnabled) },
-                            popEnterTransition = { iosPopEnter(liquidGlassNavBar, animationsEnabled) },
-                            popExitTransition = { iosPopExit(liquidGlassNavBar, animationsEnabled) }
+                            enterTransition = { iosEnter(liquidGlassState.value, animationsEnabled) },
+                            exitTransition = { iosExit(liquidGlassState.value, animationsEnabled) },
+                            popEnterTransition = { iosPopEnter(liquidGlassState.value, animationsEnabled) },
+                            popExitTransition = { iosPopExit(liquidGlassState.value, animationsEnabled) }
                         ) {
                             navigationBuilder(
                                 navController,
@@ -923,6 +931,21 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Round 195 (user request: opening search stuttered). The
+                        // results pane used to compose in the SAME frame the bar
+                        // opened, and the online screen starts its network work
+                        // immediately - so the tap fought the bar's own open
+                        // animation. The pane now composes one short beat later,
+                        // once the bar is already up.
+                        var searchPaneReady by remember { mutableStateOf(false) }
+                        LaunchedEffect(shouldShowSearchBar) {
+                            if (shouldShowSearchBar) {
+                                delay(160)
+                                searchPaneReady = true
+                            } else {
+                                searchPaneReady = false
+                            }
+                        }
                         AnimatedVisibility(
                             visible = shouldShowSearchBar && !onHomeTop,
                             enter = fadeIn(),
@@ -1040,14 +1063,28 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.align(Alignment.TopCenter),
                             ) {
                                 Crossfade(
-                                    targetState = searchSource,
+                                    // Round 195 (user request: opening search stuttered):
+                                    // the results pane used to compose in the SAME frame the
+                                    // bar opened - and the online screen starts its network
+                                    // work immediately - so the tap fought the bar's own open
+                                    // animation. The pane now waits one short beat, after
+                                    // which the bar is already up and the switch is invisible.
+                                    // Round 193 (user request): keyed on the EFFECTIVE
+                                    // source, not the stored preference. On the library tab
+                                    // the effective source is forced to LOCAL, but the
+                                    // stored pref is usually ONLINE - so the library's
+                                    // search bar opened the ONLINE search screen instead of
+                                    // searching the library.
+                                    targetState = effectiveSearchSource,
                                     label = "",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = if (!playerBottomSheetState.isDismissed) MiniPlayerHeight else 0.dp)
-                                        .navigationBarsPadding()
-                                ) { effectiveSearchSource ->
-                                    when (effectiveSearchSource) {
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = if (!playerBottomSheetState.isDismissed) MiniPlayerHeight else 0.dp)
+                                            .navigationBarsPadding()
+                                ) { source ->
+                                    if (searchPaneReady) {
+                                    when (source) {
                                         SearchSource.LOCAL -> LocalSearchScreen(
                                             query = query.text,
                                             navController = navController,
@@ -1078,6 +1115,7 @@ class MainActivity : ComponentActivity() {
                                             onDismiss = { onActiveChange(false) }
                                         )
                                     }
+                                    }
                                 }
                             }
                         }
@@ -1094,6 +1132,19 @@ class MainActivity : ComponentActivity() {
                                     .windowInsetsPadding(WindowInsets.statusBars)
                                     .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
                             ) {
+                                // Round 195 (user request): the splash mark as the app
+                                // logo, just left of the wordmark. Tapping it replays the
+                                // materialize animation (draw-only, so no jank).
+                                var musoLogoReplay by remember { mutableIntStateOf(0) }
+                                com.muso.music.ui.screens.MusoLogoMark(
+                                    size = 30.dp,
+                                    replayKey = musoLogoReplay,
+                                    modifier = Modifier
+                                        .padding(end = 6.dp)
+                                        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                                            musoLogoReplay++
+                                        },
+                                )
                                 Text(
                                     text = "Muso",
                                     // Brand wordmark: Gochi Hand, weight 400, no effects.
@@ -1216,6 +1267,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
+                        }
                         }
                     }
 
@@ -1395,6 +1447,7 @@ class MainActivity : ComponentActivity() {
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }
 val LocalPlayerConnection = staticCompositionLocalOf<PlayerConnection?> { error("No PlayerConnection provided") }
+val LocalPlayerConnectionOrNull = staticCompositionLocalOf<PlayerConnection?> { null }
 val LocalPlayerAwareWindowInsets = compositionLocalOf<WindowInsets> { error("No WindowInsets provided") }
 val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No DownloadUtil provided") }
 
@@ -1409,4 +1462,50 @@ private fun tabIndexOf(destination: NavDestination?): Int = when {
     destination?.hasRoute(HomeDestination::class) == true -> 0
     destination?.hasRoute(LibraryDestination::class) == true -> 1
     else -> -1
+}
+
+/**
+ * Round 194: the Liquid-Glass / translucent-navbar environment.
+ *
+ * Both flags change the content's bottom inset and the local every glass surface
+ * reads. Reading them in MainActivity's body invalidated the ENTIRE Activity
+ * scope on every toggle - NavHost and all screens - which is exactly what made
+ * the Liquid Glass switch and the mini-player swap stutter. Reading them here
+ * keeps the invalidation inside this leaf: only the inset consumers and the
+ * glass readers recompose, and the content lambda lets the rest skip.
+ */
+@Composable
+private fun FloatingNavBarEnv(
+    liquidGlassState: State<Boolean>,
+    bottomInset: Dp,
+    shouldShowNavigationBar: Boolean,
+    playerSheetDismissed: Boolean,
+    windowsInsets: WindowInsets,
+    content: @Composable () -> Unit,
+) {
+    val (translucentNavBar) = rememberPreference(TranslucentNavigationBarKey, defaultValue = false)
+    val liquidGlassNavBar = liquidGlassState.value
+    val playerAwareWindowInsets =
+        remember(bottomInset, shouldShowNavigationBar, playerSheetDismissed, translucentNavBar, liquidGlassNavBar) {
+            var bottom = bottomInset
+            // With the translucent navigation bar the content scrolls behind it,
+            // so its height is no longer part of the content's bottom inset.
+            // Same for the floating glass bar + glass mini player: content
+            // scrolls behind both (reference behaviour), otherwise every list
+            // ended in a dead black strip under the mini player.
+            val behindFloatingGlass = translucentNavBar || liquidGlassNavBar
+            if (shouldShowNavigationBar && !behindFloatingGlass) bottom += NavigationBarHeight
+            // The floating pill mini player rides above the bar in BOTH modes
+            // now (glass and flat), so content always reserves its height.
+            if (!playerSheetDismissed) bottom += MiniPlayerHeight
+            windowsInsets
+                .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
+                .add(WindowInsets(top = AppBarHeight, bottom = bottom))
+        }
+    CompositionLocalProvider(
+        LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
+        LocalLiquidGlassEnabled provides liquidGlassNavBar,
+    ) {
+        content()
+    }
 }

@@ -15,7 +15,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -70,16 +72,29 @@ class UploadedViewModel @Inject constructor() : ViewModel() {
 @HiltViewModel
 class CachedViewModel @Inject constructor(
     @PlayerCache private val playerCache: SimpleCache,
-    database: MusicDatabase,
+    private val database: MusicDatabase,
 ) : ViewModel() {
+    // Round 193: the whole-file probe used to run PER SONG over the entire
+    // library on every song-table emission - while a song plays those emissions
+    // are constant, and each isCached call takes the cache's lock, so opening
+    // this page during playback stalled. The cache keys are read ONCE per
+    // emission and only the (few) songs with cached data get the exact check.
     val songs = database.allSongs()
-        .let { all ->
-            kotlinx.coroutines.flow.flow {
-                all.collect { songs ->
-                    emit(songs.filter { playerCache.isCached(it.id, 0, Long.MAX_VALUE) })
-                }
-            }
+        .map { all ->
+            val cachedKeys = runCatching { playerCache.keys }.getOrNull().orEmpty()
+            all.filter { it.id in cachedKeys && isFullyCached(it.id) }
         }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** Same idiom the upstream ArchiveTune player uses: probe with the recorded
+     * content length, keeping the unbounded probe as a fallback. */
+    private suspend fun isFullyCached(songId: String): Boolean {
+        if (playerCache.isCached(songId, 0L, Long.MAX_VALUE)) return true
+        val recordedLength =
+            runCatching { database.format(songId).first().contentLength }.getOrNull() ?: -1L
+        if (recordedLength <= 0L) return false
+        return playerCache.isCached(songId, 0L, recordedLength) ||
+            (playerCache.isCached(songId, 0L, 1L) && playerCache.isCached(songId, recordedLength - 1L, 1L))
+    }
 }

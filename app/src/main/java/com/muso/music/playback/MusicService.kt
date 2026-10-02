@@ -601,15 +601,23 @@ class MusicService : MediaLibraryService(),
                     }
                 }
             }.onSuccess { queue ->
-                playQueue(
-                    queue = ListQueue(
-                        title = queue.title,
-                        items = queue.items.map { it.toMediaItem() },
-                        startIndex = queue.mediaItemIndex,
-                        position = queue.position
-                    ),
-                    playWhenReady = false
-                )
+                if (queue.items.isNotEmpty()) {
+                    val safeIndex = queue.mediaItemIndex.coerceIn(0, queue.items.lastIndex)
+                    val safePosition = queue.position.coerceAtLeast(0L)
+                    playQueue(
+                        queue = ListQueue(
+                            title = queue.title,
+                            items = queue.items.map { it.toMediaItem() },
+                            startIndex = safeIndex,
+                            position = safePosition,
+                        ),
+                        playWhenReady = false,
+                    )
+                }
+            }.onFailure {
+                // Never keep a corrupted/stale queue snapshot around: otherwise every service
+                // restart can resurrect the same wrong track instead of the actual last item.
+                filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
             }
         }
 
@@ -1122,9 +1130,12 @@ class MusicService : MediaLibraryService(),
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
-            if (downloadCache.isCached(mediaId, dataSpec.position, if (dataSpec.length >= 0) dataSpec.length else 1) ||
-                playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
-            ) {
+            val requestedLength = if (dataSpec.length >= 0) dataSpec.length else 1L
+            val cachedAtPosition =
+                downloadCache.isCached(mediaId, dataSpec.position, requestedLength) ||
+                    playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
+
+            if (cachedAtPosition) {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 // Instant path ONLY when the WHOLE file is cached. A partial hit
                 // stranded the player at the cache boundary: the spec keeps its
@@ -1133,12 +1144,54 @@ class MusicService : MediaLibraryService(),
                 // died - "resumes from cache, then stops". Partially cached songs
                 // fall through to the full resolve below, where the real URL makes
                 // the boundary fetch work; the cached ranges still play from cache.
+                //
+                // Round 193 (offline fix): the whole-file probe used to be
+                // Long.MAX_VALUE alone, which no real (finite) cache span ever
+                // satisfies - so a DOWNLOADED or fully-CACHED song fell through to
+                // the stream-URL resolve below, which needs the network and threw
+                // offline ("downloaded and cached songs do not play offline"). The
+                // file is now recognised from its recorded content length - a
+                // whole-file probe plus first-byte/last-byte probes - with the
+                // unbounded probe kept as a fallback.
+                val recordedLength =
+                    runCatching {
+                        runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
+                    }.getOrNull()?.contentLength ?: -1L
                 val fullyCached =
                     downloadCache.isCached(mediaId, 0, Long.MAX_VALUE) ||
-                        playerCache.isCached(mediaId, 0, Long.MAX_VALUE)
+                        playerCache.isCached(mediaId, 0, Long.MAX_VALUE) ||
+                        (
+                            recordedLength > 0L &&
+                                (
+                                    downloadCache.isCached(mediaId, 0, recordedLength) ||
+                                        playerCache.isCached(mediaId, 0, recordedLength) ||
+                                        (
+                                            downloadCache.isCached(mediaId, 0, 1L) &&
+                                                downloadCache.isCached(mediaId, recordedLength - 1L, 1L)
+                                            ) ||
+                                        (
+                                            playerCache.isCached(mediaId, 0, 1L) &&
+                                                playerCache.isCached(mediaId, recordedLength - 1L, 1L)
+                                            )
+                                    )
+                            )
                 if (fullyCached) {
                     return@Factory dataSpec
                 }
+                // Offline with something cached at this position: serve the
+                // cached bytes instead of demanding a network resolve, so a
+                // downloaded/cached song starts with no connection at all.
+                if (!isInternetAvailable(this@MusicService)) {
+                    return@Factory dataSpec
+                }
+            } else if (!isInternetAvailable(this@MusicService)) {
+                // Nothing cached for this position and no network: fail with the
+                // clear "no internet" error instead of a raw connect failure.
+                throw PlaybackException(
+                    getString(R.string.error_no_internet),
+                    null,
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                )
             }
 
             songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
@@ -1268,21 +1321,24 @@ class MusicService : MediaLibraryService(),
         }
 
     override fun onPlaybackStatsReady(eventTime: AnalyticsListener.EventTime, playbackStats: PlaybackStats) {
-        val mediaItem = eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
-        if (playbackStats.totalPlayTimeMs >= 30000 && !dataStore.get(PauseListenHistoryKey, false)) {
-            database.query {
-                incrementTotalPlayTime(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
-                try {
-                    insert(
-                        Event(
-                            songId = mediaItem.mediaId,
-                            timestamp = LocalDateTime.now(),
-                            playTime = playbackStats.totalPlayTimeMs
-                        )
+        if (playbackStats.totalPlayTimeMs < 30_000 || dataStore.get(PauseListenHistoryKey, false)) return
+        val timeline = eventTime.timeline
+        val windowIndex = eventTime.windowIndex
+        if (timeline.isEmpty || windowIndex !in 0 until timeline.windowCount) return
+        val mediaItem = timeline.getWindow(windowIndex, Timeline.Window()).mediaItem
+        val mediaId = mediaItem.mediaId
+        if (mediaId.isBlank()) return
+        database.query {
+            runCatching {
+                incrementTotalPlayTime(mediaId, playbackStats.totalPlayTimeMs)
+                insert(
+                    Event(
+                        songId = mediaId,
+                        timestamp = LocalDateTime.now(),
+                        playTime = playbackStats.totalPlayTimeMs
                     )
-                } catch (_: SQLException) {
-                }
-            }
+                )
+            }.onFailure { reportException(it) }
         }
     }
 
@@ -1291,19 +1347,36 @@ class MusicService : MediaLibraryService(),
             filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
             return
         }
+        val items = player.mediaItems.mapNotNull { it.metadata }
+        if (items.isEmpty()) {
+            filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
+            return
+        }
         val persistQueue = PersistQueue(
             title = queueTitle,
-            items = player.mediaItems.mapNotNull { it.metadata },
-            mediaItemIndex = player.currentMediaItemIndex,
-            position = player.currentPosition
+            items = items,
+            mediaItemIndex = player.currentMediaItemIndex.coerceIn(0, items.lastIndex),
+            position = player.currentPosition.coerceAtLeast(0L),
         )
+        val target = filesDir.resolve(PERSISTENT_QUEUE_FILE)
+        val temp = filesDir.resolve("$PERSISTENT_QUEUE_FILE.tmp")
         runCatching {
-            filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
+            temp.outputStream().use { fos ->
                 ObjectOutputStream(fos).use { oos ->
                     oos.writeObject(persistQueue)
+                    oos.flush()
+                    fos.fd.sync()
                 }
             }
+            if (target.exists() && !target.delete()) {
+                error("Unable to replace persistent queue")
+            }
+            if (!temp.renameTo(target)) {
+                temp.delete()
+                error("Unable to move persistent queue into place")
+            }
         }.onFailure {
+            temp.delete()
             reportException(it)
         }
     }

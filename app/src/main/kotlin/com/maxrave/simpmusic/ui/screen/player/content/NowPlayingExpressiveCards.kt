@@ -618,10 +618,10 @@ internal fun ExpressiveBelowTheFold(
                                 },
                                 backgroundColor = colorScheme.surfaceContainer,
                             )
-                        } ?: CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White.copy(alpha = 0.6f),
-                            strokeWidth = 2.dp,
+                        } ?: com.maxrave.simpmusic.ui.component.CenterLoadingBox(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(72.dp),
                         )
                     }
 

@@ -133,7 +133,8 @@ class MusoSongRepository(
 
     override suspend fun updateDownloadState(videoId: String, downloadState: Int) { }
 
-    override suspend fun getRecentSong(limit: Int, offset: Int): List<SongEntity> = emptyList()
+    override suspend fun getRecentSong(limit: Int, offset: Int): List<SongEntity> =
+        db.recentSongs(limit = limit, offset = offset).map { it.toDomain() }
 
     override suspend fun insertSongInfo(songInfo: SongInfoEntity) { }
 

@@ -1104,7 +1104,7 @@ fun PreferenceGroupScope.musoMiscPlayerRows() {
 
 @Composable
 fun PreferenceGroupScope.musoLyricsRows() {
-    val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.FLARE)
+    val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.LYRICS_V2)
     val (wordByWordEnabled, onWordByWordEnabledChange) = rememberPreference(key = WordByWordLyricsEnabledKey, defaultValue = true)
     val (lyricsTextPosition, onLyricsTextPositionChange) = rememberEnumPreference(key = LyricsTextPositionKey, defaultValue = LyricsPosition.CENTER)
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(key = LyricsTextSizeKey, defaultValue = 26)
@@ -1718,15 +1718,10 @@ private fun WordByWordStyleDialog(
 @Composable
 private fun lyricsAnimationStyleLabel(style: LyricsAnimationStyle): String =
     when (style) {
-        LyricsAnimationStyle.FLARE -> stringResource(R.string.lyrics_style_flare)
         LyricsAnimationStyle.NONE -> stringResource(R.string.lyrics_style_none)
         LyricsAnimationStyle.FADE -> stringResource(R.string.lyrics_style_fade)
-        LyricsAnimationStyle.GLOW -> stringResource(R.string.lyrics_style_glow)
-        LyricsAnimationStyle.SLIDE -> stringResource(R.string.lyrics_style_slide)
         LyricsAnimationStyle.KARAOKE -> stringResource(R.string.lyrics_style_karaoke)
-        LyricsAnimationStyle.APPLE -> stringResource(R.string.lyrics_style_apple)
-        LyricsAnimationStyle.APPLE_V2 -> stringResource(R.string.lyrics_style_apple_v2)
-        LyricsAnimationStyle.ECHOMUSIC_1 -> stringResource(R.string.lyrics_style_echomusic_1)
         LyricsAnimationStyle.LYRICS_V2 -> stringResource(R.string.lyrics_style_lyrics_v2)
-        LyricsAnimationStyle.METRO_LYRICS -> stringResource(R.string.lyrics_style_metro)
+        LyricsAnimationStyle.V2_MODE -> stringResource(R.string.lyrics_style_v2_mode)
+        LyricsAnimationStyle.ENHANCED -> stringResource(R.string.lyrics_style_enhanced)
     }

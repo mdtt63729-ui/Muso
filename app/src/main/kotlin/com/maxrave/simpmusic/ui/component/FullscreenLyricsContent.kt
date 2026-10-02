@@ -50,7 +50,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -1129,13 +1128,10 @@ private fun FullscreenLyricsList(
                     )
                 } else {
                     // Round 188 (user request): the fetch is still running, so the
-                    // playlist-style loading indicator keeps going until the lyrics
-                    // actually land - no premature "unavailable" line.
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(28.dp),
-                        color = Color.White.copy(alpha = 0.7f),
-                        strokeWidth = 2.dp,
-                    )
+                    // Round 195 (user request): the PLAYLIST screen's loading
+                    // indicator is the one used while the lyrics load - the old
+                    // spinner (and the earlier lyrics loading animation) are gone.
+                    CenterLoadingBox(modifier = Modifier.fillMaxSize())
                 }
             }
         }

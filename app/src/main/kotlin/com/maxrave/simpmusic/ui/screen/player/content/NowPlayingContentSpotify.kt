@@ -1296,10 +1296,13 @@ fun NowPlayingContentSpotify(
                                                     maxLines = 1,
                                                 )
                                             } else {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(24.dp),
-                                                    color = Color.White.copy(alpha = 0.6f),
-                                                    strokeWidth = 2.dp,
+                                                // Round 195 (user request): the playlist
+                                                // screen's loading indicator while the
+                                                // lyrics load, in place of the spinner.
+                                                com.maxrave.simpmusic.ui.component.CenterLoadingBox(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(72.dp),
                                                 )
                                             }
                                         }

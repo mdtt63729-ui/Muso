@@ -7,6 +7,10 @@ import android.graphics.Paint
 import android.graphics.Shader
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -485,5 +489,38 @@ private fun DrawScope.drawWaveform(frame: SplashFrame, glowPaints: GlowPaintCach
                 )
             }
         }
+    }
+}
+
+
+/**
+ * Round 195 (user request): the splash mark, small enough to sit beside the
+ * "Muso" wordmark on the home header - and it doubles as the app logo. Tapping
+ * it (the caller bumps [replayKey]) replays the very same materialize
+ * animation, seamlessly.
+ *
+ * The clock is an Animatable read ONLY inside the draw lambda, so a replay is
+ * draw-only invalidation - not one recomposition per frame - which is what
+ * keeps it from janking the home screen it sits on. The clock stops at
+ * [T_SETTLE_END]: the mark fully materialises and holds, and never takes the
+ * splash's exit fade.
+ */
+@Composable
+internal fun MusoLogoMark(
+    modifier: Modifier = Modifier,
+    size: Dp = 30.dp,
+    replayKey: Int = 0,
+) {
+    val progress = remember { Animatable(1f) }
+    val glowPaints = remember { GlowPaintCache() }
+    LaunchedEffect(replayKey) {
+        progress.snapTo(0f)
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 1400, easing = LinearEasing),
+        )
+    }
+    Canvas(modifier = modifier.size(size)) {
+        drawWaveform(frameAt(progress.value * T_SETTLE_END), glowPaints)
     }
 }

@@ -1,21 +1,38 @@
-# Round 193 (v0.5.209, code 216) — smooth lyrics + real player codec badge
+## Muso 0.5.212 — synced lyrics + live download UI
+- Frame-synced letter-by-letter lyrics progression shared by Echo animation styles.
+- Downloads filter now keeps active/queued/paused items visible and reveals artwork with real download progress.
 
-- Optimized lyrics rendering/scrolling to reduce GPU/composition work and animation contention.
-- Player codec capsule now uses the resolved playback format and only displays bitrate when a real bitrate is available.
-- Codec capsule can be shown under the player slider for all ArchiveTune player styles when enabled in settings.
-- Version bumped from 0.5.208/code 215 to 0.5.209/code 216.
+# Round 195 (v0.5.212, code 219) — smoother navigation/search, playlist loading indicator for lyrics, home logo, immersive lyrics fullscreen
 
-# Round 192 (v0.5.208, code 215) — user's own upgrade, repackaged
+1. Button-to-button (top-level tab) switch and the page motion felt laggy. The tab
+   crossfade was 150 ms, which left the incoming screen's first composition - the
+   heaviest frame of the switch - inside a blink; it is now 210 ms (still a
+   crossfade, never a slide). The search pane also composes one short beat after
+   the bar opens instead of in the same frame, so tapping search no longer fights
+   the bar's own open animation (and the online screen's network work no longer
+   lands on the tap frame).
 
-The user edited the v0.5.207 tree themselves (offline artwork + lyrics work across
-App.kt, DownloadUtil, MusicService, LyricsHelper, DownloadedArtworkRepository,
-PreferenceKeys, DataStoreManager, ATPlayerStyles, OnlineSearch* and the innertube
-search models). This build takes that tree as-is and only bumps the version:
-versionCode 214 -> 215, versionName 0.5.207 -> 0.5.208.
+2. Lyrics loading now uses the PLAYLIST screen's loading indicator (the M3
+   contained loading indicator, CenterLoadingBox) in the fullscreen lyrics sheet
+   and in the Spotify / Expressive-cards lyrics sections, in place of the old
+   spinners - the previous lyrics loading animation is gone.
 
-## 0.5.209 — Mini player / onboarding polish
-- Removed the onboarding permission-review page from the visible onboarding flow.
-- Added four Mini Player Style choices: Minify, Flat, M3 Flex, Classic. M3 Flex uses the Material 3 Flex layout and Classic uses the adapted ArchiveTune Material 3 mini-player implementation.
-- Added the new Flat mini-player: Material 3 flat surface, artwork-backed Spotify-like darkened background, persistent album cover, previous/play-pause/next/like controls, and working horizontal swipe navigation.
-- Improved mini-player swipe tracking to follow the finger directly and settle once, avoiding per-pointer-event animation lag.
-- Improved mini-to-full-player and full-to-mini transitions with a small scale interpolation and a more responsive no-bounce spring.
+3. The home header shows the splash mark as the app logo, left of the "Muso"
+   wordmark. It is the same animation (MusoLogoMark, extracted from the splash),
+   and tapping it replays the materialize seamlessly - the clock is an Animatable
+   read only inside the draw lambda, so a replay is draw-only invalidation.
+
+4. Immersive (Apple Music) style lyrics: the page now gives itself the whole
+   screen once you stop touching it - the compact header, the provider caption,
+   the floating buttons and the transport cluster all slide away after 3 s of no
+   interaction (any tap or scroll brings them back). The fullscreen button in
+   that tab enters this same state instead of handing over to the shared
+   (classic) fullscreen lyrics sheet.
+
+5. Lyrics motion, further: the two scroll helpers jumped instantly to an
+   off-screen target line (a far tap, a long interlude) - the one visibly steppy
+   moment left in the sheet. Both now animate to it, with the existing centering
+   tween finishing the move.
+
+Audit: brace/paren balance across all 1363 Kotlin files, all XML parsed, TOML
+parsed, project import resolution identical to the v0.5.211 baseline.

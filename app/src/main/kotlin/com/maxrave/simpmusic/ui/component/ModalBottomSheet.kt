@@ -1157,7 +1157,7 @@ fun QueueBottomSheet(
                         }
                     }
                     item {
-                        EndOfPage()
+                        EndOfPage(withoutCredit = true)
                     }
                 }
             }

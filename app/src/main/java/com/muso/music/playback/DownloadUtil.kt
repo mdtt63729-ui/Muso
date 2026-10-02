@@ -120,10 +120,7 @@ class DownloadUtil @Inject constructor(
      * cached or already downloaded are skipped; one job per song at a time.
      */
     fun cacheSong(songId: String) {
-        if (downloadCache.isCached(songId, 0, Long.MAX_VALUE) ||
-            playerCache.isCached(songId, 0, Long.MAX_VALUE) ||
-            !cachingSongs.add(songId)
-        ) {
+        if (alreadyFullyCached(songId) || !cachingSongs.add(songId)) {
             return
         }
         cacheScope.launch {
@@ -173,6 +170,37 @@ class DownloadUtil @Inject constructor(
                 ),
             )
         }
+    }
+
+    /**
+     * Round 193: whole-file cache probe that actually fires. The old guard used
+     * Long.MAX_VALUE alone, which no real (finite) cache span satisfies - so
+     * every play of an already fully-cached or downloaded song re-pulled the
+     * whole stream. The recorded content length gives a real span to probe
+     * (whole-file first, then first-byte + last-byte), with the unbounded probe
+     * kept as a fallback.
+     */
+    private fun alreadyFullyCached(songId: String): Boolean {
+        if (downloadCache.isCached(songId, 0, Long.MAX_VALUE) ||
+            playerCache.isCached(songId, 0, Long.MAX_VALUE)
+        ) {
+            return true
+        }
+        val recordedLength =
+            runCatching {
+                runBlocking(Dispatchers.IO) { database.format(songId).first() }
+            }.getOrNull()?.contentLength ?: -1L
+        if (recordedLength <= 0L) return false
+        return downloadCache.isCached(songId, 0, recordedLength) ||
+            playerCache.isCached(songId, 0, recordedLength) ||
+            (
+                downloadCache.isCached(songId, 0, 1L) &&
+                    downloadCache.isCached(songId, recordedLength - 1L, 1L)
+                ) ||
+            (
+                playerCache.isCached(songId, 0, 1L) &&
+                    playerCache.isCached(songId, recordedLength - 1L, 1L)
+                )
     }
 
     /**

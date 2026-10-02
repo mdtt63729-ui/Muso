@@ -220,6 +220,7 @@ fun LibrarySongsScreen(
                         isPlaying = isPlaying,
                         showLikedIcon = filter != SongFilter.LIKED,
                         showDownloadIcon = filter != SongFilter.DOWNLOADED,
+                        showDownloadProgress = filter == SongFilter.DOWNLOADED,
                         trailingContent = {
                             if (inSelectMode) {
                                 Checkbox(

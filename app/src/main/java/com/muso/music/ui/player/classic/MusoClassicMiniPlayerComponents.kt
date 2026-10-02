@@ -199,7 +199,9 @@ fun SwipeableMiniPlayerBox(
                                         val allowRight = adjustedDragAmount > 0 && canSkipPrevious
                                         if (allowLeft || allowRight) {
                                             totalDragDistance += kotlin.math.abs(adjustedDragAmount)
-                                            offsetXAnimatable.snapTo(offsetXAnimatable.value + adjustedDragAmount)
+                                            coroutineScope.launch {
+                                                offsetXAnimatable.snapTo(offsetXAnimatable.value + adjustedDragAmount)
+                                            }
                                         }
                                     },
                                     onDragEnd = {

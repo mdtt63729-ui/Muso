@@ -41,21 +41,16 @@ val WordByWordLyricsEnabledKey = booleanPreferencesKey("wordByWordLyricsEnabled"
 val LyricsModeEnabledKey = booleanPreferencesKey("lyricsModeEnabled")
 
 /**
- * Word-by-word lyrics animation style (Echo-Music PRD). FLARE is the suite's own
- * rich-sync wipe (default, unchanged); the other ten are the Echo styles.
+ * Unified word-by-word lyrics animation style. Every renderer consumes the same
+ * resolved playback timeline; the style changes visuals only.
  */
 enum class LyricsAnimationStyle {
-    FLARE,
     NONE,
     FADE,
-    GLOW,
-    SLIDE,
     KARAOKE,
-    APPLE,
-    APPLE_V2,
-    ECHOMUSIC_1,
     LYRICS_V2,
-    METRO_LYRICS,
+    V2_MODE,
+    ENHANCED,
 }
 val LiquidGlassNavBarKey = booleanPreferencesKey("liquidGlassNavBar")
 val LyricsOffsetKey = intPreferencesKey("lyricsOffsetMs")

@@ -1,25 +1,14 @@
 package com.maxrave.simpmusic.ui.component
 
 /*
- * Echo word-by-word lyrics animation styles (Echo-Music PRD, folder
- * 2-word-by-word-animation-styles), rendered on top of the suite's already
- * parsed rich-sync data ([ParsedRichSyncLine]) so every style shares the
- * exact word timings the built-in flare wipe uses.
- *
- * FLARE (the default) keeps the suite's own RichSyncLyricsLineItem and never
- * reaches this file; the ten Echo styles are implemented here with the PRD's
- * formulas:
+ * Unified lyrics animation renderer. All six selectable styles consume the
+ * same resolved line/word/character timeline, so changing a style never changes
+ * timing or provider-specific rendering paths.
  *   FADE:     wordAlpha = 0.35 + 0.65 * smoothstep(progress)
- *   GLOW:     active word gets a soft glow shadow
- *   SLIDE:    translationY = (1 - progress) * offset
- *   KARAOKE:  per-word horizontal gradient fill as the word is sung
- * Lines without word timings never reach here - LyricsView only takes the
- * rich-sync branch when the line carries <mm:ss.xx> tags, and falls back to
- * the line-level items otherwise.
+ *   KARAOKE:  per-character karaoke fill as the word is sung
+ * Line-only and untimed lyrics receive a deterministic fallback window from LyricsView.
  */
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,9 +28,9 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -56,6 +45,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.sin
 import com.maxrave.simpmusic.extension.ParsedRichSyncLine
+import com.maxrave.simpmusic.ui.screen.player.content.stripRichSyncTimestamps
 import com.maxrave.simpmusic.ui.theme.typo
 import com.muso.music.constants.LyricsAnimationStyle
 
@@ -63,7 +53,7 @@ import com.muso.music.constants.LyricsAnimationStyle
 private val EchoPendingWordColor = Color(0xFF9E9E9E)
 /** Ink of a word that is being sung or has been sung. */
 private val EchoSungWordColor = Color.White
-/** The glow behind the active word in GLOW / LYRICS_V2. */
+/** The glow behind the active word in Lyrics V2 / V2 Mode / Enhanced. */
 private val EchoGlowColor = Color(0xAAFFFFFF)
 
 private fun smoothstep(p: Float): Float = p * p * (3f - 2f * p)
@@ -82,17 +72,34 @@ private const val ECHO_PLAYHEAD_TICK_MS = 300L
 @Composable
 private fun rememberEchoPlayhead(rawMs: Long, enabled: Boolean): State<Long> {
     val playhead = remember { mutableLongStateOf(rawMs) }
-    LaunchedEffect(rawMs, enabled) {
+    // Round 194: same live-player playhead as the flare renderer - the frame-
+    // exact position while a player is playing, the ticked value + wall-clock
+    // interpolation otherwise (see LyricsView.rememberSmoothPlayhead).
+    val playerConnection = com.muso.music.LocalPlayerConnectionOrNull.current
+    val latestRawMs by rememberUpdatedState(rawMs)
+    LaunchedEffect(enabled, playerConnection) {
         if (!enabled) {
-            playhead.longValue = rawMs
+            playhead.longValue = latestRawMs
             return@LaunchedEffect
         }
-        var baseNanos = -1L
+        var baseRawMs = latestRawMs
+        var baseNanos = 0L
         while (true) {
-            withFrameNanos { frameNanos ->
-                if (baseNanos < 0L) baseNanos = frameNanos
-                val elapsedMs = (frameNanos - baseNanos) / 1_000_000L
-                playhead.longValue = rawMs + elapsedMs.coerceIn(0L, ECHO_PLAYHEAD_TICK_MS)
+            val frameNanos = withFrameNanos { it }
+            val player = playerConnection?.player
+            if (player != null && player.isPlaying) {
+                playhead.longValue = player.currentPosition.coerceAtLeast(0L)
+                baseRawMs = playhead.longValue
+                baseNanos = frameNanos
+            } else {
+                val latest = latestRawMs
+                if (baseNanos == 0L || latest != baseRawMs) {
+                    baseRawMs = latest
+                    baseNanos = frameNanos
+                }
+                val elapsedMs = ((frameNanos - baseNanos) / 1_000_000L)
+                    .coerceIn(0L, ECHO_PLAYHEAD_TICK_MS)
+                playhead.longValue = baseRawMs + elapsedMs
             }
         }
     }
@@ -121,14 +128,10 @@ fun EchoLyricsLine(
     val playhead = rememberEchoPlayhead(currentTimeMs, enabled = isCurrent)
     Column(modifier = modifier.then(Modifier.fillMaxWidth())) {
         Spacer(modifier = Modifier.height(12.dp))
-        if (style == LyricsAnimationStyle.METRO_LYRICS) {
-            MetroEchoLine(
-                parsedLine = parsedLine,
-                playhead = playhead,
-                isCurrent = isCurrent,
-            )
-        } else {
-            FlowRow(
+        // All supported styles share the same frame-synced word/character
+        // renderer. This prevents a style from silently switching renderer
+        // depending on the provider or lyric format.
+        FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -138,7 +141,8 @@ fun EchoLyricsLine(
                 words.forEachIndexed { index, word ->
                     val startMs = word.startTimeMs
                     val endMs =
-                        words.getOrNull(index + 1)?.startTimeMs
+                        word.endTimeMs
+                            ?: words.getOrNull(index + 1)?.startTimeMs
                             ?: parsedLine.lineEndTimeMs.coerceAtLeast(startMs + 1L)
                     val duration = (endMs - startMs).coerceAtLeast(1L)
                     EchoAnimatedWord(
@@ -153,7 +157,6 @@ fun EchoLyricsLine(
                     )
                 }
             }
-        }
         if (romanizedWords != null) {
             Text(
                 text = romanizedWords,
@@ -191,7 +194,7 @@ private fun EchoAnimatedWord(
 ) {
     val progress by remember(startMs, endMs, isCurrent) {
         derivedStateOf {
-            ((playhead.value - startMs).toFloat() / duration).coerceIn(0f, 1f)
+            ((playhead.value - startMs).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
         }
     }
     val isWordActive by remember(startMs, endMs, isCurrent) {
@@ -200,25 +203,16 @@ private fun EchoAnimatedWord(
     val isWordComplete by remember(endMs, isCurrent) {
         derivedStateOf { playhead.value >= endMs }
     }
-    if (style == LyricsAnimationStyle.APPLE_V2) {
-        // Letter-by-letter two-layer fill (see AppleV2EchoWord).
-        AppleV2EchoWord(
-            text = text,
-            progress = progress,
-            isLineCurrent = isCurrent,
-            isLast = isLast,
-        )
-    } else {
-        EchoWord(
-            text = text,
-            progress = progress,
-            isLineCurrent = isCurrent,
-            isWordActive = isWordActive,
-            isWordComplete = isWordComplete,
-            style = style,
-            isLast = isLast,
-        )
-    }
+
+    EchoWord(
+        text = text,
+        progress = progress,
+        isLineCurrent = isCurrent,
+        isWordActive = isWordActive,
+        isWordComplete = isWordComplete,
+        style = style,
+        isLast = isLast,
+    )
 }
 
 @Composable
@@ -233,210 +227,208 @@ private fun EchoWord(
 ) {
     val baseStyle = if (isLineCurrent) typo().headlineLarge else typo().headlineMedium
     val word = if (isLast) text else "$text "
-
-    // ECHOMUSIC_1 / LYRICS_V2 drive their motion through an animated float
-    // (the PRD's AnimatedWordV2 pattern: tween 350 ms) so the rise reads as
-    // one fluid move rather than ten discrete ticks per second.
-    val riseTarget = when (style) {
-        LyricsAnimationStyle.ECHOMUSIC_1, LyricsAnimationStyle.LYRICS_V2 ->
-            if (isWordComplete || isWordActive) 1f else 0f
-        else -> 0f
-    }
-    val rise by animateFloatAsState(
-        targetValue = riseTarget,
-        animationSpec = tween(durationMillis = 350),
-        label = "echoWordRise",
+    val v2Bounce by com.muso.music.utils.rememberPreference(
+        moe.rukamori.archivetune.constants.LyricsV2BounceFactorKey,
+        1f,
     )
-    // No animated chase: the sweep now tracks the frame-smooth playhead
-    // directly. The reference sets the word's progress every rAF tick with
-    // no transition, and a tweened follow of a 20-times-a-second target was
-    // exactly the "fill lags behind the song" feel.
-    val slideProgress = progress
+    val v2Glow by com.muso.music.utils.rememberPreference(
+        moe.rukamori.archivetune.constants.LyricsV2GlowFactorKey,
+        1f,
+    )
+    val v2FillWidth by com.muso.music.utils.rememberPreference(
+        moe.rukamori.archivetune.constants.LyricsV2FillTransitionWidthKey,
+        8f,
+    )
 
-    var color = EchoPendingWordColor
-    var alpha = 1f
+    // All six styles use the same frame-synced timing. The style only changes
+    // how the already-timed characters look and move.
+    val pulse = sin(progress * kotlin.math.PI).toFloat().coerceIn(0f, 1f)
+
+    var color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
+    var alpha = if (isLineCurrent) 1f else 0.35f
     var renderedStyle = baseStyle
+    var translationY = 0f
+    var scale = 1f
+
     when (style) {
         LyricsAnimationStyle.NONE -> {
-            color =
-                if (!isLineCurrent) EchoPendingWordColor
-                else if (isWordComplete || isWordActive) EchoSungWordColor
-                else EchoPendingWordColor
+            color = if (isLineCurrent && (isWordComplete || isWordActive)) {
+                EchoSungWordColor
+            } else {
+                EchoPendingWordColor
+            }
+            alpha = if (isLineCurrent) 1f else 0.35f
         }
+
         LyricsAnimationStyle.FADE -> {
             color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-            alpha = if (isLineCurrent) 0.35f + 0.65f * smoothstep(progress) else 0.35f
+            alpha = if (isLineCurrent) {
+                0.35f + 0.65f * smoothstep(progress)
+            } else {
+                0.35f
+            }
         }
-        LyricsAnimationStyle.GLOW -> {
+
+        LyricsAnimationStyle.KARAOKE -> {
+            // LetterSyncedWord below performs the actual per-character fill.
             color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
             alpha = if (isLineCurrent) 1f else 0.35f
-            if (isWordActive) {
-                renderedStyle = baseStyle.copy(shadow = Shadow(color = EchoGlowColor, blurRadius = 18f))
-            }
         }
+
         LyricsAnimationStyle.LYRICS_V2 -> {
+            val rise = if (isWordActive || isWordComplete) 1f else 0f
             color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-            alpha = if (isLineCurrent) 0.3f + 0.7f * rise else 0.3f
+            alpha = if (isLineCurrent) 0.30f + 0.70f * rise else 0.30f
+            translationY = (1f - rise) * 6f
             if (isWordActive) {
-                renderedStyle = baseStyle.copy(shadow = Shadow(color = EchoGlowColor, blurRadius = 12f))
+                scale = 1f + 0.06f * rise
+                renderedStyle = baseStyle.copy(
+                    shadow = Shadow(color = EchoGlowColor, blurRadius = 12f),
+                )
             }
         }
-        LyricsAnimationStyle.SLIDE -> {
+
+        LyricsAnimationStyle.V2_MODE -> {
+            // Ported from ArchiveTune LyricsV2's AnimatedWordV2:
+            // linear word progress, sine bounce/float and transient glow.
             color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-        }
-        LyricsAnimationStyle.KARAOKE -> {
-            color = EchoSungWordColor
-            if (isLineCurrent && !isWordComplete) {
-                val cut = (progress * 0.999f).coerceAtMost(1f)
+            alpha = if (isLineCurrent) 1f else 0.30f
+            translationY = if (isWordActive) -4f * v2Bounce.coerceIn(0f, 2f) * pulse else 0f
+            scale = 1f + 0.015f * v2Bounce.coerceIn(0f, 2f) * pulse
+            if (isWordActive) {
+                val glowProgress = (progress * 2f).coerceAtMost(1f)
                 renderedStyle = baseStyle.copy(
-                    brush = Brush.horizontalGradient(
-                        *arrayOf(
-                            0f to EchoSungWordColor,
-                            cut to EchoSungWordColor,
-                            (cut + 0.001f).coerceAtMost(1f) to EchoPendingWordColor,
-                            1f to EchoPendingWordColor,
-                        ),
+                    shadow = Shadow(
+                        color = EchoGlowColor.copy(alpha = glowProgress * 0.45f * v2Glow.coerceIn(0f, 2f)),
+                        blurRadius = (glowProgress * (8f + v2FillWidth.coerceIn(0f, 24f) * 0.5f)).coerceAtLeast(0.5f),
                     ),
                 )
-            } else if (!isLineCurrent) {
-                color = EchoPendingWordColor
             }
         }
-        LyricsAnimationStyle.APPLE -> {
-            color =
-                if (isLineCurrent && (isWordComplete || isWordActive)) EchoSungWordColor
-                else EchoPendingWordColor
-            alpha = if (isLineCurrent) 1f else 0.45f
-        }
-        else -> {
-            // ECHOMUSIC_1 (and anything else) shares the colour path.
+
+        LyricsAnimationStyle.ENHANCED -> {
+            // Enhanced keeps ArchiveTune's smooth focus treatment but uses the
+            // same character clock so it remains genuinely letter-synced.
             color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-            alpha = if (isLineCurrent) 0.25f + 0.75f * rise else 0.25f
+            val focus = smoothstep(progress)
+            alpha = if (isLineCurrent) 0.40f + 0.60f * focus else 0.28f
+            translationY = if (isWordActive) (1f - focus) * 2.5f else 0f
+            scale = 0.985f + 0.015f * focus
+            if (isWordActive) {
+                renderedStyle = baseStyle.copy(
+                    shadow = Shadow(
+                        color = EchoGlowColor.copy(alpha = 0.30f * focus),
+                        blurRadius = 9f * focus,
+                    ),
+                )
+            }
         }
     }
 
-    var ty = 0f
-    var scale = 1f
-    when (style) {
-        LyricsAnimationStyle.SLIDE -> ty = (1f - slideProgress) * 10f
-        LyricsAnimationStyle.ECHOMUSIC_1 -> {
-            ty = (1f - rise) * 8f
-            scale = 0.92f + 0.08f * rise
+    // One Row + one frame clock for the entire word. No per-letter coroutine.
+    LetterSyncedWord(
+        text = word,
+        style = renderedStyle,
+        progress = if (isLineCurrent) progress else 0f,
+        baseColor = color,
+        baseAlpha = alpha,
+        translationY = translationY,
+        scale = scale,
+        overflow = TextOverflow.Visible,
+    )
+}
+
+/**
+ * Frame-synced character renderer shared by every selectable animation style.
+ *
+ * The word timing is the outer clock; each visible grapheme receives an equal
+ * slice of that word's interval. This gives true letter-by-letter progression
+ * even when the provider only exposes word timing. No per-letter coroutine or
+ * animation clock is created, so the entire line follows the player's clock.
+ */
+@Composable
+private fun LetterSyncedWord(
+    text: String,
+    style: TextStyle,
+    progress: Float,
+    baseColor: Color,
+    baseAlpha: Float,
+    translationY: Float,
+    scale: Float,
+    overflow: TextOverflow,
+) {
+    val coreEnd = text.indexOfLast { !it.isWhitespace() } + 1
+    val coreText = if (coreEnd > 0) text.substring(0, coreEnd) else text
+    val trailingWhitespace = if (coreEnd < text.length) text.substring(coreEnd) else ""
+    val ranges = remember(coreText) {
+        val iterator = java.text.BreakIterator.getCharacterInstance(java.util.Locale.getDefault())
+        iterator.setText(coreText)
+        buildList {
+            var start = iterator.first()
+            while (start != java.text.BreakIterator.DONE) {
+                val end = iterator.next()
+                if (end == java.text.BreakIterator.DONE) break
+                if (end > start) add(start until end)
+                start = end
+            }
         }
-        LyricsAnimationStyle.LYRICS_V2 -> {
-            ty = (1f - rise) * 6f
-            if (isWordActive) scale = 1f + 0.06f * rise
+    }
+    val safeProgress = progress.coerceIn(0f, 1f)
+    val characterCount = ranges.size.coerceAtLeast(1)
+    val annotated = androidx.compose.ui.text.buildAnnotatedString {
+        ranges.forEachIndexed { index, range ->
+            val characterProgress = ((safeProgress * characterCount) - index).coerceIn(0f, 1f)
+            val eased = smoothstep(characterProgress)
+            val glyphColor = lerpColor(EchoPendingWordColor, baseColor, eased)
+            withStyle(
+                androidx.compose.ui.text.SpanStyle(
+                    color = glyphColor.copy(alpha = baseAlpha),
+                ),
+            ) {
+                append(coreText.substring(range))
+            }
         }
-        else -> {}
+        append(trailingWhitespace)
     }
 
     Text(
-        text = word,
-        style = renderedStyle,
-        color = color,
-        overflow = TextOverflow.Visible,
+        text = annotated,
+        style = style,
+        overflow = overflow,
+        softWrap = false,
         modifier = Modifier.graphicsLayer {
-            this.alpha = alpha
-            translationY = ty
-            scaleX = scale
-            scaleY = scale
+            this.translationY = translationY
+            this.scaleX = scale
+            this.scaleY = scale
         },
     )
 }
 
 /**
- * APPLE_V2 (letter-by-letter), ported from the kimi lyrics reference: each
- * word of the ACTIVE line renders as two stacked layers -
- *
- *  - a dim base pre-render at 30% opacity, and
- *  - a bright fill that sweeps in left-to-right with a soft gradient front
- *    (feather ~8% of the word), masked by the word's own 0..1 progress, with
- *    a soft 12px glow riding the fill;
- *
- * and while the word is being sung it gently floats up
- * (4px * sin(progress * PI)) and scales by 2%. Completed words show the full
- * fill; not-yet-sung words show the dim base. Lines that are not current
- * render as plain dim text.
+ * Builds a line-level timing model when a provider gives only line timestamps.
+ * Character cadence is then calculated inside LetterSyncedWord, so the same renderer
+ * is shared by every animation style.
  */
-@Composable
-private fun AppleV2EchoWord(
+fun synthesizeCharacterTimedLine(
     text: String,
-    progress: Float,
-    isLineCurrent: Boolean,
-    isLast: Boolean,
-) {
-    val word = if (isLast) text else "$text "
-    val baseStyle = if (isLineCurrent) typo().headlineLarge else typo().headlineMedium
-    if (!isLineCurrent) {
-        Text(
-            text = word,
-            style = baseStyle,
-            color = EchoPendingWordColor,
-            overflow = TextOverflow.Visible,
-        )
-        return
-    }
-    // Soft glow riding the fill layer (reference: text-shadow 0 0 12px @35%).
-    val fillStyle = baseStyle.copy(
-        shadow = Shadow(color = Color.White.copy(alpha = 0.35f), blurRadius = 12f),
-    )
-    // The mask: opaque up to the word's progress, then an 8% feather to
-    // transparent - the letters fill in one after another as it advances.
-    val cut = progress
-    val fillBrush = if (progress >= 1f) null else Brush.horizontalGradient(
-        *arrayOf(
-            0f to Color.White,
-            cut to Color.White,
-            (cut + 0.08f).coerceAtMost(1f) to Color.Transparent,
-            1f to Color.Transparent,
+    startMs: Long,
+    endMs: Long,
+): ParsedRichSyncLine {
+    val safeStart = startMs.coerceAtLeast(0L)
+    val safeEnd = endMs.coerceAtLeast(safeStart + 1L)
+    return ParsedRichSyncLine(
+        words = listOf(
+            com.maxrave.simpmusic.extension.WordTiming(
+                text = text,
+                startTimeMs = safeStart,
+                endTimeMs = safeEnd,
+            ),
         ),
+        lineStartTimeMs = safeStart,
+        lineEndTimeMs = safeEnd,
     )
-    // Gentle float + scale while the word sings.
-    val sinP = sin(progress * Math.PI.toFloat())
-
-    Box {
-        // Base layer - the dim pre-render of the whole word.
-        Text(
-            text = word,
-            style = baseStyle,
-            color = Color.White.copy(alpha = 0.3f),
-            overflow = TextOverflow.Visible,
-        )
-        // Fill layer - sweeps over the base, masked by the word's progress.
-        if (fillBrush != null) {
-            Text(
-                text = word,
-                style = fillStyle.copy(brush = fillBrush),
-                color = Color.Unspecified,
-                overflow = TextOverflow.Visible,
-                modifier = Modifier.graphicsLayer {
-                    translationY = -4f * sinP
-                    scaleX = 1f + 0.02f * sinP
-                    scaleY = 1f + 0.02f * sinP
-                },
-            )
-        } else {
-            Text(
-                text = word,
-                style = fillStyle,
-                color = Color.White,
-                overflow = TextOverflow.Visible,
-                modifier = Modifier.graphicsLayer {
-                    translationY = 0f
-                    scaleX = 1f
-                    scaleY = 1f
-                },
-            )
-        }
-    }
 }
 
-/**
- * METRO_LYRICS: canvas word-level render. Every word is measured and laid
- * out left-to-right with wrapping, then drawn with a colour driven by its
- * own progress - sung words white, the active word's fill advancing through
- * the word, pending words dim.
- */
 @Composable
 private fun MetroEchoLine(
     parsedLine: ParsedRichSyncLine,
@@ -464,18 +456,26 @@ private fun MetroEchoLine(
                 val t = playhead.value
                 val progress = ((t - slot.startMs).toFloat() / (slot.endMs - slot.startMs).coerceAtLeast(1L))
                     .coerceIn(0f, 1f)
-                val paint =
-                    when {
-                        !isCurrent -> EchoPendingWordColor
-                        t >= slot.endMs -> EchoSungWordColor
-                        t >= slot.startMs -> lerpColor(EchoPendingWordColor, EchoSungWordColor, progress)
-                        else -> EchoPendingWordColor
+                var charX = x
+                slot.characters.forEachIndexed { charIndex, character ->
+                    val letterCount = slot.characters.size.coerceAtLeast(1)
+                    val letterProgress = ((progress * letterCount) - charIndex).coerceIn(0f, 1f)
+                    val paint = if (!isCurrent) {
+                        EchoPendingWordColor
+                    } else {
+                        lerpColor(
+                            EchoPendingWordColor,
+                            EchoSungWordColor,
+                            smoothstep(letterProgress),
+                        )
                     }
-                drawText(
-                    textLayoutResult = slot.layout,
-                    color = paint,
-                    topLeft = Offset(x, row.y),
-                )
+                    drawText(
+                        textLayoutResult = character.layout,
+                        color = paint,
+                        topLeft = Offset(charX, row.y),
+                    )
+                    charX += character.widthPx
+                }
                 x += slot.widthPx + layout.spacePx
             }
         }
@@ -490,8 +490,13 @@ private fun lerpColor(from: Color, to: Color, fraction: Float): Color =
         alpha = from.alpha + (to.alpha - from.alpha) * fraction,
     )
 
-private data class MetroWordSlot(
+private data class MetroCharacterSlot(
     val layout: TextLayoutResult,
+    val widthPx: Float,
+)
+
+private data class MetroWordSlot(
+    val characters: List<MetroCharacterSlot>,
     val widthPx: Float,
     val startMs: Long,
     val endMs: Long,
@@ -523,26 +528,49 @@ private fun measureMetroWords(
     var y = 0f
     val words = parsedLine.words
     words.forEachIndexed { index, word ->
-        val text = if (index == words.size - 1) word.text else word.text + " "
-        val layout = textMeasurer.measure(text = text, style = style, maxLines = 1)
-        if (x > 0f && x + layout.size.width.toFloat() > maxWidthPx) {
+        // Word spacing is supplied by layout.spacePx, so the separator is not
+        // treated as a timed character.
+        val text = word.text
+        val characters = buildList {
+            var charIndex = 0
+            while (charIndex < text.length) {
+                val codePoint = text.codePointAt(charIndex)
+                val charCount = Character.charCount(codePoint)
+                val character = text.substring(charIndex, (charIndex + charCount).coerceAtMost(text.length))
+                val characterLayout = textMeasurer.measure(
+                    text = character,
+                    style = style,
+                    maxLines = 1,
+                )
+                add(
+                    MetroCharacterSlot(
+                        layout = characterLayout,
+                        widthPx = characterLayout.size.width.toFloat(),
+                    ),
+                )
+                charIndex += charCount
+            }
+        }
+        val wordWidth = characters.sumOf { it.widthPx.toDouble() }.toFloat()
+        if (x > 0f && x + wordWidth > maxWidthPx) {
             rows.add(MetroRow(y = y, words = current))
             current = mutableListOf()
             x = 0f
             y += lineHeightPx
         }
         val startMs = word.startTimeMs
-        val endMs = words.getOrNull(index + 1)?.startTimeMs
+        val endMs = word.endTimeMs
+            ?: words.getOrNull(index + 1)?.startTimeMs
             ?: parsedLine.lineEndTimeMs.coerceAtLeast(startMs + 1L)
         current.add(
             MetroWordSlot(
-                layout = layout,
-                widthPx = layout.size.width.toFloat(),
+                characters = characters,
+                widthPx = wordWidth,
                 startMs = startMs,
                 endMs = endMs,
             ),
         )
-        x += layout.size.width + spacePx
+        x += wordWidth + spacePx
     }
     if (current.isNotEmpty()) rows.add(MetroRow(y = y, words = current))
     val heightDp = with(density) { ((y + lineHeightPx) / density.density).dp }
@@ -551,6 +579,7 @@ private fun measureMetroWords(
 
 
 /**
+ * Legacy helper retained for compatibility with older call sites; the current picker does not expose this style.
  * The Apple Music V2 word-by-word lyric line, rendered OVER a playing video
  * (user spec): while a video track plays, the lyric overlay on the screen uses
  * the SAME animation the app's lyrics view uses - not a plain subtitle.
@@ -563,42 +592,47 @@ fun VideoEchoLyricsOverlay(
     modifier: Modifier = Modifier,
 ) {
     if (lyrics == null) return
-    val lines = lyrics.lines ?: return
+    val lines = lyrics.lines.orEmpty()
+    if (lines.isEmpty()) return
 
-    // Same audio-delay correction every other lyrics surface applies.
     val lyricsOffsetMs by org.koin.compose.koinInject<com.maxrave.domain.manager.DataStoreManager>()
         .lyricsOffsetMs.collectAsState(0)
-    val nowMs = currentMs - lyricsOffsetMs
+    val selectedStyle by com.muso.music.utils.rememberEnumPreference(
+        key = com.muso.music.constants.LyricsAnimationStyleKey,
+        defaultValue = LyricsAnimationStyle.LYRICS_V2,
+    )
+    val wordByWordEnabled by com.muso.music.utils.rememberPreference(
+        com.muso.music.constants.WordByWordLyricsEnabledKey,
+        true,
+    )
+    val effectiveStyle = if (wordByWordEnabled) selectedStyle else LyricsAnimationStyle.NONE
+    val player = com.muso.music.LocalPlayerConnectionOrNull.current?.player
+    val durationMs = player?.duration?.takeIf { it > 0L } ?: (currentMs + 1_000L)
+    val nowMs = (currentMs - lyricsOffsetMs).coerceAtLeast(0L)
 
-    // Current line: the last one that started before now (lines are sorted).
-    var lineIndex = -1
-    for (i in lines.indices) {
-        if (lines[i].startTimeMs.toLong() <= nowMs) lineIndex = i else break
+    val windows = remember(lines, durationMs) {
+        buildResolvedLyricWindows(lines, durationMs)
     }
+    val lineIndex = windows.indexOfLast { nowMs >= it.first }
     if (lineIndex < 0) return
     val line = lines[lineIndex]
+    val window = windows.getOrNull(lineIndex) ?: return
 
     val parsed = remember(line) {
-        com.maxrave.simpmusic.extension.parseRichSyncWords(
-            line.words,
-            line.startTimeMs,
-            line.endTimeMs,
-        )
+        if (lyrics.syncType == "RICH_SYNCED") {
+            com.maxrave.simpmusic.extension.parseRichSyncWords(
+                line.words,
+                line.startTimeMs,
+                line.endTimeMs,
+            )
+        } else {
+            null
+        }
     }
-    if (parsed != null) {
-        EchoLyricsLine(
-            parsedLine = parsed,
-            translatedWords = null,
-            romanizedWords = null,
-            currentTimeMs = nowMs,
-            isCurrent = true,
-            style = LyricsAnimationStyle.APPLE_V2,
-            modifier = modifier,
-        )
-    } else {
-        // Not rich-synced: still show the current line over the video.
+
+    if (effectiveStyle == LyricsAnimationStyle.NONE) {
         Text(
-            text = line.words,
+            text = line.words.stripRichSyncTimestamps(),
             color = Color.White,
             style = androidx.compose.ui.text.TextStyle(
                 shadow = androidx.compose.ui.graphics.Shadow(
@@ -608,5 +642,20 @@ fun VideoEchoLyricsOverlay(
             ),
             modifier = modifier,
         )
+        return
     }
+
+    EchoLyricsLine(
+        parsedLine = parsed ?: synthesizeCharacterTimedLine(
+            line.words.stripRichSyncTimestamps(),
+            window.first,
+            window.second,
+        ),
+        translatedWords = null,
+        romanizedWords = null,
+        currentTimeMs = nowMs,
+        isCurrent = true,
+        style = effectiveStyle,
+        modifier = modifier,
+    )
 }

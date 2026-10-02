@@ -1967,6 +1967,7 @@ fun V8PlayerControlsContent(
     onVolumeChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     landscape: Boolean = false,
+    showCodecOnPlayer: Boolean = false,
 ) {
     val foreground = Color.White
     val secondaryForeground = foreground.copy(alpha = 0.72f)
@@ -2190,6 +2191,7 @@ fun V8PlayerContent(
             volume = volume,
             showVolumeBar = showVolumeBar,
             currentFormat = currentFormat,
+            showCodecOnPlayer = showCodecOnPlayer,
             foreground = foreground,
             secondaryForeground = secondaryForeground,
             onMenuClick = onMenuClick,
@@ -2232,6 +2234,7 @@ fun V8PlayerContent(
             volume = volume,
             showVolumeBar = showVolumeBar,
             currentFormat = currentFormat,
+            showCodecOnPlayer = showCodecOnPlayer,
             foreground = foreground,
             secondaryForeground = secondaryForeground,
             onMenuClick = onMenuClick,
@@ -2277,6 +2280,7 @@ private fun V8PortraitContent(
     volume: Float,
     showVolumeBar: Boolean,
     currentFormat: FormatEntity?,
+    showCodecOnPlayer: Boolean = false,
     foreground: Color,
     secondaryForeground: Color,
     onMenuClick: () -> Unit,
@@ -2444,6 +2448,7 @@ private fun V8LandscapeContent(
     volume: Float,
     showVolumeBar: Boolean,
     currentFormat: FormatEntity?,
+    showCodecOnPlayer: Boolean = false,
     foreground: Color,
     secondaryForeground: Color,
     onMenuClick: () -> Unit,
@@ -2520,7 +2525,7 @@ private fun V8LandscapeContent(
                     duration = duration,
                     currentFormat = currentFormat,
                 showCodecOnPlayer = showCodecOnPlayer,
-                    foreground = foreground,
+                foreground = foreground,
                     onSliderValueChange = onSliderValueChange,
                     onSliderValueChangeFinished = onSliderValueChangeFinished,
                 )

@@ -259,7 +259,7 @@
     <string name="lyrics_style_apple">Apple</string>
     <string name="lyrics_style_apple_v2">Apple V2</string>
     <string name="lyrics_style_echomusic_1">EchoMusic</string>
-    <string name="lyrics_style_lyrics_v2">Fluid</string>
+    <string name="lyrics_style_lyrics_v2">Lyrics V2</string>
     <string name="lyrics_style_metro">Metro</string>
     <string name="animation">Animation</string>
     <string name="animations">Animations</string>
@@ -605,4 +605,6 @@
     <string name="mini_player_background_follow_theme">Follow theme</string>
     <string name="mini_player_background_gradient">Gradient</string>
     <string name="mini_player_background_glow">Glow</string>
+    <string name="lyrics_style_v2_mode">V2 Mode</string>
+    <string name="lyrics_style_enhanced">Enhanced</string>
 </resources>
