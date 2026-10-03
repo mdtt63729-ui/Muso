@@ -239,7 +239,10 @@ fun SongMenu(
         DownloadGridMenu(
             state = download?.state,
             onDownload = {
-                val downloadRequest = DownloadRequest.Builder(song.id, song.id.toUri())
+                val downloadRequest = DownloadRequest.Builder(
+                    song.id,
+                    "https://music.youtube.com/watch?v=${song.id}".toUri()
+                )
                     .setCustomCacheKey(song.id)
                     .setData(song.song.title.toByteArray())
                     .build()

@@ -251,7 +251,7 @@ fun ArtistScreen(
                                     if (song.id == mediaMetadata?.id) {
                                         playerConnection.player.togglePlayPause()
                                     } else {
-                                        playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
+                                        playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), song.endpoint))
                                     }
                                 }
                                 .animateItem()
@@ -303,7 +303,7 @@ fun ArtistScreen(
                                         if (song.id == mediaMetadata?.id) {
                                             playerConnection.player.togglePlayPause()
                                         } else {
-                                            playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
+                                            playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), song.endpoint))
                                         }
                                     }
                                     .animateItem()
@@ -329,7 +329,7 @@ fun ArtistScreen(
                                             .combinedClickable(
                                                 onClick = {
                                                     when (item) {
-                                                        is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(item.toMediaMetadata()))
+                                                        is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(item.toMediaMetadata(), item.endpoint))
                                                         is AlbumItem -> navController.navigate("album/${item.id}")
                                                         is ArtistItem -> navController.navigate("artist/${item.id}")
                                                         is PlaylistItem -> navController.navigate("online_playlist/${item.id}")

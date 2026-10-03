@@ -266,7 +266,7 @@ class MusicService : MediaLibraryService(),
     // to write into a no-op stub, so it never did anything. The preference is
     // now real (EndlessQueueKey); when enabled, a radio tail of similar songs
     // is appended before the queue runs out so playback never stops.
-    private var endlessQueueEnabled = false
+    private var endlessQueueEnabled = true
     private val endlessQueueAppendedIds = mutableSetOf<String>()
     private var endlessQueueJob: Job? = null
 
@@ -526,7 +526,7 @@ class MusicService : MediaLibraryService(),
         }
 
         dataStore.data
-            .map { it[EndlessQueueKey] ?: false }
+            .map { it[EndlessQueueKey] ?: true }
             .distinctUntilChanged()
             .collect(scope) { enabled ->
                 endlessQueueEnabled = enabled
@@ -736,10 +736,18 @@ class MusicService : MediaLibraryService(),
                 // add missing songs back, without affecting current playing song
                 player.addMediaItems(0, initialStatus.items.subList(0, initialStatus.mediaItemIndex))
                 player.addMediaItems(initialStatus.items.subList(initialStatus.mediaItemIndex + 1, initialStatus.items.size))
+                if (player.mediaItemCount <= 1) {
+                    maybeExtendEndlessQueue()
+                }
             } else {
                 player.setMediaItems(initialStatus.items, if (initialStatus.mediaItemIndex > 0) initialStatus.mediaItemIndex else 0, initialStatus.position)
                 player.prepare()
                 player.playWhenReady = playWhenReady
+                // A single-track play must immediately get a similar-song tail. Waiting for the
+                // first media-item transition made the queue look empty until the song ended.
+                if (player.mediaItemCount <= 1) {
+                    maybeExtendEndlessQueue()
+                }
             }
         }
     }
@@ -770,16 +778,31 @@ class MusicService : MediaLibraryService(),
     }
 
     fun playNext(items: List<MediaItem>) {
-        player.addMediaItems(
-            if (player.mediaItemCount == 0) 0 else player.currentMediaItemIndex + 1,
-            withoutQueueDuplicates(items),
-        )
-        player.prepare()
+        val safeItems = withoutQueueDuplicates(items)
+        if (safeItems.isEmpty()) return
+        val wasEmpty = player.mediaItemCount == 0
+        val insertIndex = if (wasEmpty) 0 else (player.currentMediaItemIndex + 1).coerceAtMost(player.mediaItemCount)
+        player.addMediaItems(insertIndex, safeItems)
+        // ExoPlayer keeps a prepared/playing timeline prepared when items are appended.
+        // Re-preparing on every menu action can restart source resolution and surface a
+        // transient playback error. Only prepare when the player was actually idle/empty.
+        if (wasEmpty || player.playbackState == Player.STATE_IDLE || player.playerError != null) {
+            player.prepare()
+            if (wasEmpty) player.playWhenReady = true
+        }
     }
 
     fun addToQueue(items: List<MediaItem>) {
-        player.addMediaItems(withoutQueueDuplicates(items))
-        player.prepare()
+        val safeItems = withoutQueueDuplicates(items)
+        if (safeItems.isEmpty()) return
+        val wasEmpty = player.mediaItemCount == 0
+        player.addMediaItems(safeItems)
+        // Do not call prepare() for an already playing/prepared queue. Appending to the
+        // timeline is sufficient and avoids unnecessary network/source re-resolution.
+        if (wasEmpty || player.playbackState == Player.STATE_IDLE || player.playerError != null) {
+            player.prepare()
+            if (wasEmpty) player.playWhenReady = true
+        }
     }
 
     fun toggleLibrary() {
@@ -882,7 +905,7 @@ class MusicService : MediaLibraryService(),
     private fun maybeExtendEndlessQueue() {
         if (!endlessQueueEnabled) return
         if (currentQueue.hasNextPage()) return // auto-load-more handles paged queues
-        if (player.mediaItemCount - player.currentMediaItemIndex > 3) return
+        if (player.mediaItemCount - player.currentMediaItemIndex > 5) return
         if (endlessQueueJob?.isActive == true) return
         val currentId = player.currentMediaItem?.mediaId ?: return
         val existingIds = buildSet {
@@ -902,6 +925,7 @@ class MusicService : MediaLibraryService(),
                     .map { it.toMediaItem() }
                     .filter { it.mediaId !in existingIds }
                     .filterExplicit(dataStore.get(HideExplicitKey, false))
+                    .take(12)
                 if (radioItems.isNotEmpty() && player.playbackState != STATE_IDLE) {
                     endlessQueueAppendedIds += radioItems.map { it.mediaId }
                     player.addMediaItems(radioItems)

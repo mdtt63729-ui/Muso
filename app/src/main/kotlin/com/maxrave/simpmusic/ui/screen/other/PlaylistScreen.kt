@@ -337,7 +337,7 @@ fun PlaylistScreen(
     // and the header backdrops take the page colour; page-level text and icons
     // invert; the artwork scrim and the white text sitting ON the artwork stay.
     val isDark = com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme.current
-    val pageBg = if (isDark) mutedPaletteBg else Color.White
+    val pageBg = if (isDark) Color.Black else Color.White
     val onPage = if (isDark) Color.White else Color.Black
     val pillBg = if (isDark) Color.White else Color.Black
     val pillContent = if (isDark) Color.Black else Color.White
@@ -428,9 +428,9 @@ fun PlaylistScreen(
                                                         modifier =
                                                             Modifier
                                                                 .fillMaxWidth()
-                                                                .height((screenInfo.hDP * 0.35f).dp)
+                                                                .height((screenInfo.hDP * 0.50f).dp)
                                                                 .align(Alignment.BottomCenter)
-                                                                .background(artworkScrimBrush(mutedPaletteBg)),
+                                                                .background(artworkScrimBrush(pageBg, steps = 32)),
                                                     )
                                                     Column(
                                                         modifier =

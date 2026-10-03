@@ -109,6 +109,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -496,7 +497,10 @@ class MainActivity : ComponentActivity() {
             }
 
 
-            LaunchedEffect(playerConnection, enableDynamicTheme, isSystemInDarkTheme, customThemeColor) {
+            LaunchedEffect(playerConnection, enableDynamicTheme, isSystemInDarkTheme, customThemeColor, showSplash) {
+                // Do not start artwork decoding/palette extraction during the splash -> home handoff.
+                // That work can contend with the first home composition and produce a visible hitch.
+                if (showSplash) return@LaunchedEffect
                 val playerConnection = playerConnection
                 if (!enableDynamicTheme || playerConnection == null) {
                     // SimpMusic-style custom theme color: used only when the artwork-based
@@ -678,7 +682,7 @@ class MainActivity : ComponentActivity() {
                     )
                     // The suite glass bar collapses while content is scrolled away from the top.
                     val isScrolledToTop by remember {
-                        derivedStateOf { searchBarScrollBehavior.state.overlappedFraction == 0f }
+                        derivedStateOf { searchBarScrollBehavior.state.overlappedFraction < 0.01f }
                     }
 
                     LaunchedEffect(navBackStackEntry) {
@@ -1148,10 +1152,11 @@ class MainActivity : ComponentActivity() {
                                         },
                                 )
                                 Text(
-                                    text = "Muso",
-                                    // Brand wordmark: Gochi Hand, weight 400, no effects.
+                                    text = "MUSO",
+                                    // Home wordmark: bold + italic as requested.
                                     fontFamily = FontFamily(Font(R.font.josefin_sans)),
-                                    fontWeight = FontWeight.Normal,
+                                    fontWeight = FontWeight.Bold,
+                                    fontStyle = FontStyle.Italic,
                                     fontSize = 32.sp,
                                     modifier = Modifier.weight(1f),
                                 )

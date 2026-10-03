@@ -356,7 +356,7 @@ suspend fun LazyListState.animateScrollAndAnchorItemTop(
         // the same way whether it moved a little or a lot. Damping just under 1 keeps it soft
         // without bouncing, and low stiffness is what makes it read as gliding rather than
         // snapping into place.
-        animationSpec = spring(dampingRatio = 0.9f, stiffness = 180f),
+        animationSpec = tween(durationMillis = 180, easing = LinearOutSlowInEasing),
     )
 }
 
@@ -381,7 +381,7 @@ suspend fun LazyListState.animateScrollAndCentralizeItem(index: Int) {
     val itemCenter = itemInfo.offset + itemInfo.size / 2
     this.animateScrollBy(
         value = (itemCenter - viewportCenter).toFloat(),
-        animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing),
+        animationSpec = tween(durationMillis = 180, easing = LinearOutSlowInEasing),
     )
 }
 

@@ -651,11 +651,11 @@ fun Lyrics(
                 delay(250L)
                 continue
             }
-            if (isTtmlLyrics) {
-                withFrameNanos { }
-            } else {
-                delay(50L)
-            }
+            // Keep the synchronization loop off the composition hot path. TTML used to
+            // sample every frame, which forced the whole visible lyric list to
+            // rebuild at display refresh rate. 120 ms is sufficient for line/word
+            // state while draw-phase karaoke animations remain smooth.
+            delay(120L)
             val sliderPosition = sliderPositionProvider()
             val seekingNow = sliderPosition != null
             if (isSeeking != seekingNow) {
@@ -938,14 +938,17 @@ fun Lyrics(
 
                         val targetBlur =
                             when {
-                                !isSynced || index == displayedCurrentLineIndex || (isSelectionModeActive && isSelected) ||
-                                    isManualScrolling -> 0f
+                                // Blur is a costly offscreen rendering operation. Keep normal
+                                // playback completely blur-free; only use it while the user is
+                                // manually browsing lyrics, where it adds useful depth.
+                                !lyricsLineBlur || !isManualScrolling || index == displayedCurrentLineIndex ||
+                                    (isSelectionModeActive && isSelected) -> 0f
 
-                                distance == 1 -> 2f
+                                distance == 1 -> 1.5f
 
-                                distance == 2 -> 5f
+                                distance == 2 -> 3f
 
-                                else -> 12f
+                                else -> 6f
                             }
 
                         val animatedBlur by animateFloatAsState(
@@ -1029,7 +1032,7 @@ fun Lyrics(
                                     horizontal = 24.dp,
                                     vertical = 8.dp,
                                 ).then(
-                                    if (lyricsLineBlur) {
+                                    if (lyricsLineBlur && isManualScrolling && animatedBlur > 0.01f) {
                                         Modifier.blur(
                                             radiusX = animatedBlur.dp,
                                             radiusY = animatedBlur.dp,

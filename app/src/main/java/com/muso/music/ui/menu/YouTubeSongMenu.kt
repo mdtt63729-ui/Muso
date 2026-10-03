@@ -41,6 +41,7 @@ import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.zionhuang.innertube.models.SongItem
+import com.zionhuang.innertube.models.WatchEndpoint
 import com.muso.music.LocalDatabase
 import com.muso.music.LocalDownloadUtil
 import com.muso.music.LocalPlayerConnection
@@ -194,21 +195,33 @@ fun YouTubeSongMenu(
             icon = R.drawable.radio,
             title = R.string.start_radio
         ) {
-            playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
+            // Persist the remote song first so every subsequent playback/download
+            // operation has a canonical local metadata row. Preserve YouTube's exact
+            // watch endpoint when one is available; it may contain params required by
+            // Music's next/radio request.
+            database.transaction { insert(song.toMediaMetadata()) }
+            playerConnection.playQueue(
+                YouTubeQueue.radio(
+                    song.toMediaMetadata(),
+                    song.endpoint ?: WatchEndpoint(videoId = song.id),
+                )
+            )
             onDismiss()
         }
         GridMenuItem(
             icon = R.drawable.playlist_play,
             title = R.string.play_next
         ) {
-            playerConnection.playNext(song.toMediaItem())
+            database.transaction { insert(song.toMediaMetadata()) }
+            playerConnection.playNext(song.toMediaMetadata().toMediaItem())
             onDismiss()
         }
         GridMenuItem(
             icon = R.drawable.queue_music,
             title = R.string.add_to_queue
         ) {
-            playerConnection.addToQueue((song.toMediaItem()))
+            database.transaction { insert(song.toMediaMetadata()) }
+            playerConnection.addToQueue(song.toMediaMetadata().toMediaItem())
             onDismiss()
         }
         if (librarySong?.song?.inLibrary != null) {
@@ -235,6 +248,7 @@ fun YouTubeSongMenu(
             icon = R.drawable.playlist_add,
             title = R.string.add_to_playlist
         ) {
+            database.transaction { insert(song.toMediaMetadata()) }
             showChoosePlaylistDialog = true
         }
         DownloadGridMenu(
@@ -243,7 +257,10 @@ fun YouTubeSongMenu(
                 database.transaction {
                     insert(song.toMediaMetadata())
                 }
-                val downloadRequest = DownloadRequest.Builder(song.id, song.id.toUri())
+                val downloadRequest = DownloadRequest.Builder(
+                    song.id,
+                    "https://music.youtube.com/watch?v=${song.id}".toUri()
+                )
                     .setCustomCacheKey(song.id)
                     .setData(song.title.toByteArray())
                     .build()

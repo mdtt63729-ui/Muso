@@ -33,7 +33,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
@@ -127,6 +126,15 @@ fun EchoLyricsLine(
     // derivedStateOf per word, so at 60 Hz only the word being sung
     // recomposes, not the whole line.
     val playhead = rememberEchoPlayhead(currentTimeMs, enabled = isCurrent)
+    val v2Bounce by com.muso.music.utils.rememberPreference(
+        moe.rukamori.archivetune.constants.LyricsV2BounceFactorKey, 1f,
+    )
+    val v2Glow by com.muso.music.utils.rememberPreference(
+        moe.rukamori.archivetune.constants.LyricsV2GlowFactorKey, 1f,
+    )
+    val v2FillWidth by com.muso.music.utils.rememberPreference(
+        moe.rukamori.archivetune.constants.LyricsV2FillTransitionWidthKey, 8f,
+    )
     Column(modifier = modifier.then(Modifier.fillMaxWidth())) {
         Spacer(modifier = Modifier.height(12.dp))
         // All supported styles share the same frame-synced word/character
@@ -155,6 +163,9 @@ fun EchoLyricsLine(
                         style = style,
                         isLast = index == last,
                         playhead = playhead,
+                        v2Bounce = v2Bounce,
+                        v2Glow = v2Glow,
+                        v2FillWidth = v2FillWidth,
                     )
                 }
             }
@@ -192,6 +203,9 @@ private fun EchoAnimatedWord(
     style: LyricsAnimationStyle,
     isLast: Boolean,
     playhead: State<Long>,
+    v2Bounce: Float,
+    v2Glow: Float,
+    v2FillWidth: Float,
 ) {
     val progress by remember(startMs, endMs, isCurrent) {
         derivedStateOf {
@@ -228,19 +242,6 @@ private fun EchoWord(
 ) {
     val baseStyle = if (isLineCurrent) typo().headlineLarge else typo().headlineMedium
     val word = if (isLast) text else "$text "
-    val v2Bounce by com.muso.music.utils.rememberPreference(
-        moe.rukamori.archivetune.constants.LyricsV2BounceFactorKey,
-        1f,
-    )
-    val v2Glow by com.muso.music.utils.rememberPreference(
-        moe.rukamori.archivetune.constants.LyricsV2GlowFactorKey,
-        1f,
-    )
-    val v2FillWidth by com.muso.music.utils.rememberPreference(
-        moe.rukamori.archivetune.constants.LyricsV2FillTransitionWidthKey,
-        8f,
-    )
-
     // All six styles use the same frame-synced timing. The style only changes
     // how the already-timed characters look and move.
     val pulse = sin(progress * kotlin.math.PI).toFloat().coerceIn(0f, 1f)
@@ -283,9 +284,6 @@ private fun EchoWord(
             translationY = (1f - rise) * 6f
             if (isWordActive) {
                 scale = 1f + 0.06f * rise
-                renderedStyle = baseStyle.copy(
-                    shadow = Shadow(color = EchoGlowColor, blurRadius = 12f),
-                )
             }
         }
 
@@ -298,12 +296,8 @@ private fun EchoWord(
             scale = 1f + 0.015f * v2Bounce.coerceIn(0f, 2f) * pulse
             if (isWordActive) {
                 val glowProgress = (progress * 2f).coerceAtMost(1f)
-                renderedStyle = baseStyle.copy(
-                    shadow = Shadow(
-                        color = EchoGlowColor.copy(alpha = glowProgress * 0.45f * v2Glow.coerceIn(0f, 2f)),
-                        blurRadius = (glowProgress * (8f + v2FillWidth.coerceIn(0f, 24f) * 0.5f)).coerceAtLeast(0.5f),
-                    ),
-                )
+                // Keep the timing effect but avoid a per-frame text-shadow blur pass.
+                alpha = alpha * (0.92f + 0.08f * glowProgress * v2Glow.coerceIn(0f, 2f))
             }
         }
 
@@ -316,12 +310,7 @@ private fun EchoWord(
             translationY = if (isWordActive) (1f - focus) * 2.5f else 0f
             scale = 0.985f + 0.015f * focus
             if (isWordActive) {
-                renderedStyle = baseStyle.copy(
-                    shadow = Shadow(
-                        color = EchoGlowColor.copy(alpha = 0.30f * focus),
-                        blurRadius = 9f * focus,
-                    ),
-                )
+                alpha = alpha * (0.94f + 0.06f * focus)
             }
         }
     }

@@ -7,8 +7,6 @@ import com.maxrave.simpmusic.ui.icon.LibraryMusic
 import com.maxrave.simpmusic.ui.icon.Search
 import com.maxrave.simpmusic.ui.icon.Sensors
 import com.maxrave.simpmusic.ui.icon.SimpIcons
-import android.graphics.Bitmap
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,8 +36,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -53,7 +49,6 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.maxrave.domain.data.player.GenericMediaItem
-import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.expect.ui.PlatformBackdrop
 import com.maxrave.simpmusic.ui.navigation.destination.home.AnalyticsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
@@ -63,13 +58,10 @@ import com.maxrave.simpmusic.ui.navigation.destination.search.SearchDestination
 import com.maxrave.simpmusic.ui.screen.MiniPlayer
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.viewModel.SharedViewModel
-import java.nio.IntBuffer
 import kotlin.reflect.KClass
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withContext
 import com.muso.music.R
 
 sealed class BottomNavScreen(
@@ -160,43 +152,11 @@ fun LiquidGlassAppBottomNavigationBar(
     // pill rides above the bar instead) without touching anything else.
     showMiniPlayer: Boolean = true,
 ) {
-    val layer = rememberGraphicsLayer()
-    val toolbarInteraction = rememberGlassInteraction()
-    val searchFabInteraction = rememberGlassInteraction()
-    val luminanceAnimation = remember { Animatable(0f) }
-
-    LaunchedEffect(layer) {
-        val buffer = IntBuffer.allocate(25)
-        while (isActive) {
-            try {
-                withContext(Dispatchers.IO) {
-                    val imageBitmap = layer.toImageBitmap()
-                    val thumbnail =
-                        imageBitmap
-                            .asAndroidBitmap()
-                            .scale(5, 5, false)
-                            .copy(Bitmap.Config.ARGB_8888, false)
-                    buffer.rewind()
-                    thumbnail.copyPixelsToBuffer(buffer)
-                }
-            } catch (e: Exception) {
-                Logger.e(TAG, "Error getting pixels from layer: ${e.localizedMessage}")
-            }
-            val averageLuminance =
-                (0 until 25).sumOf { index ->
-                    val color = buffer.get(index)
-                    val r = (color shr 16 and 0xFF) / 255f
-                    val g = (color shr 8 and 0xFF) / 255f
-                    val b = (color and 0xFF) / 255f
-                    0.2126 * r + 0.7152 * g + 0.0722 * b
-                } / 25
-            luminanceAnimation.animateTo(
-                averageLuminance.coerceIn(0.3, 0.8).toFloat(),
-                tween(500),
-            )
-            delay(1.seconds)
-        }
-    }
+    // Performance mode: Liquid Glass no longer performs graphics-layer pixel readbacks.
+    // The previous 5x5 bitmap sampling loop forced GPU->CPU synchronization every second,
+    // which is especially expensive while the backdrop shader is active. A stable mid-luminance
+    // keeps the material deterministic and lets the glass stay entirely on the render path.
+    val glassLuminance = 0.5f
 
     val nowPlayingData by viewModel.nowPlayingState.collectAsStateWithLifecycle()
     // MiniPlayer visibility: derived, never stored.
@@ -267,7 +227,6 @@ fun LiquidGlassAppBottomNavigationBar(
 
     LaunchedEffect(currentBackStackEntry) {
         currentBackStackEntry?.destination?.let { current ->
-            Logger.d(TAG, "LiquidGlassAppBottomNavigationBar: current route: ${current.route}")
             isInSearchDestination = current.hasRoute(SearchDestination::class)
         }
     }
@@ -287,7 +246,6 @@ fun LiquidGlassAppBottomNavigationBar(
     }
 
     LaunchedEffect(isScrolledToTop) {
-        Logger.d(TAG, "isScrolledToTop: $isScrolledToTop")
         if (!isInSearchDestination) {
             isExpanded = isScrolledToTop
         }
@@ -326,7 +284,7 @@ fun LiquidGlassAppBottomNavigationBar(
                 ).padding(
                     bottom = 8.dp,
                 ).imePadding(),
-        animateChangesSpec = tween(300),
+        animateChangesSpec = tween(220),
     ) {
         /**
          * LTR: HOME -> MIX FOR YOU -> LIBRARY | SEARCH
@@ -368,8 +326,7 @@ fun LiquidGlassAppBottomNavigationBar(
                         tabs = barTabs,
                         selectedTab = barTabs.indexOfFirst { it.ordinal == selectedIndex },
                         backdrop = backdrop,
-                        layer = layer,
-                        luminance = luminanceAnimation.value,
+                        luminance = glassLuminance,
                         availableWidth = maxWidth,
                         onTabSelected = { position -> selectTab(barTabs[position].ordinal) },
                     )
@@ -383,8 +340,8 @@ fun LiquidGlassAppBottomNavigationBar(
                             .drawInteractiveGlass(
                                 LocalIsDarkTheme.current,
                                 backdrop,
-                                layer,
-                                luminanceAnimation.value,
+                                null,
+                                glassLuminance,
                                 CircleShape,
                                 searchFabInteraction,
                             ).clickable { selectTab(BottomNavScreen.Search.ordinal) },
@@ -402,8 +359,8 @@ fun LiquidGlassAppBottomNavigationBar(
                             .drawInteractiveGlass(
                                 LocalIsDarkTheme.current,
                                 backdrop,
-                                layer,
-                                luminanceAnimation.value,
+                                null,
+                                glassLuminance,
                                 CircleShape,
                                 toolbarInteraction,
                             ).clickable { isExpanded = true },

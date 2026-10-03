@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.layer.GraphicsLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -90,12 +89,11 @@ fun Modifier.liquidGlass(
             .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f))
     }
     val isDark = LocalIsDarkTheme.current
-    val layer = rememberGraphicsLayer()
     val interaction = rememberGlassInteraction()
     return this.drawInteractiveGlass(
         isDark = isDark,
         backdrop = backdrop,
-        layer = layer,
+        layer = null,
         luminanceAnimation = 0.5f,
         shape = shape,
         interaction = if (interactive) interaction else null,
@@ -117,7 +115,7 @@ fun Modifier.liquidGlass(
 @Composable
 fun Modifier.liquidGlass(
     backdrop: PlatformBackdrop,
-    layer: GraphicsLayer,
+    layer: GraphicsLayer?,
     luminanceAnimation: Float,
     shape: Shape = CircleShape,
     interactive: Boolean = true,
@@ -141,7 +139,7 @@ fun Modifier.liquidGlass(
     return this.drawInteractiveGlass(
         isDark = isDark,
         backdrop = backdrop,
-        layer = layer,
+        layer = null,
         luminanceAnimation = luminanceAnimation,
         shape = shape,
         interaction = if (interactive) interaction else null,
@@ -267,7 +265,7 @@ fun rememberGlassInteraction(): GlassInteraction {
 fun Modifier.drawInteractiveGlass(
     isDark: Boolean,
     backdrop: PlatformBackdrop,
-    layer: GraphicsLayer,
+    layer: GraphicsLayer?,
     luminanceAnimation: Float,
     shape: Shape,
     interaction: GlassInteraction?,
@@ -290,32 +288,32 @@ fun Modifier.drawInteractiveGlass(
             effects = {
                 val l = (luminanceAnimation * 2f - 1f).let { sign(it) * it * it }
                 val press = interaction?.pressProgress ?: 0f
-                vibrancy()
                 colorControls(
                     // Neutral brightness/contrast: the old curve brightened + washed the glass out
                     // to white on bright backgrounds ("đục trắng"). Darkening is done in onDrawSurface.
                     brightness = 0.05f,
                     contrast = 1f,
-                    saturation = 1.5f,
+                    saturation = 1.15f,
                 )
                 blur(
                     (
                         if (l > 0f) {
-                            lerp(8f.dp.toPx(), 16f.dp.toPx(), l)
+                            lerp(5f.dp.toPx(), 8f.dp.toPx(), l)
                         } else {
-                            lerp(8f.dp.toPx(), 2f.dp.toPx(), -l)
+                            lerp(5f.dp.toPx(), 3f.dp.toPx(), -l)
                         }
-                    ) * blurScale + 2f.dp.toPx() * press,
+                    ) * blurScale + 1f.dp.toPx() * press,
                 )
                 // refractionHeight stays below the stadium inradius (minDimension / 2) so the
                 // top and bottom refraction never meet at the medial axis — that meeting point on
                 // a wide pill is what produced the dark horizontal seam. depthEffect is off to
                 // match the crisp Kyant demo look and avoid the radial discontinuity at the centre.
-                lens(size.minDimension / 4f + 2f.dp.toPx() * press, size.minDimension / 2f, false)
             },
             onDrawBackdrop = { drawBackdrop ->
                 drawBackdrop()
-                layer.record { drawBackdrop() }
+                // Intentionally no GPU->CPU readback/recording here. Glass surfaces use the
+                // shared backdrop directly; recording every frame was the main source of jank.
+
             },
             onDrawSurface = {
                 // Stay "đục đen": darken more as the background brightens so the glass never washes

@@ -68,6 +68,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.layout.ContentScale
@@ -154,11 +155,12 @@ internal fun NowPlayingExpressiveTheme(
     state: NowPlayingContentState,
     content: @Composable () -> Unit,
 ) {
-    // === 1. Color system: full dark scheme derived from the artwork ===
-    // startColor is animated by the shell from Color.Black (initial) to the palette color;
-    // fall back to the app seed while it still sits on the initial black.
+    // === 1. Color system: artwork-luminance-aware scheme ===
+    // The player background is derived from the current artwork. A permanently dark scheme
+    // made bright/white artwork keep white text and controls, which destroys contrast.
     val paletteColor = state.startColor.value
     val seedColor = if (paletteColor == Color.Black) seed else paletteColor
+    val artworkIsLight = paletteColor != Color.Black && paletteColor.luminance() > 0.52f
     // Track changes must GLIDE between palettes: the shell's startColor spring is quick, and a
     // whole tonal scheme snapping at once reads as a flash. 800ms matches the palette crossfade
     // feel of the other immersive screens.
@@ -343,12 +345,12 @@ private fun NowPlayingM3ExpressiveLayout(
                         Text(
                             text = stringResource(R.string.simp_now_playing_upper),
                             style = typo().bodyMedium,
-                            color = Color.White,
+                            color = colorScheme.onSurface,
                         )
                         Text(
                             text = state.screenData.playlistName,
                             style = typo().labelMedium,
-                            color = Color.White,
+                            color = colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             modifier =
@@ -458,7 +460,7 @@ private fun NowPlayingM3ExpressiveLayout(
                                 Text(
                                     text = lineText,
                                     style = typo().labelSmall,
-                                    color = Color.White,
+                                    color = colorScheme.onSurface,
                                     maxLines = 1,
                                     modifier =
                                         Modifier
@@ -582,7 +584,7 @@ private fun NowPlayingM3ExpressiveLayout(
                                                                 ).focusable(),
                                                         text = lineText,
                                                         style = typo().bodyMedium,
-                                                        color = Color.White,
+                                                        color = colorScheme.onSurface,
                                                         maxLines = 1,
                                                     )
                                                     val translatedLineText =
@@ -679,7 +681,7 @@ internal fun ExpressiveTrackInfoRow(
             Text(
                 text = state.screenData.nowPlayingTitle,
                 style = typo().titleMedium,
-                color = Color.White,
+                color = colorScheme.onSurface,
                 maxLines = 1,
                 modifier =
                     Modifier

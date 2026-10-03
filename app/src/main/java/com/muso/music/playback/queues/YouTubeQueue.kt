@@ -39,6 +39,18 @@ class YouTubeQueue(
     }
 
     companion object {
-        fun radio(song: MediaMetadata) = YouTubeQueue(WatchEndpoint(song.id), song)
+        /**
+         * Starts radio from the exact watch endpoint supplied by YouTube Music when
+         * one is available. Artist "Top songs" items frequently carry params /
+         * music-video configuration in that endpoint; rebuilding it from only the
+         * video id can leave the queue stuck on the loading state.
+         */
+        fun radio(
+            song: MediaMetadata,
+            endpoint: WatchEndpoint? = null,
+        ) = YouTubeQueue(
+            endpoint = endpoint ?: WatchEndpoint(videoId = song.id),
+            preloadItem = song,
+        )
     }
 }

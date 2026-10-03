@@ -681,7 +681,7 @@ fun LyricsView(
                                         parsedLine = renderableLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        currentTimeMs = playbackState.currentTimeMs.value,
+                                        currentTimeState = playbackState.currentTimeMs,
                                         isCurrent = index == renderCurrentLineIndex,
                                         style = effectiveEchoLyricsStyle,
                                     )
@@ -774,7 +774,7 @@ fun LyricsView(
                                         parsedLine = singleWordLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        currentTimeMs = playbackState.currentTimeMs.value,
+                                        currentTimeState = playbackState.currentTimeMs,
                                         isCurrent = index == renderCurrentLineIndex,
                                         style = effectiveEchoLyricsStyle,
                                         modifier =
@@ -1124,10 +1124,10 @@ private fun rememberLyricsPlaybackState(
  */
 @Composable
 private fun rememberSmoothPlayhead(
-    rawMs: Long,
+    rawMs: State<Long>,
     enabled: Boolean,
 ): State<Long> {
-    val playhead = remember { mutableLongStateOf(rawMs) }
+    val playhead = remember { mutableLongStateOf(rawMs.value) }
     // Round 194 (user report: word-synced lyrics were not fluid). The wall-clock
     // interpolation below is only as good as its cap: whenever a tick takes
     // longer than PLAYHEAD_TICK_MS (a loaded main thread - exactly the case on
@@ -1140,7 +1140,7 @@ private fun rememberSmoothPlayhead(
     val latestRawMs by rememberUpdatedState(rawMs)
     LaunchedEffect(enabled, playerConnection) {
         if (!enabled) {
-            playhead.longValue = latestRawMs
+            playhead.longValue = latestRawMs.value
             return@LaunchedEffect
         }
         val player = playerConnection?.player
@@ -1150,16 +1150,16 @@ private fun rememberSmoothPlayhead(
                     if (player.isPlaying) {
                         playhead.longValue = player.currentPosition.coerceAtLeast(0L)
                     } else {
-                        playhead.longValue = latestRawMs.coerceAtLeast(0L)
+                        playhead.longValue = latestRawMs.value.coerceAtLeast(0L)
                     }
                 }
             }
         }
-        var baseRawMs = latestRawMs
+        var baseRawMs = latestRawMs.value
         var baseNanos = 0L
         while (true) {
             val frameNanos = withFrameNanos { it }
-            val latest = latestRawMs
+            val latest = latestRawMs.value
             if (baseNanos == 0L || latest != baseRawMs) {
                 baseRawMs = latest
                 baseNanos = frameNanos
@@ -1179,7 +1179,7 @@ fun RichSyncLyricsLineItem(
     // Static text under a line that lights up word by word. Keeping it out of the FlowRow above is
     // deliberate: the wipe is driven by per-word timings this row does not have and must not fake.
     romanizedWords: String? = null,
-    currentTimeMs: Long,
+    currentTimeState: State<Long>,
     isCurrent: Boolean,
     customFontSize: TextUnit? = null,
     customPadding: Dp = 12.dp,
@@ -1202,7 +1202,7 @@ fun RichSyncLyricsLineItem(
     wrappedLineSpacing: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
-    val playhead = rememberSmoothPlayhead(currentTimeMs, enabled = isCurrent)
+    val playhead = rememberSmoothPlayhead(currentTimeState, enabled = isCurrent)
 
     // Remembered on the LINE rather than on the clock. The previous `remember(currentTimeMs, …)`
     // rebuilt this derived state on every tick, which gave away the one thing derivedStateOf is
@@ -1248,7 +1248,6 @@ fun RichSyncLyricsLineItem(
                     wordIndex = index,
                     wordStartTimeMs = wordTiming.startTimeMs,
                     wordEndTimeMs = wordEndTimeMs,
-                    currentTimeMs = currentTimeMs,
                     playheadMs = playhead,
                     isActive = isCurrent && index == currentWordIndex,
                     isPast = isCurrent && index < currentWordIndex,
@@ -1288,7 +1287,6 @@ private fun AnimatedWord(
     wordIndex: Int,
     wordStartTimeMs: Long,
     wordEndTimeMs: Long,
-    currentTimeMs: Long,
     // The frame-interpolated playhead, taken as State and read ONLY inside the effect below. Taking
     // it as a plain Long would recompose every word in the line on every frame; a State read from a
     // suspend body is not a composition read at all.
@@ -1335,10 +1333,9 @@ private fun AnimatedWord(
     val wordDurationMs = (wordEndTimeMs - wordStartTimeMs).coerceAtLeast(1L)
     val anim =
         remember(wordStartTimeMs, wordEndTimeMs) {
-            val initial =
-                ((currentTimeMs - wordStartTimeMs).toFloat() / wordDurationMs.toFloat())
-                    .coerceIn(0f, 1f)
-            androidx.compose.animation.core.Animatable(initial)
+            // Start from zero. The active-word coroutine immediately snaps to the exact
+            // frame playhead, while future/past words are driven only by isActive/isPast.
+            androidx.compose.animation.core.Animatable(0f)
         }
 
     LaunchedEffect(wordStartTimeMs, wordEndTimeMs, isActive, isPast) {
@@ -1611,6 +1608,7 @@ fun FullscreenLyricsSheet(
         containerColor = Color.Black,
         contentColor = Color.Transparent,
         dragHandle = {},
+        sheetGesturesEnabled = false,
         scrimColor = Color.Black.copy(alpha = .5f),
         sheetMaxWidth = if (isLandscape) Dp.Unspecified else BottomSheetDefaults.SheetMaxWidth,
         sheetState = sheetState,

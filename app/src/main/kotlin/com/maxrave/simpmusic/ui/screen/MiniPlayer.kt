@@ -87,7 +87,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -176,60 +175,9 @@ fun MiniPlayer(
     val usePremiumFlatStyle = miniPlayerStyle == MiniPlayerStyle.FLAT
     val useM3FlexStyle = miniPlayerStyle == MiniPlayerStyle.M3_FLEX
 
-    val layer = rememberGraphicsLayer()
-    val luminanceAnimation = remember { Animatable(0f) }
-
-    // The Desktop capsule is always liquid glass, so it needs the glass code paths whatever the
-    // setting says — both the luminance sampling loop that drives the glass and the theme-following
-    // text colour. Leaving them gated left the capsule with luminance stuck at 0: a 2dp blur and a
-    // 0.12 darken, which is why it looked like a smear rather than glass. The setting still governs
-    // the Android card below.
-    // Liquid Glass is an effect layer, independent of the selected mini-player design.
-    // Every mini-player style, including M3 Flex, must receive the same glass treatment when
-    // the user enables Liquid Glass.
-    val useGlassSurface = isLiquidGlassEnabled == DataStoreManager.TRUE
-
-    val isDarkTheme = LocalIsDarkTheme.current
-    val textColor by animateColorAsState(
-        // With liquid glass the surface follows the theme (light = frosted white → black text);
-        // without it, the card is a theme surface, so its foreground token.
-        targetValue =
-            if (useGlassSurface) {
-                if (isDarkTheme) Color.White else Color.Black
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-        label = "MiniPlayerTextColor",
-        animationSpec = tween(500),
-    )
-
-    LaunchedEffect(layer, useGlassSurface) {
-        val buffer = IntArray(25)
-        while (isActive && useGlassSurface) {
-            try {
-                withContext(Dispatchers.Main) {
-                    val imageBitmap = layer.toImageBitmap()
-                    val thumbnail = imageBitmap.toResizedBitmap(5, 5)
-                    thumbnail.readPixels(buffer)
-                }
-            } catch (e: Exception) {
-                Logger.e(TAG, "Error getting pixels from layer: ${e.message}")
-            }
-            val averageLuminance =
-                (0 until 25).sumOf { index ->
-                    val color = buffer.get(index)
-                    val r = (color shr 16 and 0xFF) / 255f
-                    val g = (color shr 8 and 0xFF) / 255f
-                    val b = (color and 0xFF) / 255f
-                    0.2126 * r + 0.7152 * g + 0.0722 * b
-                } / 25
-            luminanceAnimation.animateTo(
-                averageLuminance.coerceIn(0.3, 0.8).toFloat(),
-                tween(500),
-            )
-            delay(1.seconds)
-        }
-    }
+    // Keep Liquid Glass fully render-thread driven. Sampling a GraphicsLayer into a bitmap
+    // every second forced a GPU readback and caused visible stalls when entering other screens.
+    val glassLuminance = 0.5f
 
     val (songEntity, setSongEntity) =
         remember {
@@ -333,8 +281,8 @@ fun MiniPlayer(
                         if (useGlassSurface) {
                             Modifier.liquidGlass(
                                 backdrop,
-                                layer,
-                                luminanceAnimation.value,
+                                null,
+                                glassLuminance,
                                 if (useM3FlexStyle) RoundedCornerShape(32.dp) else RoundedCornerShape(16.dp),
                             )
                         } else {
@@ -751,7 +699,7 @@ fun MiniPlayer(
         val density = LocalDensity.current
         Box(
             modifier
-                .liquidGlass(backdrop, layer, luminanceAnimation.value, capsuleShape, blurScale = 1.2f)
+                .liquidGlass(backdrop, null, 0.5f, capsuleShape, blurScale = 1.0f)
                 .clip(capsuleShape)
                 .clickable {
                     onClick()

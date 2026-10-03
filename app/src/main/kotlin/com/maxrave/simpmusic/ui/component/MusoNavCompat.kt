@@ -11,10 +11,10 @@ import com.maxrave.simpmusic.ui.navigation.destination.list.PodcastDestination
  * these overloads translate them to Muso's own routes. They live in this
  * package on purpose - the suite's sheets resolve them without an import.
  */
-fun NavHostController.navigate(destination: ArtistDestination) = navigate("artist/${'$'}{destination.channelId}")
+fun NavHostController.navigate(destination: ArtistDestination) = navigate("artist/${destination.channelId}")
 
-fun NavHostController.navigate(destination: AlbumDestination) = navigate("album/${'$'}{destination.browseId}")
+fun NavHostController.navigate(destination: AlbumDestination) = navigate("album/${destination.browseId}")
 
-fun NavHostController.navigate(destination: PlaylistDestination) = navigate("playlist/${'$'}{destination.playlistId}")
+fun NavHostController.navigate(destination: PlaylistDestination) = navigate("playlist/${destination.playlistId}")
 
-fun NavHostController.navigate(destination: PodcastDestination) = navigate("artist/${'$'}{destination.podcastId}")
+fun NavHostController.navigate(destination: PodcastDestination) = navigate("artist/${destination.podcastId}")

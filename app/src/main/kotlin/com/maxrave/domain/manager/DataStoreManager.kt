@@ -60,7 +60,7 @@ class DataStoreManager(
      * radio tail before the queue runs out.
      */
     val endlessQueue: Flow<String> = context.dataStore.data.map { preferences ->
-        if (preferences[com.muso.music.constants.EndlessQueueKey] ?: false) TRUE else FALSE
+        if (preferences[com.muso.music.constants.EndlessQueueKey] ?: true) TRUE else FALSE
     }
     /** Liquid glass surfaces (navigation bar / mini player). Muso's Appearance setting feeds this. */
     val enableLiquidGlass = MutableStateFlow(FALSE)

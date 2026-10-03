@@ -73,12 +73,14 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,6 +94,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
@@ -413,12 +416,32 @@ private fun ATCinemaShell(
     topActions: @Composable () -> Unit,
     transport: @Composable () -> Unit,
 ) {
-    // DEFAULT background in AT: the plain bottom-sheet surface.
-    val textBackgroundColor = MaterialTheme.colorScheme.onBackground
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxSize(),
-    ) {
+    // Resolve foreground from the same artwork-derived seed that drives the player background.
+    // AT styles used a permanently dark Material scheme, so a light artwork background could
+    // leave black-on-white / white-on-black components mismatched. Keep the actual layout intact,
+    // but make the semantic content colours follow the rendered background.
+    val artworkBackground = state.startColor.value
+    val isLightBackground = artworkBackground.luminance() > 0.52f
+    val textBackgroundColor = if (isLightBackground) Color.Black else Color.White
+    val backgroundColor = if (isLightBackground) Color.White else Color.Black
+    val adaptiveScheme = MaterialTheme.colorScheme.copy(
+        background = backgroundColor,
+        surface = backgroundColor,
+        surfaceVariant = if (isLightBackground) Color(0xFFE9E9E9) else Color(0xFF202020),
+        onBackground = textBackgroundColor,
+        onSurface = textBackgroundColor,
+        onSurfaceVariant = textBackgroundColor.copy(alpha = 0.78f),
+        primary = textBackgroundColor,
+        onPrimary = backgroundColor,
+        primaryContainer = textBackgroundColor.copy(alpha = 0.14f),
+        onPrimaryContainer = textBackgroundColor,
+    )
+    MaterialTheme(colorScheme = adaptiveScheme) {
+        CompositionLocalProvider(LocalContentColor provides textBackgroundColor) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxSize(),
+            ) {
         ATNowPlayingHeader(state = state, textColor = textBackgroundColor)
         Box(
             contentAlignment = Alignment.Center,
@@ -477,7 +500,9 @@ private fun ATCinemaShell(
                 .align(Alignment.CenterHorizontally),
         )
 
-        Spacer(Modifier.height(30.dp))
+                Spacer(Modifier.height(30.dp))
+            }
+        }
     }
 }
 

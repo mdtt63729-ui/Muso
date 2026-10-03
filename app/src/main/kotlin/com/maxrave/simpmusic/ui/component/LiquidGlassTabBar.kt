@@ -34,7 +34,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -101,7 +100,6 @@ fun LiquidGlassTabBar(
     tabs: List<BottomNavScreen>,
     selectedTab: Int,
     backdrop: PlatformBackdrop,
-    layer: GraphicsLayer,
     luminance: Float,
     modifier: Modifier = Modifier,
     availableWidth: Dp = Dp.Unspecified,
@@ -198,7 +196,7 @@ fun LiquidGlassTabBar(
         // bar and the mini player read as one material (drawInteractiveGlass, no white veil).
         // barInteraction makes the whole capsule respond to a press (scale + touch glow) like iOS;
         // it's observe-only, so tab taps and the blob drag keep working.
-        Box(Modifier.matchParentSize().drawInteractiveGlass(isDark, backdrop, layer, luminance, CapsuleShape, barInteraction))
+        Box(Modifier.matchParentSize().drawInteractiveGlass(isDark, backdrop, null, luminance, CapsuleShape, barInteraction))
 
         // 2) Frosted blob selection indicator — slides behind the icons.
         Box(
@@ -214,11 +212,13 @@ fun LiquidGlassTabBar(
                     backdrop = backdrop,
                     shape = { CapsuleShape },
                     effects = {
+                        // Performance: keep the selection pill as a simple frosted surface.
+                        // The previous lens/chromatic-aberration pass was visually expensive on
+                        // every drag frame.
                         // Luminance only drives the blur here (frosted pill); brightness/contrast stay
                         // neutral and the "đục đen" darkening is applied in onDrawSurface.
                         val l = (luminance * 2f - 1f).let { sign(it) * it * it }
                         val progress = dampedDrag.pressProgress
-                        vibrancy()
                         colorControls(
                             brightness = 0.05f,
                             contrast = 1f,
@@ -230,7 +230,6 @@ fun LiquidGlassTabBar(
                             (if (l > 0f) lerp(8f.dp.toPx(), 16f.dp.toPx(), l) else lerp(8f.dp.toPx(), 2f.dp.toPx(), -l)) +
                                 20f.dp.toPx(),
                         )
-                        lens(10f.dp.toPx() * progress, 14f.dp.toPx() * progress, chromaticAberration = true)
                     },
                     highlight = { Highlight.Default.copy(alpha = 0.6f) },
                     shadow = { Shadow(radius = 4f.dp, alpha = 0.4f) },

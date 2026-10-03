@@ -31,6 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
@@ -184,9 +185,27 @@ private fun NewMiniPlayer(
             MiniPlayerBackgroundStyle.THEME
         }
 
+    val artworkIsLight =
+        remember(backgroundPalette, effectiveBackgroundStyle) {
+            // GLOW intentionally paints a black base, so its controls must stay light even
+            // when the source artwork itself is bright. Only GRADIENT follows artwork luminance.
+            if (effectiveBackgroundStyle != MiniPlayerBackgroundStyle.GRADIENT) {
+                false
+            } else {
+                backgroundPalette?.let {
+                    // Weight the visible palette colours; one tiny bright swatch must not
+                    // flip the whole control system.
+                    val l1 = it.first.luminance()
+                    val l2 = it.second.luminance()
+                    val l3 = it.third.luminance()
+                    (l1 * 0.45f + l2 * 0.30f + l3 * 0.25f) > 0.52f
+                } ?: false
+            }
+        }
     val contentColors =
         rememberMiniPlayerContentColors(
             useArtworkBackground = effectiveBackgroundStyle != MiniPlayerBackgroundStyle.THEME,
+            artworkIsLight = artworkIsLight,
         )
     val proximity = navigationProximityProvider()
     val miniPlayerShape =
@@ -236,7 +255,10 @@ private fun NewMiniPlayer(
 }
 
 @Composable
-private fun rememberMiniPlayerContentColors(useArtworkBackground: Boolean): MiniPlayerContentColors {
+private fun rememberMiniPlayerContentColors(
+    useArtworkBackground: Boolean,
+    artworkIsLight: Boolean = false,
+): MiniPlayerContentColors {
     val colorScheme = MaterialTheme.colorScheme
     return remember(
         useArtworkBackground,
@@ -252,20 +274,22 @@ private fun rememberMiniPlayerContentColors(useArtworkBackground: Boolean): Mini
         colorScheme.onPrimaryContainer,
     ) {
         if (useArtworkBackground) {
+            val foreground = if (artworkIsLight) Color.Black else Color.White
+            val inverse = if (artworkIsLight) Color.White else Color.Black
             MiniPlayerContentColors(
-                title = Color.White,
-                secondary = Color.White.copy(alpha = 0.72f),
-                progress = Color.White,
-                progressTrack = Color.White.copy(alpha = 0.24f),
-                artworkContainer = Color.White.copy(alpha = 0.14f),
-                artworkBorder = Color.White.copy(alpha = 0.22f),
-                primaryButtonContainer = Color.White.copy(alpha = 0.92f),
-                primaryButtonIcon = Color.Black,
-                secondaryButtonContainer = Color.Black.copy(alpha = 0.22f),
-                buttonIcon = Color.White,
-                disabledButtonIcon = Color.White.copy(alpha = 0.38f),
-                togetherContainer = Color.White.copy(alpha = 0.16f),
-                togetherContent = Color.White,
+                title = foreground,
+                secondary = foreground.copy(alpha = 0.72f),
+                progress = foreground,
+                progressTrack = foreground.copy(alpha = 0.24f),
+                artworkContainer = foreground.copy(alpha = 0.14f),
+                artworkBorder = foreground.copy(alpha = 0.22f),
+                primaryButtonContainer = foreground.copy(alpha = 0.92f),
+                primaryButtonIcon = inverse,
+                secondaryButtonContainer = inverse.copy(alpha = 0.22f),
+                buttonIcon = foreground,
+                disabledButtonIcon = foreground.copy(alpha = 0.38f),
+                togetherContainer = foreground.copy(alpha = 0.16f),
+                togetherContent = foreground,
             )
         } else {
             MiniPlayerContentColors(

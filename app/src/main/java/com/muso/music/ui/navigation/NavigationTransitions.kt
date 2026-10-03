@@ -49,9 +49,9 @@ import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDestinatio
 // (ui/animation/MotionTokens.kt) - the Motion System PRD's single source
 // of truth. Bands: push 300-350 ms, pop 220-320 ms, parallax 15-25%.
 private val IosEasing = Motion.EnterEasing
-private const val PUSH_MS = Motion.PUSH
-private const val POP_MS = Motion.POP
-private const val TAB_MS = Motion.TAB
+private const val PUSH_MS = 220
+private const val POP_MS = 180
+private const val TAB_MS = 120
 private const val PARALLAX_NUM = 8
 private const val PARALLAX_DEN = 10
 
@@ -69,8 +69,7 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.iosEnter(
     if (!animationsEnabled) return fadeIn(snap())
     if (isTabSwitch()) {
         // Tab switch: crossfade + slight scale, never a slide.
-        return fadeIn(tween(TAB_MS, easing = IosEasing)) +
-            scaleIn(tween(TAB_MS, easing = IosEasing), initialScale = 0.98f)
+        return fadeIn(tween(TAB_MS, easing = IosEasing))
     }
     // Perf (user report: page changes lagged): alpha-blending two fullscreen
     // pages - plus a scale re-render - is the expensive part of a nav
@@ -98,8 +97,7 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.iosPopEnter(
 ): EnterTransition {
     if (!animationsEnabled) return fadeIn(snap())
     if (isTabSwitch()) {
-        return fadeIn(tween(TAB_MS, easing = IosEasing)) +
-            scaleIn(tween(TAB_MS, easing = IosEasing), initialScale = 0.98f)
+        return fadeIn(tween(TAB_MS, easing = IosEasing))
     }
     return slideInHorizontally(tween(POP_MS, easing = IosEasing)) { -it * PARALLAX_NUM / PARALLAX_DEN }
 }

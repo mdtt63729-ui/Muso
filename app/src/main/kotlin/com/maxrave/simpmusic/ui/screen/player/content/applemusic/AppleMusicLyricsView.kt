@@ -362,25 +362,36 @@ internal fun AppleMusicLyricsView(
             )
         }
 
-        // expand/shrink, not just fade: the Box above holds weight(1f), so removing the cluster
-        // from the layout is what lets the lyrics grow into the freed space — a fade alone would
-        // leave an empty band where the transport used to be.
-        androidx.compose.animation.AnimatedVisibility(
-            visible = showCluster && !lyricsFullscreen,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            AppleMusicBottomCluster(
-                state = state,
-                actions = actions,
-                typography = typography,
-                viewState = viewState,
-                onSelectView = onSelectView,
-                activePillContainer = activePillContainer,
-                activePillContent = activePillContent,
-                deviceVolumeController = deviceVolumeController,
-            )
+        // The old expand/shrink transition remeasured the lyric LazyColumn on every animation
+        // frame. With word/letter-synced lyrics that creates a layout/render fight. Keep the dock
+        // in its own animated layer so fullscreen lyrics can reveal themselves without reflowing
+        // the entire lyric list on every frame.
+        Box(Modifier.fillMaxWidth()) {
+            val dockVisible = showCluster && !lyricsFullscreen
+            androidx.compose.animation.AnimatedVisibility(
+                visible = dockVisible,
+                enter = androidx.compose.animation.slideInVertically(
+                    animationSpec = tween(180, easing = FastOutSlowInEasing),
+                    initialOffsetY = { it / 2 },
+                ) + fadeIn(tween(140)),
+                exit = androidx.compose.animation.slideOutVertically(
+                    animationSpec = tween(150, easing = FastOutSlowInEasing),
+                    targetOffsetY = { it / 2 },
+                ) + fadeOut(tween(100)),
+            ) {
+                AppleMusicBottomCluster(
+                    state = state,
+                    actions = actions,
+                    typography = typography,
+                    viewState = viewState,
+                    onSelectView = onSelectView,
+                    activePillContainer = activePillContainer,
+                    activePillContent = activePillContent,
+                    deviceVolumeController = deviceVolumeController,
+                )
+            }
         }
+
     }
 }
 

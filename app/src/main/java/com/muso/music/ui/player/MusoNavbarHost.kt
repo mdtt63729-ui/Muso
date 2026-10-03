@@ -25,11 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.rememberGraphicsLayer
-import com.maxrave.simpmusic.expect.ui.toImageBitmap
-import com.maxrave.simpmusic.extension.toResizedBitmap
 import com.maxrave.simpmusic.ui.component.liquidGlass
-import com.maxrave.logger.Logger
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -61,9 +57,6 @@ import com.muso.music.utils.rememberPreference
 import org.koin.compose.koinInject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.seconds
 import com.muso.music.ui.player.classic.MusoClassicMiniPlayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlin.math.roundToInt
@@ -315,27 +308,6 @@ private fun ClassicArchiveTuneMiniPlayer(
     pureBlack: Boolean,
 ) {
     val connection = playerConnection ?: return
-    val glassLayer = rememberGraphicsLayer()
-    val glassLuminance = remember { Animatable(0.5f) }
-    LaunchedEffect(glassLayer, useLiquidGlass) {
-        val buffer = IntArray(25)
-        while (isActive && useLiquidGlass) {
-            runCatching {
-                withContext(Dispatchers.Main) {
-                    glassLayer.toImageBitmap().toResizedBitmap(5, 5).readPixels(buffer)
-                }
-                val average = (0 until 25).sumOf { index ->
-                    val color = buffer[index]
-                    val r = (color shr 16 and 0xFF) / 255f
-                    val g = (color shr 8 and 0xFF) / 255f
-                    val b = (color and 0xFF) / 255f
-                    0.2126 * r + 0.7152 * g + 0.0722 * b
-                } / 25.0
-                glassLuminance.animateTo(average.coerceIn(0.3, 0.8).toFloat(), tween(500))
-            }.onFailure { Logger.e("ClassicMiniPlayer", "Glass luminance sampling failed: ${it.message}") }
-            delay(5.seconds)
-        }
-    }
     var position by remember { mutableLongStateOf(connection.player.currentPosition.coerceAtLeast(0L)) }
     var duration by remember { mutableLongStateOf(connection.player.duration.takeIf { it > 0L } ?: 0L) }
 
@@ -352,11 +324,15 @@ private fun ClassicArchiveTuneMiniPlayer(
         modifier = modifier
             .then(
                 if (useLiquidGlass) {
+                    // Use the shared backdrop directly. The old implementation recorded this
+                    // MiniPlayer into its own GraphicsLayer and then sampled that layer for
+                    // luminance, which made Classic's glass path unreliable (and added a
+                    // readback on the render pipeline). The shared primitive already has the
+                    // correct backdrop and setting gate.
                     Modifier.liquidGlass(
                         backdrop = backdrop,
-                        layer = glassLayer,
-                        luminanceAnimation = glassLuminance.value,
-                        shape = RoundedCornerShape(28.dp),
+                        shape = miniPlayerShape,
+                        interactive = true,
                     )
                 } else {
                     Modifier
