@@ -321,24 +321,7 @@ private fun ClassicArchiveTuneMiniPlayer(
     }
 
     Box(
-        modifier = modifier
-            .then(
-                if (useLiquidGlass) {
-                    // Use the shared backdrop directly. The old implementation recorded this
-                    // MiniPlayer into its own GraphicsLayer and then sampled that layer for
-                    // luminance, which made Classic's glass path unreliable (and added a
-                    // readback on the render pipeline). The shared primitive already has the
-                    // correct backdrop and setting gate.
-                    Modifier.liquidGlass(
-                        backdrop = backdrop,
-                        shape = miniPlayerShape,
-                        interactive = true,
-                    )
-                } else {
-                    Modifier
-                },
-            )
-            .clickable(onClick = onOpenNowPlaying),
+        modifier = modifier.clickable(onClick = onOpenNowPlaying),
     ) {
         MusoClassicMiniPlayer(
             position = position,
@@ -347,6 +330,8 @@ private fun ClassicArchiveTuneMiniPlayer(
             pureBlack = pureBlack,
             navigationProximityProvider = { navigationProximity.coerceIn(0f, 1f) },
             playerConnection = connection,
+            useLiquidGlass = useLiquidGlass,
+            backdrop = backdrop,
         )
     }
 }

@@ -36,6 +36,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.maxrave.simpmusic.expect.ui.PlatformBackdrop
+import com.maxrave.simpmusic.ui.component.liquidGlass
 import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.palette.graphics.Palette
@@ -70,6 +72,7 @@ fun MusoClassicMiniPlayer(
     navigationProximityProvider: () -> Float = { 0f },
     playerConnection: com.muso.music.playback.PlayerConnection,
     useLiquidGlass: Boolean = false,
+    backdrop: PlatformBackdrop? = null,
 ) {
     NewMiniPlayer(
         position = position,
@@ -79,6 +82,7 @@ fun MusoClassicMiniPlayer(
         navigationProximityProvider = navigationProximityProvider,
         playerConnection = playerConnection,
         useLiquidGlass = useLiquidGlass,
+        backdrop = backdrop,
     )
 }
 
@@ -91,6 +95,7 @@ private fun NewMiniPlayer(
     navigationProximityProvider: () -> Float,
     playerConnection: com.muso.music.playback.PlayerConnection,
     useLiquidGlass: Boolean,
+    backdrop: PlatformBackdrop?,
 ) {
     val context = LocalContext.current
     val layoutDirection = LocalLayoutDirection.current
@@ -242,8 +247,22 @@ private fun NewMiniPlayer(
                 style = effectiveBackgroundStyle,
                 palette = backgroundPalette,
                 modifier = Modifier.fillMaxSize(),
-                transparentThemeSurface = useLiquidGlass,
+                transparentThemeSurface = useLiquidGlass && backdrop != null && effectiveBackgroundStyle == MiniPlayerBackgroundStyle.THEME,
             )
+            // The glass must be drawn ABOVE the artwork/background and BELOW the controls.
+            // Applying it to the outer wrapper made it render behind this opaque background,
+            // so Classic looked like a normal pill even when Liquid Glass was enabled.
+            if (useLiquidGlass && backdrop != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .liquidGlass(
+                            backdrop = backdrop,
+                            shape = miniPlayerShape,
+                            interactive = true,
+                        ),
+                )
+            }
             NewMiniPlayerContent(
                 position = position,
                 duration = duration,

@@ -251,7 +251,7 @@ fun ArtistScreen(
                                     if (song.id == mediaMetadata?.id) {
                                         playerConnection.player.togglePlayPause()
                                     } else {
-                                        playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), song.endpoint))
+                                        playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), null))
                                     }
                                 }
                                 .animateItem()
@@ -303,7 +303,7 @@ fun ArtistScreen(
                                         if (song.id == mediaMetadata?.id) {
                                             playerConnection.player.togglePlayPause()
                                         } else {
-                                            playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), song.endpoint))
+                                            playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), null))
                                         }
                                     }
                                     .animateItem()

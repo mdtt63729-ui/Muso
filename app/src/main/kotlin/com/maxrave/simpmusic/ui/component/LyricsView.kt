@@ -681,7 +681,7 @@ fun LyricsView(
                                         parsedLine = renderableLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        currentTimeState = playbackState.currentTimeMs,
+                                        currentTimeMs = playbackState.currentTimeMs,
                                         isCurrent = index == renderCurrentLineIndex,
                                         style = effectiveEchoLyricsStyle,
                                     )
@@ -774,7 +774,7 @@ fun LyricsView(
                                         parsedLine = singleWordLine,
                                         translatedWords = translatedWords,
                                         romanizedWords = romanizedWords,
-                                        currentTimeState = playbackState.currentTimeMs,
+                                        currentTimeMs = playbackState.currentTimeMs,
                                         isCurrent = index == renderCurrentLineIndex,
                                         style = effectiveEchoLyricsStyle,
                                         modifier =

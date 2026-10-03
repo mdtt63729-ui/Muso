@@ -292,12 +292,12 @@ private fun EchoWord(
             // linear word progress, sine bounce/float and transient glow.
             color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
             alpha = if (isLineCurrent) 1f else 0.30f
-            translationY = if (isWordActive) -4f * v2Bounce.coerceIn(0f, 2f) * pulse else 0f
-            scale = 1f + 0.015f * v2Bounce.coerceIn(0f, 2f) * pulse
+            translationY = if (isWordActive) -4f * 1f * pulse else 0f
+            scale = 1f + 0.015f * 1f * pulse
             if (isWordActive) {
                 val glowProgress = (progress * 2f).coerceAtMost(1f)
                 // Keep the timing effect but avoid a per-frame text-shadow blur pass.
-                alpha = alpha * (0.92f + 0.08f * glowProgress * v2Glow.coerceIn(0f, 2f))
+                alpha = alpha * (0.92f + 0.08f * glowProgress * 1f)
             }
         }
 

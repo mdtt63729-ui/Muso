@@ -178,6 +178,13 @@ fun MiniPlayer(
     // Keep Liquid Glass fully render-thread driven. Sampling a GraphicsLayer into a bitmap
     // every second forced a GPU readback and caused visible stalls when entering other screens.
     val glassLuminance = 0.5f
+    val useGlassSurface = isLiquidGlassEnabled == DataStoreManager.TRUE
+    val isDarkTheme = LocalIsDarkTheme.current
+    val textColor = if (useGlassSurface) {
+        if (isDarkTheme) Color.White else Color.Black
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
     val (songEntity, setSongEntity) =
         remember {
@@ -278,17 +285,6 @@ fun MiniPlayer(
             modifier =
                 modifier
                     .then(
-                        if (useGlassSurface) {
-                            Modifier.liquidGlass(
-                                backdrop,
-                                null,
-                                glassLuminance,
-                                if (useM3FlexStyle) RoundedCornerShape(32.dp) else RoundedCornerShape(16.dp),
-                            )
-                        } else {
-                            Modifier
-                        },
-                    ).then(
                         Modifier
                             .clip(miniPlayerShape)
                             .offset { IntOffset(0, offsetY.value.roundToInt()) }
@@ -334,6 +330,22 @@ fun MiniPlayer(
         ) {
             if ((usePremiumFlatStyle || useM3FlexStyle) && !useGlassSurface) {
                 FlatMiniPlayerBackground(thumbnail = songEntity?.thumbnails)
+            }
+            // Render Liquid Glass as a real overlay surface. The previous modifier was attached
+            // to the Card itself, which draws before Card content; Flat/M3 backgrounds could then
+            // paint over the glass, making some mini-player styles appear to have no glass at all.
+            if (useGlassSurface) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .liquidGlass(
+                            backdrop = backdrop,
+                            layer = null,
+                            luminanceAnimation = glassLuminance,
+                            shape = miniPlayerShape,
+                            interactive = true,
+                        ),
+                )
             }
             if (useM3FlexStyle) {
                 M3FlexMiniPlayerContent(
