@@ -9,7 +9,6 @@ import com.maxrave.simpmusic.ui.icon.Sensors
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -158,8 +157,8 @@ fun LiquidGlassAppBottomNavigationBar(
     // which is especially expensive while the backdrop shader is active. A stable mid-luminance
     // keeps the material deterministic and lets the glass stay entirely on the render path.
     val glassLuminance = 0.5f
-    val searchFabInteraction = remember { MutableInteractionSource() }
-    val toolbarInteraction = remember { MutableInteractionSource() }
+    val searchFabInteraction = rememberGlassInteraction()
+    val toolbarInteraction = rememberGlassInteraction()
 
     val nowPlayingData by viewModel.nowPlayingState.collectAsStateWithLifecycle()
     // MiniPlayer visibility: derived, never stored.
