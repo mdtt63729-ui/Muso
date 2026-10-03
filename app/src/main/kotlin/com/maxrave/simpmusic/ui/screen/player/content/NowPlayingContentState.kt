@@ -20,6 +20,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.maxrave.domain.data.model.browse.album.Track
@@ -179,7 +180,17 @@ class NowPlayingContentState(
      * its video frame from this one value, so a frame and the spacer that measures it cannot drift.
      */
     val videoAspectRatio: Float = 16f / 9,
-)
+) {
+    /** Foreground chosen from the actual animated artwork background, not the app theme. */
+    val adaptiveForeground: Color
+        get() = if (startColor.value.luminance() > 0.52f) Color.Black else Color.White
+
+    val adaptiveForegroundMuted: Color
+        get() = adaptiveForeground.copy(alpha = 0.72f)
+
+    val adaptiveBackground: Color
+        get() = if (startColor.value.luminance() > 0.52f) Color.White else Color.Black
+}
 
 /**
  * Everything a Now Playing content layer can do. All callbacks land in the shell, which owns

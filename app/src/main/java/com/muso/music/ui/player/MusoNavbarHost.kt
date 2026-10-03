@@ -200,11 +200,13 @@ fun BoxScope.MusoNavbarHost(
             // bar and mini-player swap used to be an instant cut - two completely
             // different clusters replaced in one frame, which read as a jolt. A
             // short crossfade makes the change glide instead.
-            targetState = liquidGlass,
-            animationSpec = androidx.compose.animation.core.tween(durationMillis = 180),
-            label = "liquidGlassBarSwap",
-        ) { glassOn ->
-        if (glassOn && miniPlayerStyle == MiniPlayerStyle.MINIFY) {
+            targetState = liquidGlass to miniPlayerStyle,
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 220),
+            label = "miniPlayerStyleAndGlassSwap",
+        ) { styleAndGlass ->
+        val glassOn = styleAndGlass.first
+        val activeMiniPlayerStyle = styleAndGlass.second
+        if (glassOn && activeMiniPlayerStyle == MiniPlayerStyle.MINIFY) {
             // Glass style: the bar's integrated glass pill, exactly as before.
             LiquidGlassAppBottomNavigationBar(
                 startDestination = com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination,
@@ -226,7 +228,7 @@ fun BoxScope.MusoNavbarHost(
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             ) {
                 if (isShowMiniPlayer) {
-                    if (miniPlayerStyle == MiniPlayerStyle.CLASSIC) {
+                    if (activeMiniPlayerStyle == MiniPlayerStyle.CLASSIC) {
                         ClassicArchiveTuneMiniPlayer(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -288,7 +290,7 @@ fun BoxScope.MusoNavbarHost(
                 },
                 onReloadTab = onReloadTab,
                 playerConnection = playerConnection,
-                miniPlayerStyle = miniPlayerStyle,
+                miniPlayerStyle = activeMiniPlayerStyle,
                 pureBlack = pureBlack,
             )
         }

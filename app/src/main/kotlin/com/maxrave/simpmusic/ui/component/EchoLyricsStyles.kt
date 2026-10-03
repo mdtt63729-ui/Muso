@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -70,7 +71,7 @@ private const val ECHO_PLAYHEAD_TICK_MS = 300L
  * advances once per frame, corrected to the truth on every real tick.
  */
 @Composable
-private fun rememberEchoPlayhead(rawMs: Long, enabled: Boolean): State<Long> {
+private fun rememberEchoPlayhead(rawMs: Long, playerOffsetMs: Long, enabled: Boolean): State<Long> {
     val playhead = remember { mutableLongStateOf(rawMs) }
     // Round 194: same live-player playhead as the flare renderer - the frame-
     // exact position while a player is playing, the ticked value + wall-clock
@@ -88,7 +89,10 @@ private fun rememberEchoPlayhead(rawMs: Long, enabled: Boolean): State<Long> {
             val frameNanos = withFrameNanos { it }
             val player = playerConnection?.player
             if (player != null && player.isPlaying) {
-                playhead.longValue = player.currentPosition.coerceAtLeast(0L)
+                // IMPORTANT: rawMs is already in lyric/heard time (lyrics offset applied).
+                // Do not switch back to uncorrected player time here or the animation and the
+                // selected line will disagree by exactly the user configured lyrics offset.
+                playhead.longValue = (player.currentPosition - playerOffsetMs).coerceAtLeast(0L)
                 baseRawMs = playhead.longValue
                 baseNanos = frameNanos
             } else {
@@ -118,14 +122,17 @@ fun EchoLyricsLine(
     translatedWords: String?,
     romanizedWords: String?,
     currentTimeMs: Long,
+    /** Listener/audio correction already applied to currentTimeMs by LyricsView. */
+    playerOffsetMs: Long = 0L,
     isCurrent: Boolean,
     style: LyricsAnimationStyle,
     modifier: Modifier = Modifier,
 ) {
-    // Frame-smooth playhead (see rememberEchoPlayhead) - and read through
-    // derivedStateOf per word, so at 60 Hz only the word being sung
-    // recomposes, not the whole line.
-    val playhead = rememberEchoPlayhead(currentTimeMs, enabled = isCurrent)
+    // IMPORTANT: do not build one Text composable per word/character here. That approach made the
+    // current line recompose dozens of text nodes every frame. The renderer below measures once
+    // and then draws the complete line from one Canvas; only the Canvas is invalidated by the
+    // frame-smooth playhead. This is the same architecture as a requestAnimationFrame renderer.
+    val playhead = rememberEchoPlayhead(currentTimeMs, playerOffsetMs, enabled = isCurrent)
     val v2Bounce by com.muso.music.utils.rememberPreference(
         moe.rukamori.archivetune.constants.LyricsV2BounceFactorKey, 1f,
     )
@@ -135,40 +142,19 @@ fun EchoLyricsLine(
     val v2FillWidth by com.muso.music.utils.rememberPreference(
         moe.rukamori.archivetune.constants.LyricsV2FillTransitionWidthKey, 8f,
     )
-    Column(modifier = modifier.then(Modifier.fillMaxWidth())) {
+
+    Column(modifier = modifier.fillMaxWidth()) {
         Spacer(modifier = Modifier.height(12.dp))
-        // All supported styles share the same frame-synced word/character
-        // renderer. This prevents a style from silently switching renderer
-        // depending on the provider or lyric format.
-        FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                val words = parsedLine.words
-                val last = words.size - 1
-                words.forEachIndexed { index, word ->
-                    val startMs = word.startTimeMs
-                    val endMs =
-                        word.endTimeMs
-                            ?: words.getOrNull(index + 1)?.startTimeMs
-                            ?: parsedLine.lineEndTimeMs.coerceAtLeast(startMs + 1L)
-                    val duration = (endMs - startMs).coerceAtLeast(1L)
-                    EchoAnimatedWord(
-                        text = word.text,
-                        startMs = startMs,
-                        endMs = endMs,
-                        duration = duration,
-                        isCurrent = isCurrent,
-                        style = style,
-                        isLast = index == last,
-                        playhead = playhead,
-                        v2Bounce = v2Bounce,
-                        v2Glow = v2Glow,
-                        v2FillWidth = v2FillWidth,
-                    )
-                }
-            }
+        EchoCanvasLine(
+            parsedLine = parsedLine,
+            playhead = playhead,
+            isCurrent = isCurrent,
+            style = style,
+            v2Bounce = v2Bounce,
+            v2Glow = v2Glow,
+            v2FillWidth = v2FillWidth,
+            modifier = Modifier.fillMaxWidth(),
+        )
         if (romanizedWords != null) {
             Text(
                 text = romanizedWords,
@@ -184,6 +170,107 @@ fun EchoLyricsLine(
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun EchoCanvasLine(
+    parsedLine: ParsedRichSyncLine,
+    playhead: State<Long>,
+    isCurrent: Boolean,
+    style: LyricsAnimationStyle,
+    v2Bounce: Float,
+    v2Glow: Float,
+    v2FillWidth: Float,
+    modifier: Modifier,
+) {
+    val textMeasurer = rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val textStyle = if (isCurrent) typo().headlineLarge else typo().headlineMedium
+    val maxWidthPx = with(density) { 360.dp.toPx() }
+    val layout = remember(parsedLine, isCurrent, textStyle, maxWidthPx) {
+        measureMetroWords(textMeasurer, parsedLine, textStyle, maxWidthPx, density)
+    }
+
+    Canvas(
+        modifier = modifier.height(layout.heightDp),
+    ) {
+        val t = playhead.value
+        layout.rows.forEach { row ->
+            var x = 0f
+            row.words.forEach { slot ->
+                val wordProgress =
+                    ((t - slot.startMs).toFloat() / (slot.endMs - slot.startMs).coerceAtLeast(1L))
+                        .coerceIn(0f, 1f)
+                val wordActive = isCurrent && t >= slot.startMs && t < slot.endMs
+                val wordComplete = t >= slot.endMs
+                val pulse = sin(wordProgress * kotlin.math.PI).toFloat().coerceIn(0f, 1f)
+
+                slot.characters.forEachIndexed { charIndex, character ->
+                    // Use the character's own timed slice instead of dividing the word into
+                    // equal buckets. Equal buckets look acceptable on a demo lyric, but they
+                    // drift badly on sung words where the vowel/consonant durations differ.
+                    // The timing model is precomputed once per word, so this remains a draw-only
+                    // operation while playback is running.
+                    val charProgress =
+                        ((t - character.startMs).toFloat() /
+                            (character.endMs - character.startMs).coerceAtLeast(1L))
+                            .coerceIn(0f, 1f)
+                    val eased = smoothstep(charProgress)
+                    var color = if (isCurrent) EchoSungWordColor else EchoPendingWordColor
+                    var alpha = if (isCurrent) 1f else 0.35f
+                    var translationY = 0f
+                    var scale = 1f
+
+                    when (style) {
+                        LyricsAnimationStyle.NONE -> {
+                            color = if (isCurrent && (wordComplete || wordActive)) EchoSungWordColor else EchoPendingWordColor
+                        }
+                        LyricsAnimationStyle.FADE -> {
+                            alpha = if (isCurrent) 0.35f + 0.65f * eased else 0.35f
+                        }
+                        LyricsAnimationStyle.KARAOKE -> Unit
+                        LyricsAnimationStyle.LYRICS_V2 -> {
+                            val rise = if (wordActive || wordComplete) 1f else 0f
+                            alpha = if (isCurrent) 0.30f + 0.70f * rise else 0.30f
+                            translationY = (1f - rise) * 6f
+                            if (wordActive) scale = 1f + 0.06f * pulse * v2Bounce.coerceIn(0f, 2f)
+                        }
+                        LyricsAnimationStyle.V2_MODE -> {
+                            translationY = if (wordActive) -4f * v2Bounce.coerceIn(0f, 2f) * pulse else 0f
+                            scale = 1f + 0.015f * v2Bounce.coerceIn(0f, 2f) * pulse
+                            if (wordActive) {
+                                alpha *= 0.92f + 0.08f * (eased * v2Glow.coerceIn(0f, 2f))
+                            }
+                        }
+                        LyricsAnimationStyle.ENHANCED -> {
+                            alpha = if (isCurrent) 0.40f + 0.60f * eased else 0.28f
+                            translationY = if (wordActive) (1f - eased) * 2.5f else 0f
+                            scale = 0.985f + 0.015f * eased
+                            if (wordActive) alpha *= 0.94f + 0.06f * eased
+                        }
+                    }
+
+                    // v2FillWidth intentionally stays a timing preference. Its old implementation
+                    // changed layout/measurement while the song was playing; keeping it out of the
+                    // layout pass removes that source of frame spikes while preserving the setting.
+                    val fill = if (style == LyricsAnimationStyle.KARAOKE) eased else eased
+                    val drawColor = lerpColor(EchoPendingWordColor, color, fill).copy(alpha = alpha)
+                    val charX = x + slot.characters.take(charIndex).sumOf { it.widthPx.toDouble() }.toFloat()
+                    withTransform({
+                        translate(left = charX, top = row.y + translationY)
+                        scale(scaleX = scale, scaleY = scale, pivot = Offset.Zero)
+                    }) {
+                        drawText(
+                            textLayoutResult = character.layout,
+                            color = drawColor,
+                            topLeft = Offset.Zero,
+                        )
+                    }
+                }
+                x += slot.widthPx + layout.spacePx
+            }
+        }
     }
 }
 
@@ -483,6 +570,8 @@ private fun lerpColor(from: Color, to: Color, fraction: Float): Color =
 private data class MetroCharacterSlot(
     val layout: TextLayoutResult,
     val widthPx: Float,
+    val startMs: Long,
+    val endMs: Long,
 )
 
 private data class MetroWordSlot(
@@ -503,6 +592,24 @@ private data class MetroLayout(
     val spacePx: Float,
 )
 
+private fun characterTimingWeight(character: String): Float {
+    val cp = character.codePointAt(0)
+    if (Character.isWhitespace(cp)) return 0.12f
+    if (Character.getType(cp) == Character.NON_SPACING_MARK || Character.getType(cp) == Character.COMBINING_SPACING_MARK) return 0.08f
+    if (Character.isDigit(cp)) return 0.80f
+    if (Character.isLetter(cp)) {
+        val c = character.lowercase()
+        // Give sustained vowel sounds a little more temporal room. This is only a fallback when
+        // the lyric provider has word timing but no phoneme timing; it never pretends to be audio
+        // forced alignment.
+        if (c in setOf("a", "e", "i", "o", "u", "ā", "ē", "ī", "ō", "ū", "অ", "আ", "ই", "ঈ", "উ", "ঊ", "এ", "ঐ", "ও", "ঔ")) {
+            return 1.18f
+        }
+        return 0.92f
+    }
+    return 0.22f
+}
+
 private fun measureMetroWords(
     textMeasurer: TextMeasurer,
     parsedLine: ParsedRichSyncLine,
@@ -521,7 +628,7 @@ private fun measureMetroWords(
         // Word spacing is supplied by layout.spacePx, so the separator is not
         // treated as a timed character.
         val text = word.text
-        val characters = buildList {
+        val characterParts = buildList {
             var charIndex = 0
             while (charIndex < text.length) {
                 val codePoint = text.codePointAt(charIndex)
@@ -532,14 +639,37 @@ private fun measureMetroWords(
                     style = style,
                     maxLines = 1,
                 )
-                add(
-                    MetroCharacterSlot(
-                        layout = characterLayout,
-                        widthPx = characterLayout.size.width.toFloat(),
-                    ),
-                )
+                add(character to characterLayout)
                 charIndex += charCount
             }
+        }
+        val wordStartMs = word.startTimeMs
+        val wordEndMs = (word.endTimeMs ?: parsedLine.lineEndTimeMs)
+            .coerceAtLeast(wordStartMs + 1L)
+        val totalWordDuration = (wordEndMs - wordStartMs).coerceAtLeast(1L)
+        // A letter does not consume equal amounts of singing time. Vowels, syllabic nuclei and
+        // CJK/Bengali-style full glyphs tend to occupy more of a sung word; punctuation and
+        // combining marks should not steal a full letter's slice. This is a deterministic fallback
+        // for providers that expose word timing but not phoneme/character timing. When the source
+        // contains true character timing, that source timing should be preferred upstream.
+        val weights = characterParts.map { (character, _) -> characterTimingWeight(character) }
+        val weightTotal = weights.sum().coerceAtLeast(0.001f)
+        var cursorMs = wordStartMs
+        val characters = characterParts.mapIndexed { index, (character, characterLayout) ->
+            val isLast = index == characterParts.lastIndex
+            val endMs = if (isLast) {
+                wordEndMs
+            } else {
+                cursorMs + (totalWordDuration * (weights[index] / weightTotal)).toLong()
+            }.coerceAtLeast(cursorMs + 1L).coerceAtMost(wordEndMs)
+            val slot = MetroCharacterSlot(
+                layout = characterLayout,
+                widthPx = characterLayout.size.width.toFloat(),
+                startMs = cursorMs,
+                endMs = endMs,
+            )
+            cursorMs = endMs
+            slot
         }
         val wordWidth = characters.sumOf { it.widthPx.toDouble() }.toFloat()
         if (x > 0f && x + wordWidth > maxWidthPx) {

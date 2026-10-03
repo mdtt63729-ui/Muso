@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
@@ -69,6 +70,7 @@ import com.maxrave.domain.data.model.ui.ScreenSizeInfo
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.logger.Logger
 import com.maxrave.media3.ui.extension.KeepScreenOn
+import com.muso.music.playback.RenderedCanvasVideoStore
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
 import kotlinx.coroutines.CoroutineScope
@@ -160,7 +162,14 @@ private object CanvasVideoController {
 
     private fun createPlayer(appContext: Context, canvasCache: SimpleCache): ExoPlayer {
         val cacheSink = CacheDataSink.Factory().setCache(canvasCache)
-        val upstreamFactory = DefaultDataSource.Factory(appContext, DefaultHttpDataSource.Factory())
+        val httpFactory =
+            DefaultHttpDataSource.Factory()
+                // Fail fast on a dead/slow canvas endpoint so the artwork fallback can
+                // take over instead of keeping the video surface waiting indefinitely.
+                .setConnectTimeoutMs(5_000)
+                .setReadTimeoutMs(5_000)
+                .setAllowCrossProtocolRedirects(true)
+        val upstreamFactory = DefaultDataSource.Factory(appContext, httpFactory)
         val downStreamFactory = FileDataSource.Factory()
         val cacheDataSourceFactory =
             CacheDataSource
@@ -175,7 +184,16 @@ private object CanvasVideoController {
             .setLoadControl(
                 DefaultLoadControl
                     .Builder()
-                    .setPrioritizeTimeOverSizeThresholds(false)
+                    // Canvas videos are short 5–15 s loops. Prioritize getting the
+                    // first frame on screen over filling a large buffer: this is the
+                    // important part for Spotify-like perceived startup speed.
+                    .setBufferDurationsMs(
+                        /* minBufferMs = */ 1_000,
+                        /* maxBufferMs = */ 15_000,
+                        /* bufferForPlaybackMs = */ 150,
+                        /* bufferForPlaybackAfterRebufferMs = */ 500,
+                    )
+                    .setPrioritizeTimeOverSizeThresholds(true)
                     .build(),
             ).setMediaSourceFactory(
                 DefaultMediaSourceFactory(cacheDataSourceFactory),
@@ -196,6 +214,7 @@ fun MediaPlayerView(
     cropToBounds: Boolean = false,
 ) {
     val canvasCache: SimpleCache = koinInject<SimpleCache>(named(Config.CANVAS_CACHE))
+    val mainPlayer: Player = koinInject(named(Config.MAIN_PLAYER))
 
     var widthPx by rememberSaveable {
         mutableIntStateOf(screenSize.wPX)
@@ -338,6 +357,14 @@ fun MediaPlayerViewWithSubtitle(
     var showArtwork by rememberSaveable {
         mutableStateOf(false)
     }
+    // A video track can exist even when its first frame never arrives. Keep the
+    // artwork as the visual fallback until a real video frame is rendered.
+    var hasVideoTrack by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var hasRenderedFirstFrame by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     var artworkUri by rememberSaveable {
         mutableStateOf<String?>(null)
@@ -416,27 +443,56 @@ fun MediaPlayerViewWithSubtitle(
                 ) {
                     super.onMediaItemTransition(mediaItem, reason)
                     artworkUri = mediaItem?.mediaMetadata?.artworkUri?.toString()
+                    // A media-item transition always starts a new visual session. Never
+                    // expose the video surface until Media3 confirms that a real frame
+                    // has actually been rendered. The artwork is the only loading state.
+                    hasRenderedFirstFrame = false
+                    showArtwork = true
                 }
 
                 override fun onTracksChanged(tracks: Tracks) {
                     super.onTracksChanged(tracks)
-                    if (!tracks.groups.isEmpty()) {
-                        for (arrayIndex in 0 until tracks.groups.size) {
-                            var done = false
-                            for (groupIndex in 0 until tracks.groups[arrayIndex].length) {
-                                val sampleMimeType = tracks.groups[arrayIndex].getTrackFormat(groupIndex).sampleMimeType
-                                if (sampleMimeType != null && sampleMimeType.contains("video")) {
-                                    showArtwork = false
-                                    done = true
-                                    break
-                                } else {
-                                    showArtwork = true
-                                }
-                            }
-                            if (done) {
+                    var video = false
+                    for (arrayIndex in 0 until tracks.groups.size) {
+                        val group = tracks.groups[arrayIndex]
+                        for (groupIndex in 0 until group.length) {
+                            val sampleMimeType = group.getTrackFormat(groupIndex).sampleMimeType
+                            if (sampleMimeType?.startsWith("video/") == true) {
+                                video = true
                                 break
                             }
                         }
+                        if (video) break
+                    }
+                    hasVideoTrack = video
+                    hasRenderedFirstFrame = false
+                    // Do not treat the presence of a video track as proof that video loaded.
+                    // Until the first frame arrives, preserve the normal artwork presentation.
+                    showArtwork = !video
+                }
+
+                override fun onRenderedFirstFrame() {
+                    super.onRenderedFirstFrame()
+                    hasRenderedFirstFrame = true
+                    showArtwork = false
+                    // MediaPlayerView owns the canvas ExoPlayer, so this callback
+                    // is the real video-frame signal. Read the song id from the
+                    // shared audio player instead of the canvas MediaItem (whose
+                    // id is the video URL).
+                    mainPlayer.currentMediaItem?.mediaId
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { mediaId ->
+                            RenderedCanvasVideoStore.markRendered(context, mediaId)
+                        }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    super.onPlayerError(error)
+                    if (hasVideoTrack) {
+                        // Failed video must never leave a frozen thumbnail stretched across
+                        // the video surface. Return to the normal artwork fallback.
+                        hasRenderedFirstFrame = false
+                        showArtwork = true
                     }
                 }
 
@@ -469,6 +525,19 @@ fun MediaPlayerViewWithSubtitle(
         artworkUri = player.currentMediaItem?.mediaMetadata?.artworkUri?.toString()
         player.addListener(playerListener)
         (player as? ExoPlayer)?.videoScalingMode = C.VIDEO_SCALING_MODE_DEFAULT
+    }
+
+    // If a video track is advertised but no frame arrives, don't leave a blank or
+    // stretched video surface indefinitely. Give the decoder/network a short grace period,
+    // then fall back to the same artwork that the player used before video support.
+    LaunchedEffect(player.currentMediaItem?.mediaId, hasVideoTrack) {
+        if (!hasVideoTrack) return@LaunchedEffect
+        hasRenderedFirstFrame = false
+        showArtwork = true
+        kotlinx.coroutines.delay(2500)
+        if (!hasRenderedFirstFrame) {
+            showArtwork = true
+        }
     }
 
     val presentationState = rememberPresentationState(player)
@@ -516,57 +585,54 @@ fun MediaPlayerViewWithSubtitle(
         contentAlignment = Alignment.Center,
     ) {
         KeepScreenOn()
-        Crossfade(showArtwork) {
-            if (it) {
-                AsyncImage(
-                    model =
-                        ImageRequest
-                            .Builder(LocalContext.current)
-                            .data(
-                                artworkUri,
-                            ).diskCachePolicy(CachePolicy.ENABLED)
-                            .diskCacheKey(
-                                artworkUri,
-                            ).crossfade(550)
-                            .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillHeight,
-                    modifier =
+        // Do NOT crossfade the artwork into the video surface. During a crossfade, the
+        // thumbnail can visually sit over the video for a short interval and make it look
+        // as if the thumbnail itself is being played. Keep one mutually-exclusive visual
+        // state: artwork while loading, real video only after onRenderedFirstFrame().
+        if (showArtwork || !hasRenderedFirstFrame) {
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data(artworkUri)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .diskCacheKey(artworkUri)
+                        .crossfade(false)
+                        .build(),
+                contentDescription = null,
+                contentScale = ContentScale.FillHeight,
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .align(Alignment.Center),
+            )
+        } else {
+            PlayerSurface(
+                player = player,
+                surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+                modifier =
+                    if (cropToBounds) {
+                        // Full-bleed: center scale-to-cover the caller's frame without stretching.
                         Modifier
-                            .fillMaxHeight()
-                            .align(Alignment.Center),
-                )
-            } else {
-                PlayerSurface(
-                    player = player,
-                    surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
-                    modifier =
-                        if (cropToBounds) {
-                            // Full-bleed (user spec): center scale-to-cover the caller's frame,
-                            // same treatment the canvas backdrop uses - never letterboxed,
-                            // never stretched.
-                            Modifier
-                                .fillMaxSize()
-                                .resizeWithContentScale(
-                                    contentScale = ContentScale.Crop,
-                                    sourceSizeDp = presentationState.videoSizeDp,
-                                )
-                        } else {
-                            Modifier
-                                .wrapContentSize()
-                                // The size the player already has, not a listener waiting for a change:
-                                // the Full build's session player is a CastPlayer, which only reports a
-                                // size that differs from its last one, so a view composed mid-video
-                                // (Now Playing reopened after fullscreen) never heard it and sat at 16:9.
-                                .aspectRatio(presentationState.videoSizeDp?.let { it.width / it.height } ?: 16f / 9)
-                                .align(Alignment.Center)
-                        },
-                )
+                            .fillMaxSize()
+                            .resizeWithContentScale(
+                                contentScale = ContentScale.Crop,
+                                sourceSizeDp = presentationState.videoSizeDp,
+                            )
+                    } else {
+                        Modifier
+                            .wrapContentSize()
+                            .aspectRatio(
+                                presentationState.videoSizeDp?.let { it.width / it.height }
+                                    ?: 16f / 9,
+                            )
+                            .align(Alignment.Center)
+                    },
+            )
 
-                if (presentationState.coverSurface) {
-                    // Cover the surface that is being prepared with a shutter
-                    Box(Modifier.background(Color.Black))
-                }
+            if (presentationState.coverSurface) {
+                // Cover the surface that is still being prepared.
+                Box(Modifier.background(Color.Black))
             }
         }
         if (lyricsData != null && shouldShowSubtitle) {

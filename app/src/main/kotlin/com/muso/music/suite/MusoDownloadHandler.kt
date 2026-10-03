@@ -45,6 +45,14 @@ class MusoDownloadHandler(
     override val downloadTask: StateFlow<Map<String, Int>> = MutableStateFlow(emptyMap())
 
     override suspend fun downloadTrack(videoId: String, title: String, thumbnail: String) {
+        // Start artwork caching from the exact thumbnail that came with the download request.
+        // Do not depend solely on the main Room song table: this handler also receives catalog
+        // songs from the embedded SimpMusic stack, which may not have been persisted there yet.
+        // The artwork job is best-effort and deliberately does not block the audio download.
+        scope.launch(Dispatchers.IO) {
+            downloadUtil.cacheArtworkForDownload(videoId, thumbnail)
+        }
+
         val request = DownloadRequest.Builder(videoId, videoId.toUri())
             .setCustomCacheKey(videoId)
             .setData(title.toByteArray())
@@ -55,6 +63,9 @@ class MusoDownloadHandler(
             request,
             false,
         )
+        // If this song's video has already rendered, start its offline video
+        // download alongside the audio rather than waiting for the audio to finish.
+        downloadUtil.downloadRenderedCanvasVideo(videoId)
     }
 
     override fun removeDownload(videoId: String) {

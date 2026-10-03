@@ -1,6 +1,7 @@
 package com.muso.music.playback
 
 import android.content.Context
+import java.io.FileOutputStream
 import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
@@ -18,6 +19,8 @@ import com.muso.music.constants.AudioQuality
 import com.muso.music.constants.AudioQualityKey
 import com.muso.music.constants.itagPreference
 import com.muso.music.constants.DownloadQualityKey
+import com.muso.music.constants.VideoQuality
+import com.muso.music.constants.VideoQualityKey
 import com.muso.music.db.MusicDatabase
 import com.muso.music.db.entities.FormatEntity
 import com.muso.music.db.entities.LyricsEntity
@@ -25,6 +28,8 @@ import com.muso.music.di.DownloadCache
 import com.muso.music.di.PlayerCache
 import com.muso.music.models.toMediaMetadata
 import com.muso.music.utils.enumPreference
+import moe.rukamori.archivetune.storage.StorageFolderKind
+import moe.rukamori.archivetune.storage.StorageLocationRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +39,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import javax.inject.Inject
@@ -65,6 +71,8 @@ class DownloadUtil @Inject constructor(
     // SimpMusic-style separate download quality: downloads can pick a different stream
     // than streaming playback does.
     private val downloadQuality by enumPreference(context, DownloadQualityKey, AudioQuality.MEDIUM)
+    private val videoQuality by enumPreference(context, VideoQualityKey, VideoQuality.Q720)
+    private val videoDownloadJobs = ConcurrentHashMap.newKeySet<String>()
 
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
 
@@ -154,11 +162,123 @@ class DownloadUtil @Inject constructor(
         }
     }
 
+    private fun deleteDownloadedCanvasVideo(songId: String) {
+        runCatching {
+            val directory = StorageLocationRepository.cacheDirectory(appContext, StorageFolderKind.DOWNLOADS)
+                .resolve("canvas")
+            directory.listFiles()
+                ?.filter { it.isFile && it.nameWithoutExtension == songId }
+                ?.forEach { it.delete() }
+        }
+    }
+
     /**
-     * Saves the song's artwork in the highest quality the server has (max-res
-     * first, with fallbacks), keyed by the song's thumbnail URLs, so the
-     * thumbnail renders with no network connection at all.
+     * If this song has actually rendered a canvas/video frame, download the same
+     * video alongside the audio download. The video is written into the user's
+     * configured Downloads/canvas directory and is later preferred offline, so
+     * playback never needs the network for that visual.
+     *
+     * This is opt-in through an explicit song download and is therefore separate
+     * from the normal streaming cache: merely watching a video does not create a
+     * permanent video download.
      */
+    fun downloadRenderedCanvasVideo(songId: String) {
+        if (songId.isBlank() || !RenderedCanvasVideoStore.wasRendered(songId)) return
+        if (!videoDownloadJobs.add(songId)) return
+        cacheScope.launch(Dispatchers.IO) {
+            try {
+                downloadRenderedCanvasVideoInternal(songId)
+            } finally {
+                videoDownloadJobs.remove(songId)
+            }
+        }
+    }
+
+    private suspend fun downloadRenderedCanvasVideoInternal(songId: String) {
+        if (!RenderedCanvasVideoStore.wasRendered(songId)) return
+        val directory = StorageLocationRepository.cacheDirectory(appContext, StorageFolderKind.DOWNLOADS)
+            .resolve("canvas")
+        directory.mkdirs()
+
+        val existing = directory.listFiles()
+            ?.firstOrNull { it.isFile && it.nameWithoutExtension == songId && it.length() > 0L }
+        if (existing != null) return
+
+        val response = YouTube.player(songId).getOrNull() ?: return
+        val streamingData = response.streamingData ?: return
+        val targetHeight = when (videoQuality) {
+            VideoQuality.Q360 -> 360
+            VideoQuality.Q720 -> 720
+            VideoQuality.Q1080 -> 1080
+        }
+        val adaptive = streamingData.adaptiveFormats.orEmpty()
+            .filter { !it.url.isNullOrBlank() && !it.isAudio && (it.height ?: 0) >= targetHeight }
+        val muxed = streamingData.formats.orEmpty()
+            .filter { !it.url.isNullOrBlank() && (it.height ?: 0) >= targetHeight }
+        val format = adaptive.minByOrNull { it.height ?: Int.MAX_VALUE }
+            ?: muxed.minByOrNull { it.height ?: Int.MAX_VALUE }
+            ?: adaptive.maxByOrNull { it.height ?: 0 }
+            ?: muxed.maxByOrNull { it.height ?: 0 }
+            ?: return
+        val url = format.url ?: return
+        val mime = format.mimeType.substringBefore(';').lowercase()
+        val extension = if (mime.contains("webm")) "webm" else "mp4"
+        val target = directory.resolve("$songId.$extension")
+        val partial = directory.resolve(".$songId.$extension.part")
+
+        val client = OkHttpClient.Builder()
+            .proxy(YouTube.proxy)
+            .connectTimeout(12, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
+            .callTimeout(5, java.util.concurrent.TimeUnit.MINUTES)
+            .build()
+        val request = Request.Builder().url(url).build()
+        client.newCall(request).execute().use { responseBody ->
+            if (!responseBody.isSuccessful) return
+            val body = responseBody.body ?: return
+            partial.delete()
+            body.byteStream().use { input ->
+                FileOutputStream(partial).use { output ->
+                    val buffer = ByteArray(128 * 1024)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        output.write(buffer, 0, read)
+                    }
+                    output.fd.sync()
+                }
+            }
+        }
+        if (partial.length() <= 0L) {
+            partial.delete()
+            return
+        }
+        if (target.exists()) target.delete()
+        if (!partial.renameTo(target)) {
+            partial.delete()
+        }
+    }
+
+    /**
+     * Cache artwork using the thumbnail URL supplied by the caller. This is intentionally
+     * independent of the Room song row: SimpMusic-side download requests can be created before
+     * the main Muso database has a corresponding SongEntity. In that case waiting for the DB
+     * would produce a perfectly downloaded audio file with no offline artwork.
+     */
+    suspend fun cacheArtworkForDownload(songId: String, thumbnailUrl: String?) {
+        runCatching {
+            val directUrl = thumbnailUrl?.trim()?.takeIf { it.isNotBlank() }
+            if (directUrl != null) {
+                artworkRepository.cache(
+                    mediaId = songId,
+                    sourceUrls = listOf(directUrl),
+                )
+            } else {
+                cacheArtworkForSong(songId)
+            }
+        }
+    }
+
     private suspend fun cacheArtworkForSong(songId: String) {
         runCatching {
             val song = database.song(songId).first() ?: return
@@ -167,6 +287,7 @@ class DownloadUtil @Inject constructor(
                 sourceUrls = listOfNotNull(
                     song.song.thumbnailUrl,
                     song.album?.thumbnailUrl,
+                    "https://i.ytimg.com/vi/$songId/maxresdefault.jpg",
                 ),
             )
         }
@@ -331,6 +452,15 @@ class DownloadUtil @Inject constructor(
             result[cursor.download.request.id] = cursor.download
         }
         downloads.value = result
+        cacheScope.launch {
+            RenderedCanvasVideoStore.renderedIds.collect { renderedIds ->
+                renderedIds.forEach { songId ->
+                    if (downloads.value[songId]?.state == Download.STATE_COMPLETED) {
+                        downloadRenderedCanvasVideo(songId)
+                    }
+                }
+            }
+        }
         downloadManager.addListener(
             object : DownloadManager.Listener {
                 override fun onDownloadChanged(downloadManager: DownloadManager, download: Download, finalException: Exception?) {
@@ -340,8 +470,10 @@ class DownloadUtil @Inject constructor(
                         }
                     }
                     if (download.state == Download.STATE_COMPLETED) {
-                        // Offline extras (user request): a finished download also
-                        // carries its high-quality thumbnail and its lyrics.
+                        // Offline extras: artwork, lyrics, and (only when this song
+                        // really rendered a video) the rendered video travel with
+                        // the downloaded song.
+                        downloadRenderedCanvasVideo(download.request.id)
                         cacheScope.launch {
                             cacheArtworkForSong(download.request.id)
                             fetchLyricsForSong(download.request.id)
@@ -350,6 +482,7 @@ class DownloadUtil @Inject constructor(
                 }
 
                 override fun onDownloadRemoved(downloadManager: DownloadManager, download: Download) {
+                    deleteDownloadedCanvasVideo(download.request.id)
                     downloads.update { map ->
                         map - download.request.id
                     }

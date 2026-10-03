@@ -682,7 +682,13 @@ class MainActivity : ComponentActivity() {
                     )
                     // The suite glass bar collapses while content is scrolled away from the top.
                     val isScrolledToTop by remember {
-                        derivedStateOf { searchBarScrollBehavior.state.overlappedFraction < 0.01f }
+                        derivedStateOf {
+                            // This custom scroll behavior is pinned and does not install a
+                            // TopAppBar, so heightOffsetLimit remains 0 and
+                            // overlappedFraction never changes. Use the behavior's accumulated contentOffset instead: negative means the feed has consumed
+                            // upward scroll; it returns to zero when the list reaches top.
+                            searchBarScrollBehavior.state.contentOffset >= -1f
+                        }
                     }
 
                     LaunchedEffect(navBackStackEntry) {

@@ -41,6 +41,9 @@ class ArchiveTuneMediaNotificationProvider(
         actionFactory: MediaNotification.ActionFactory,
         onNotificationChangedCallback: MediaNotification.Provider.Callback,
     ): MediaNotification {
+        // Artwork is supplied by MediaSession's BitmapLoader from MediaMetadata.artworkUri.
+        // The service installs a resilient CoilBitmapLoader, so both normal and lock-screen
+        // notifications receive the same track thumbnail.
         val mediaNotification =
             delegate.createNotification(
                 mediaSession,

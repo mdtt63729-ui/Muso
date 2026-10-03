@@ -1118,6 +1118,16 @@ class MusicService : MediaLibraryService(),
 
     private suspend fun resolveCanvasVideoUrl(mediaMetadata: com.muso.music.models.MediaMetadata): String? =
         runCatching {
+            val downloadedVideo =
+                moe.rukamori.archivetune.storage.StorageLocationRepository
+                    .cacheDirectory(this, moe.rukamori.archivetune.storage.StorageFolderKind.DOWNLOADS)
+                    .resolve("canvas")
+                    .listFiles()
+                    ?.firstOrNull {
+                        it.isFile && it.nameWithoutExtension == mediaMetadata.id && it.length() > 0L
+                    }
+            if (downloadedVideo != null) return@runCatching android.net.Uri.fromFile(downloadedVideo).toString()
+
             val playerResponse = YouTube.player(mediaMetadata.id).getOrThrow()
             val targetHeight = when (videoQuality) {
                 VideoQuality.Q360 -> 360

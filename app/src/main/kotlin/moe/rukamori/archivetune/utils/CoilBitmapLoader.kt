@@ -11,6 +11,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.BitmapLoader
 import coil3.imageLoader
 import coil3.request.ErrorResult
@@ -24,6 +25,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 internal const val NotificationArtworkSizePx = 1080
@@ -35,6 +39,16 @@ class CoilBitmapLoader(
 ) : BitmapLoader {
     private val applicationContext = context.applicationContext
     private val maximumArtworkDimensionPx = context.resolveMaximumArtworkDimensionPx()
+    private val fallbackHttpClient by lazy {
+        OkHttpClient
+            .Builder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .callTimeout(12, TimeUnit.SECONDS)
+            .build()
+    }
 
     override fun supportsMimeType(mimeType: String): Boolean = mimeType.startsWith("image/")
 
@@ -51,6 +65,14 @@ class CoilBitmapLoader(
                 .toOwnedMediaSessionBitmap()
         }
 
+    /**
+     * Media3 can prefer artworkData over artworkUri. For this app the URI is the canonical
+     * song thumbnail, so always try it first. This prevents a stale/empty embedded artwork
+     * payload from hiding the actual track thumbnail in the lock-screen notification.
+     */
+    override fun loadBitmapFromMetadata(metadata: MediaMetadata): ListenableFuture<Bitmap>? =
+        metadata.artworkUri?.let(::loadBitmap) ?: super.loadBitmapFromMetadata(metadata)
+
     override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> =
         scope.future(Dispatchers.IO) {
             val request =
@@ -61,16 +83,45 @@ class CoilBitmapLoader(
                     .size(maximumArtworkDimensionPx, maximumArtworkDimensionPx)
                     .build()
 
-            when (val result = applicationContext.imageLoader.execute(request)) {
-                is SuccessResult -> withContext(Dispatchers.Default) {
-                    ensureActive()
-                    result.image
-                        .toBitmap()
+            try {
+                when (val result = applicationContext.imageLoader.execute(request)) {
+                    is SuccessResult -> withContext(Dispatchers.Default) {
+                        ensureActive()
+                        result.image
+                            .toBitmap()
+                            .scaleToNotificationArtwork(maximumArtworkDimensionPx)
+                            .toOwnedMediaSessionBitmap()
+                    }
+
+                    is ErrorResult -> loadBitmapDirectly(uri, result.throwable)
+                }
+            } catch (error: Throwable) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                loadBitmapDirectly(uri, error)
+            }
+        }
+
+    private suspend fun loadBitmapDirectly(uri: Uri, originalError: Throwable): Bitmap =
+        withContext(Dispatchers.IO) {
+            val request =
+                Request.Builder()
+                    .url(uri.toString())
+                    .header("User-Agent", "Mozilla/5.0 (Android)")
+                    .build()
+            val response = fallbackHttpClient.newCall(request).execute()
+            response.use {
+                if (!it.isSuccessful) {
+                    throw IllegalStateException("Artwork HTTP ${it.code} for $uri", originalError)
+                }
+                val bytes = it.body.bytes()
+                ensureActive()
+                withContext(Dispatchers.Default) {
+                    checkNotNull(decodeSampledBitmap(bytes, maximumArtworkDimensionPx)) {
+                        "Could not decode notification artwork from $uri"
+                    }
                         .scaleToNotificationArtwork(maximumArtworkDimensionPx)
                         .toOwnedMediaSessionBitmap()
                 }
-
-                is ErrorResult -> throw result.throwable
             }
         }
 }

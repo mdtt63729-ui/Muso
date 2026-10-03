@@ -46,6 +46,7 @@ import androidx.media3.ui.compose.modifiers.resizeWithContentScale
 import androidx.media3.ui.compose.state.rememberPresentationState
 import androidx.navigation.NavController
 import com.muso.music.LocalPlayerConnection
+import com.muso.music.playback.RenderedCanvasVideoStore
 import com.muso.music.R
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
@@ -125,6 +126,18 @@ fun FullscreenVideoScreen(navController: NavController) {
                     // and gapless.
                     volume = 0f
                     repeatMode = Player.REPEAT_MODE_OFF
+                    addListener(
+                        object : Player.Listener {
+                            override fun onRenderedFirstFrame() {
+                                super.onRenderedFirstFrame()
+                                playerConnection?.mediaMetadata?.value?.id
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { mediaId ->
+                                        RenderedCanvasVideoStore.markRendered(context, mediaId)
+                                    }
+                            }
+                        },
+                    )
                 }
         }
 
