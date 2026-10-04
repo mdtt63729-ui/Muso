@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <!-- Muso log mirror folder inside Android/data (always shareable). -->
-    <external-files-path name="muso_logs" path="Muso/" />
-</paths>
