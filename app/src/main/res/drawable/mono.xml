@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SimpMusic suite resource substitute: mono (brand tile) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#FF1ED760" android:pathData="M12,4h24a8,8 0 0 1 8,8v24a8,8 0 0 1 -8,8H12a8,8 0 0 1 -8,-8V12a8,8 0 0 1 8,-8z"/>
+    <path android:fillColor="#FF000000" android:pathData="M21,14v14.55c-0.83,-0.35 -1.79,-0.55 -3,-0.55 -3.31,0 -6,2.24 -6,5s2.69,5 6,5 6,-2.24 6,-5V20h9v-6H21z"/>
+</vector>

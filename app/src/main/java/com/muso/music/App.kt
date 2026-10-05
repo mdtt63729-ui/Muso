@@ -1,0 +1,419 @@
+package com.muso.music
+
+import android.app.Application
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.startKoin
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
+import android.os.Build
+import android.widget.Toast
+import android.widget.Toast.LENGTH_SHORT
+import androidx.datastore.preferences.core.edit
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.request.SuccessResult
+import coil.request.ImageResult
+import coil.intercept.Interceptor
+import coil.disk.DiskCache
+import coil.map.Mapper
+import dagger.hilt.android.EntryPointAccessors
+import com.zionhuang.innertube.YouTube
+import com.zionhuang.innertube.models.YouTubeLocale
+import com.zionhuang.kugou.KuGou
+import com.muso.music.constants.ContentCountryKey
+import com.muso.music.constants.ContentLanguageKey
+import com.muso.music.constants.CountryCodeToName
+import com.muso.music.constants.InnerTubeCookieKey
+import com.muso.music.constants.LanguageCodeToName
+import com.muso.music.constants.MaxImageCacheSizeKey
+import com.muso.music.constants.ProxyEnabledKey
+import com.muso.music.constants.ProxyTypeKey
+import com.muso.music.constants.ProxyUrlKey
+import com.muso.music.constants.SYSTEM_DEFAULT
+import com.muso.music.constants.UseLoginForBrowse
+import com.muso.music.constants.VisitorDataKey
+import com.muso.music.extensions.toEnum
+import com.muso.music.extensions.toInetSocketAddress
+import com.muso.music.utils.UpdateCheckWorker
+import com.muso.music.utils.dataStore
+import com.muso.music.utils.get
+import com.muso.music.utils.reportException
+import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.net.Proxy
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+
+@HiltAndroidApp
+class App : Application(), ImageLoaderFactory {
+
+    companion object {
+        /** The single Koin instance, for non-composable access (e.g. the
+         * MusicService canvas preloader). Assigned in onCreate before any
+         * component can need it - the Application always starts first. */
+        lateinit var koin: org.koin.core.Koin
+            private set
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun onCreate() {
+        super.onCreate()
+        // On-device crash + full log capture must be the very first thing:
+        // if anything below this line crashes, it is already being logged.
+        com.muso.music.utils.MusoLog.init(this)
+        com.muso.music.playback.RenderedCanvasVideoStore.init(this)
+        moe.rukamori.archivetune.AppInstanceHolder.application = this
+        // The SimpMusic player suite resolves its few injected collaborators
+        // (tab memory, sheet state, the queue-view handler) through Koin.
+        koin = startKoin {
+            // The suite's expect shims (CopyToClipboard, OpenUrl, ImageIo)
+            // resolve android.content.Context from Koin.
+            androidContext(this@App)
+            modules(
+                module {
+                // Muso's Hilt-managed singletons, exposed to the suite's Koin modules.
+                val suiteEntryPoint = dagger.hilt.android.EntryPointAccessors.fromApplication(
+                    this@App,
+                    com.muso.music.suite.SuiteEntryPoint::class.java,
+                )
+                single { suiteEntryPoint.database() }
+                single { suiteEntryPoint.downloadUtil() }
+                single<com.maxrave.domain.repository.PlaylistRepository> { com.muso.music.suite.MusoPlaylistRepository() }
+                // Canvas video cache: the suite's MediaPlayerView resolves the
+                // media3 SimpleCache for canvas videos through Koin under the
+                // 'canvasCache' qualifier. Without it the player crashed the
+                // moment a song with a video reached the canvas view.
+                single<androidx.media3.datasource.cache.SimpleCache>(
+                    qualifier = org.koin.core.qualifier.named(com.maxrave.common.Config.CANVAS_CACHE),
+                ) {
+                    androidx.media3.datasource.cache.SimpleCache(
+                        java.io.File(this@App.cacheDir, "spotifyCanvas"),
+                        androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(
+                            256L * 1024 * 1024,
+                        ),
+                        androidx.media3.database.StandaloneDatabaseProvider(this@App),
+                    )
+                }
+                // The suite's video surface / subtitle view resolves the main
+                // playback player through Koin under the 'mainPlayer'
+                // qualifier. Registered lazily: by the time a video surface
+                // composes, playback is running and the service has published
+                // its ExoPlayer to SuitePlayerRegistry.
+                single<androidx.media3.common.Player>(
+                    qualifier = org.koin.core.qualifier.named(com.maxrave.common.Config.MAIN_PLAYER),
+                ) {
+                    com.muso.music.suite.SuitePlayerRegistry.player
+                        ?: throw IllegalStateException(
+                            "mainPlayer requested before the playback service started",
+                        )
+                }
+                single<com.maxrave.domain.repository.SongRepository> { com.muso.music.suite.MusoSongRepository(get()) }
+                single<com.maxrave.domain.mediaservice.handler.DownloadHandler> {
+                    com.muso.music.suite.MusoDownloadHandler(this@App, get())
+                }
+                single<com.maxrave.domain.repository.LocalPlaylistRepository> {
+                    com.muso.music.suite.MusoLocalPlaylistRepository(get())
+                }
+                single<com.maxrave.domain.repository.LyricsRomanizerRepository> {
+                    com.maxrave.domain.repository.NoopLyricsRomanizerRepository()
+                }
+                    single { com.maxrave.simpmusic.viewModel.SharedViewModel(get(), get()) }
+                    viewModel { com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel() }
+                    single { com.maxrave.domain.mediaservice.handler.MediaPlayerHandler() }
+                    single { com.maxrave.domain.manager.DataStoreManager(this@App) }
+                viewModel { com.maxrave.simpmusic.viewModel.PlaylistViewModel(get(), get(), get()) }
+                viewModel { com.maxrave.simpmusic.viewModel.SongSelectionViewModel(get(), get()) }
+                }
+            )
+        }.koin
+        com.maxrave.simpmusic.ui.component.SuiteRes.context = this
+
+        // Coil 3 (used by the embedded SimpMusic player suite): install the
+        // same offline artwork lookup + high-resolution upgrade the main
+        // image loader has, so suite player thumbnails also work offline.
+        runCatching {
+            val artworkRepository = EntryPointAccessors
+                .fromApplication(this, com.muso.music.suite.SuiteEntryPoint::class.java)
+                .downloadedArtworkRepository()
+            coil3.SingletonImageLoader.setSafe { context ->
+                coil3.ImageLoader.Builder(context)
+                    .components {
+                        add(artworkRepository.coilMapper())
+                        add(HqThumbnailInterceptor3())
+                    }
+                    .build()
+            }
+        }
+
+        // Crash log capture: writes the stack trace of any uncaught crash to
+        // files/crash.log so the next start can show it in-app without adb -
+        // the fastest way to pin down the Library-tab crash.
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            runCatching {
+                java.io.File(filesDir, "crash.log").writeText(
+                    buildString {
+                        appendLine("Muso crash at " + java.time.LocalDateTime.now())
+                        appendLine("Thread: " + thread.name)
+                        appendLine()
+                        append(android.util.Log.getStackTraceString(throwable))
+                    }
+                )
+            }
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+        Timber.plant(Timber.DebugTree())
+
+        // Update notification: check GitHub for a newer release roughly every
+        // 15 minutes (WorkManager's minimum period) even while the app is closed,
+        // and post a system notification as soon as one is published. The check
+        // is a single tiny API call; Doze/App Standby may defer it, which is fine.
+        // KEEP means the schedule survives repeated process starts untouched.
+        // Scheduling touches WorkManager's own Room database; running that on the
+        // main thread stalls process startup (and with it the splash). WorkManager
+        // is thread-safe, so schedule from a background thread instead.
+        Thread {
+            runCatching {
+                WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+                    "muso_update_check",
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    PeriodicWorkRequestBuilder<UpdateCheckWorker>(15, TimeUnit.MINUTES).build(),
+                )
+            }
+        }.start()
+
+        val locale = Locale.getDefault()
+        val languageTag = locale.toLanguageTag().replace("-Hant", "") // replace zh-Hant-* to zh-*
+        YouTube.locale = YouTubeLocale(
+            gl = dataStore[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
+                ?: locale.country.takeIf { it in CountryCodeToName }
+                ?: "US",
+            hl = dataStore[ContentLanguageKey]?.takeIf { it != SYSTEM_DEFAULT }
+                ?: locale.language.takeIf { it in LanguageCodeToName }
+                ?: languageTag.takeIf { it in LanguageCodeToName }
+                ?: "en"
+        )
+        if (languageTag == "zh-TW") {
+            KuGou.useTraditionalChinese = true
+        }
+
+        if (dataStore[ProxyEnabledKey] == true) {
+            try {
+                YouTube.proxy = Proxy(
+                    dataStore[ProxyTypeKey].toEnum(defaultValue = Proxy.Type.HTTP),
+                    dataStore[ProxyUrlKey]!!.toInetSocketAddress()
+                )
+            } catch (e: Exception) {
+                Toast.makeText(this, "Failed to parse proxy url.", LENGTH_SHORT).show()
+                reportException(e)
+            }
+        }
+
+        if (dataStore[UseLoginForBrowse] == true) {
+            YouTube.useLoginForBrowse = true
+        }
+
+        GlobalScope.launch {
+            dataStore.data
+                .map { it[VisitorDataKey] }
+                .distinctUntilChanged()
+                .collect { visitorData ->
+                    YouTube.visitorData = visitorData
+                        ?.takeIf { it != "null" } // Previously visitorData was sometimes saved as "null" due to a bug
+                        ?: YouTube.visitorData().getOrNull()?.also { newVisitorData ->
+                            dataStore.edit { settings ->
+                                settings[VisitorDataKey] = newVisitorData
+                            }
+                        } ?: YouTube.DEFAULT_VISITOR_DATA
+                }
+        }
+        GlobalScope.launch {
+            dataStore.data
+                .map { it[InnerTubeCookieKey] }
+                .distinctUntilChanged()
+                .collect { cookie ->
+                    YouTube.cookie = cookie
+                }
+        }
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        // Resolved lazily: newImageLoader() can be called before Hilt has
+        // fully populated the singleton graph, so the artwork repository is
+        // only looked up on the first actual image request that needs it.
+        val downloadedArtwork by lazy {
+            EntryPointAccessors.fromApplication(this, com.muso.music.suite.SuiteEntryPoint::class.java)
+                .downloadedArtworkRepository()
+        }
+        return ImageLoader.Builder(this)
+            .components {
+                // Offline artwork (user request): when a song is downloaded or
+                // fully cached, its thumbnail file resolves here BEFORE any
+                // network attempt, so thumbnails work with no connection.
+                // Custom mappers are checked ahead of the built-in ones.
+                add(
+                    Mapper<String, Any> { data, _ ->
+                        downloadedArtwork.findDownloadedArtwork(data)
+                    },
+                )
+                add(HqThumbnailInterceptor())
+            }
+            .crossfade(true)
+            .respectCacheHeaders(false)
+            .allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+            .diskCache(
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("coil"))
+                    .maxSizeBytes((dataStore[MaxImageCacheSizeKey] ?: 512) * 1024 * 1024L)
+                    .build()
+            )
+            .build()
+    }
+}
+
+/**
+ * Coil 3 twin of [HqThumbnailInterceptor] for the embedded SimpMusic player
+ * suite, which loads its artwork through the coil3 singleton image loader.
+ */
+private class HqThumbnailInterceptor3 : coil3.intercept.Interceptor {
+    private val whPattern = Regex("=w(\\d+)-h(\\d+)[^ ]*$")
+    private val sPattern = Regex("=s(\\d+)([^ ]*)$")
+
+    private suspend fun tryLoad(
+        chain: coil3.intercept.Interceptor.Chain,
+        url: String,
+    ): coil3.request.ImageResult? =
+        runCatching {
+            chain.withRequest(chain.request.newBuilder().data(url).build()).proceed()
+        }.getOrNull()?.takeIf { it is coil3.request.SuccessResult }
+
+    override suspend fun intercept(chain: coil3.intercept.Interceptor.Chain): coil3.request.ImageResult {
+        val data = chain.request.data
+        if (data is String) {
+            val isGoogleArt = data.contains("googleusercontent.com/") || data.contains("ggpht.com")
+            if (isGoogleArt) {
+                val wh = whPattern.find(data)
+                if (wh != null) {
+                    val width = wh.groupValues[1].toIntOrNull() ?: 0
+                    if (0 < width && width < 2160) {
+                        for (suffix in listOf(
+                            "=w2160-h2160-p-l90-rj",
+                            "=w1200-h1200-p-l90-rj",
+                        )) {
+                            tryLoad(chain, whPattern.replace(data, suffix))?.let { return it }
+                        }
+                    }
+                } else {
+                    val sm = sPattern.find(data)
+                    if (sm != null) {
+                        val size = sm.groupValues[1].toIntOrNull() ?: 0
+                        val flags = sm.groupValues[2]
+                        if (0 < size && size < 2160) {
+                            for (s in listOf(2160, 1200)) {
+                                tryLoad(chain, sPattern.replace(data, "=s$s$flags"))?.let { return it }
+                            }
+                        }
+                    }
+                }
+            }
+            if (data.contains("i.ytimg.com/vi/") &&
+                !data.contains("/maxresdefault") && !data.contains("/hq720")
+            ) {
+                val base = data.substring(0, data.indexOf("/vi/") + 4)
+                val id = data.substringAfter("/vi/").substringBefore("/")
+                if (id.isNotBlank()) {
+                    for (url in listOf(
+                        "${base}maxresdefault.jpg",
+                        "${base}hq720.jpg",
+                    )) {
+                        tryLoad(chain, url)?.let { return it }
+                    }
+                }
+            }
+        }
+        return chain.proceed()
+    }
+}
+
+/**
+ * Upgrades EVERY YouTube art URL to the highest resolution the server has:
+ * ultra-high (2160px) first, 1200px second, falling back to the original URL when
+ * neither loads. Applies globally - home grid, quick picks, playlist cards and
+ * song rows, mini player, full player, lyrics card, artist pages, search results.
+ *
+ * Two googleusercontent URL shapes are handled:
+ *  - "=w###-h###" (song/album/playlist art)  -> "=w2160-h2160-p-l90-rj"
+ *  - "=s###" (channel avatars, playlist circles - never upgraded before) -> "=s2160"
+ * Video thumbnails (i.ytimg.com) go to maxresdefault, then hq720.
+ * Coil still downsamples each image to the view, so memory use does not change.
+ */
+private class HqThumbnailInterceptor : Interceptor {
+    private val lowResPattern = Regex("/(hq|mq|sd)?default")
+    private val whPattern = Regex("=w(\\d+)-h(\\d+)[^ ]*$")
+    private val sPattern = Regex("=s(\\d+)([^ ]*)$")
+
+    private suspend fun tryLoad(chain: Interceptor.Chain, url: String): ImageResult? =
+        runCatching {
+            chain.proceed(chain.request.newBuilder().data(url).build())
+        }.getOrNull()?.takeIf { it is SuccessResult }
+
+    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+        val data = chain.request.data
+        if (data is String) {
+            val isGoogleArt = data.contains("googleusercontent.com/") || data.contains("ggpht.com")
+            if (isGoogleArt) {
+                val wh = whPattern.find(data)
+                if (wh != null) {
+                    val width = wh.groupValues[1].toIntOrNull() ?: 0
+                    if (0 < width && width < 2160) {
+                        for (suffix in listOf(
+                            "=w2160-h2160-p-l90-rj",
+                            "=w1200-h1200-p-l90-rj",
+                        )) {
+                            tryLoad(chain, whPattern.replace(data, suffix))?.let { return it }
+                        }
+                    }
+                } else {
+                    val sm = sPattern.find(data)
+                    if (sm != null) {
+                        val size = sm.groupValues[1].toIntOrNull() ?: 0
+                        val flags = sm.groupValues[2]
+                        if (0 < size && size < 2160) {
+                            for (s in listOf(2160, 1200)) {
+                                tryLoad(chain, sPattern.replace(data, "=s$s$flags"))?.let { return it }
+                            }
+                        }
+                    }
+                }
+            }
+            if (data.contains("i.ytimg.com/vi/") &&
+                !data.contains("/maxresdefault") && !data.contains("/hq720")
+            ) {
+                // Rebuild from the /vi/<id>/ base instead of regex-replacing the
+                // filename: the old replace only matched (hq|mq|sd)default names,
+                // so w544-style URLs (what the database stores) came back
+                // UNCHANGED - every song thumbnail stayed low-res. The base is
+                // always /vi/<videoId>/ whatever the size suffix was.
+                val base = data.substring(0, data.indexOf("/vi/") + 4)
+                val id = data.substringAfter("/vi/").substringBefore("/")
+                if (id.isNotBlank()) {
+                    for (url in listOf(
+                        "${base}maxresdefault.jpg",
+                        "${base}hq720.jpg",
+                    )) {
+                        tryLoad(chain, url)?.let { return it }
+                    }
+                }
+            }
+        }
+        return chain.proceed(chain.request)
+    }
+}

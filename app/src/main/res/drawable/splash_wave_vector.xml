@@ -1,0 +1,42 @@
+<!-- The app icon's neon waveform, recreated as a vector for the Android 12+
+     system splash: five gradient bars (blue to magenta) with a soft halo,
+     rising from a common baseline. Same bar groups/pivots as before so the
+     staggered rise animators still apply. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group android:translateY="2">
+        <group android:name="bar1" android:pivotX="6" android:pivotY="20" android:scaleY="0">
+            <path android:pathData="M6,14.6 L6,20" android:strokeColor="#3300A0FD"
+                android:strokeWidth="5.2" android:strokeLineCap="round" />
+            <path android:pathData="M6,14.6 L6,20" android:strokeColor="#00A0FD"
+                android:strokeWidth="2.4" android:strokeLineCap="round" />
+        </group>
+        <group android:name="bar2" android:pivotX="9" android:pivotY="20" android:scaleY="0">
+            <path android:pathData="M9,11.4 L9,20" android:strokeColor="#330080FE"
+                android:strokeWidth="5.2" android:strokeLineCap="round" />
+            <path android:pathData="M9,11.4 L9,20" android:strokeColor="#0080FE"
+                android:strokeWidth="2.4" android:strokeLineCap="round" />
+        </group>
+        <group android:name="bar3" android:pivotX="12" android:pivotY="20" android:scaleY="0">
+            <path android:pathData="M12,8.4 L12,20" android:strokeColor="#335843FC"
+                android:strokeWidth="5.2" android:strokeLineCap="round" />
+            <path android:pathData="M12,8.4 L12,20" android:strokeColor="#5843FC"
+                android:strokeWidth="2.4" android:strokeLineCap="round" />
+        </group>
+        <group android:name="bar4" android:pivotX="15" android:pivotY="20" android:scaleY="0">
+            <path android:pathData="M15,11.4 L15,20" android:strokeColor="#33941DFD"
+                android:strokeWidth="5.2" android:strokeLineCap="round" />
+            <path android:pathData="M15,11.4 L15,20" android:strokeColor="#941DFD"
+                android:strokeWidth="2.4" android:strokeLineCap="round" />
+        </group>
+        <group android:name="bar5" android:pivotX="18" android:pivotY="20" android:scaleY="0">
+            <path android:pathData="M18,14.6 L18,20" android:strokeColor="#33B20EFC"
+                android:strokeWidth="5.2" android:strokeLineCap="round" />
+            <path android:pathData="M18,14.6 L18,20" android:strokeColor="#B20EFC"
+                android:strokeWidth="2.4" android:strokeLineCap="round" />
+        </group>
+    </group>
+</vector>
