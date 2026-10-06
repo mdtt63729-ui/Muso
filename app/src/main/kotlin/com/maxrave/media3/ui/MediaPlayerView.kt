@@ -478,8 +478,9 @@ fun MediaPlayerViewWithSubtitle(
                     // MediaPlayerView owns the canvas ExoPlayer, so this callback
                     // is the real video-frame signal. Read the song id from the
                     // shared audio player instead of the canvas MediaItem (whose
-                    // id is the video URL).
-                    player.currentMediaItem?.mediaMetadata?.id
+                    // id is the video URL). The id lives on MediaItem.mediaId -
+                    // androidx.media3 MediaMetadata has no 'id' field.
+                    player.currentMediaItem?.mediaId
                         ?.takeIf { it.isNotBlank() }
                         ?.let { mediaId ->
                             RenderedCanvasVideoStore.markRendered(context, mediaId)

@@ -1,3 +1,15 @@
+## Muso 0.5.217 — fix the two compile errors from the CI log
+- `HomeViewModel.kt`: inside the cold-start loader the destructured locals
+  `quickPicks` / `forgottenFavorites` / `keepListening` shadowed the class's
+  `MutableStateFlow` properties, so the `HomeCache(...)` call's `quickPicks.value`
+  etc. resolved against the plain `List` locals ("Unresolved reference 'value' on
+  receiver of type 'List<Song>'"). Qualified them with `this.` like the rest of the
+  function already does.
+- `MediaPlayerView.kt`: `player.currentMediaItem?.mediaMetadata?.id` read an `id`
+  field that does not exist on `androidx.media3.common.MediaMetadata`. The id lives
+  on `MediaItem`, so it now reads `player.currentMediaItem?.mediaId` (the same
+  accessor the file already uses elsewhere).
+
 ## Muso 0.5.216 — playlist header: artwork is now the dominant element
 - On the playlist screen the header artwork was only half the screen tall with the
   page-colour scrim running over its full height, so the white background read as

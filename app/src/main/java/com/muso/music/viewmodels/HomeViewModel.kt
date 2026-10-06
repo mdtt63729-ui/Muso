@@ -175,9 +175,9 @@ class HomeViewModel @Inject constructor(
         isLoading.value = false
 
         cache = HomeCache(
-            quickPicks.value,
-            forgottenFavorites.value,
-            keepListening.value,
+            this.quickPicks.value,
+            this.forgottenFavorites.value,
+            this.keepListening.value,
             similarRecommendations.value,
             accountPlaylists.value,
             homePage.value,
