@@ -77,26 +77,75 @@ class MusoPlaylistRepository : PlaylistRepository {
         radioEndpoint = null,
     )
 
+    /**
+     * Some public YouTube Music playlists occasionally fail the strict playlist-page parser
+     * (usually after a backend response shape change) even though the same playlist can still
+     * be opened through the watch/queue endpoint. Keep the normal playlist page as the first
+     * path, then fall back to the queue endpoint so a playlist tap never becomes the generic
+     * "Empty response" screen just because one parser failed.
+     */
+    private suspend fun loadPlaylistWithFallback(playlistId: String): Result<Pair<PlaylistBrowse, String?>> {
+        val normalizedId =
+            playlistId
+                .trim()
+                .removePrefix("VL")
+                .removePrefix("vl")
+
+        val primary = YouTube.playlist(normalizedId)
+        primary.onSuccess { page ->
+            return Result.success(page.toBrowse() to page.songsContinuation)
+        }
+
+        val primaryError = primary.exceptionOrNull()
+
+        val fallback = YouTube.next(WatchEndpoint(playlistId = normalizedId))
+        fallback.onSuccess { next ->
+            if (next.items.isNotEmpty()) {
+                val thumbnail = next.items.firstOrNull()?.thumbnail.orEmpty()
+                val browse =
+                    PlaylistBrowse(
+                        author = Author(id = "", name = "YouTube Music"),
+                        description = "",
+                        duration = "",
+                        durationSeconds = 0,
+                        id = normalizedId,
+                        privacy = "PUBLIC",
+                        thumbnails =
+                            thumbnail
+                                .takeIf(String::isNotBlank)
+                                ?.let { listOf(Thumbnail(url = it, height = 544, width = 544)) }
+                                .orEmpty(),
+                        title = next.title?.takeIf(String::isNotBlank) ?: "Playlist",
+                        trackCount = next.items.size,
+                        tracks = next.items.map { it.toTrack() },
+                        year = "",
+                        shuffleEndpoint = null,
+                        radioEndpoint = null,
+                    )
+                return Result.success(browse to next.continuation)
+            }
+        }
+
+        return Result.failure(
+            primaryError ?: fallback.exceptionOrNull() ?: IllegalStateException("Cannot load playlist"),
+        )
+    }
+
     override fun getPlaylistData(
         playlistId: String,
         viewString: String,
     ): Flow<Resource<Pair<PlaylistBrowse, String?>>> = flow {
-        val result = YouTube.playlist(playlistId)
-        result
-            .onSuccess { page ->
-                emit(Resource.Success(page.toBrowse() to page.songsContinuation))
-            }.onFailure {
-                emit(Resource.Error(it.message ?: "Cannot load playlist"))
-            }
+        loadPlaylistWithFallback(playlistId)
+            .onSuccess { emit(Resource.Success(it)) }
+            .onFailure { emit(Resource.Error(it.message ?: "Cannot load playlist")) }
     }.flowOn(Dispatchers.IO)
 
     override fun getFullPlaylistData(
         playlistId: String,
         viewString: String,
     ): Flow<Resource<PlaylistBrowse>> = flow {
-        val result = YouTube.playlist(playlistId)
-        result
-            .onSuccess { page -> emit(Resource.Success(page.toBrowse())) }
+        loadPlaylistWithFallback(playlistId)
+            .onSuccess { emit(Resource.Success(it.first)) }
             .onFailure { emit(Resource.Error(it.message ?: "Cannot load playlist")) }
     }.flowOn(Dispatchers.IO)
 

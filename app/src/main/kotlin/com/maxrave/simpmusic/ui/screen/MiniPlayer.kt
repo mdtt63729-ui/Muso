@@ -147,6 +147,7 @@ import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.R
+import com.muso.music.playback.PlayerConnection
 import com.muso.music.constants.MiniPlayerStyle
 import com.muso.music.constants.MiniPlayerStyleKey
 import kotlin.math.roundToInt
@@ -160,14 +161,30 @@ private const val TAG = "MiniPlayer"
 fun MiniPlayer(
     modifier: Modifier,
     backdrop: PlatformBackdrop,
+    // Optional direct Muso player source. When supplied, artwork/title/state are
+    // read from the real Media3 connection instead of waiting for the asynchronous
+    // SimpMusic bridge. This keeps every mini-player style visible after navigation
+    // and process restore, not only Classic.
+    playerConnection: PlayerConnection? = null,
     sharedViewModel: SharedViewModel = koinInject(),
+    // Host can explicitly control the glass state so the mini-player never lags
+    // one composition behind the Appearance setting.
+    liquidGlassOverride: Boolean? = null,
     onClose: () -> Unit,
     onClick: () -> Unit,
     onOpenFullscreenLyrics: () -> Unit = {},
 ) {
     val isLiquidGlassEnabled by sharedViewModel.getEnableLiquidGlass().collectAsStateWithLifecycle(DataStoreManager.FALSE)
+    val directMediaMetadata = if (playerConnection != null) {
+        playerConnection.mediaMetadata.collectAsStateWithLifecycle().value
+    } else {
+        null
+    }
     val controllerState by sharedViewModel.controllerState.collectAsStateWithLifecycle()
-    val timelineState by sharedViewModel.timeline.collectAsStateWithLifecycle()
+    val nowPlayingState by sharedViewModel.nowPlayingState.collectAsStateWithLifecycle()
+    // The desktop capsule uses the full timeline flow below. Android's compact player
+    // only needs a small progress/loading snapshot; keeping the controller and track state
+    // as direct StateFlow reads avoids duplicate collectors and redundant recompositions.
     val miniPlayerStyle by rememberEnumPreference(
         MiniPlayerStyleKey,
         defaultValue = MiniPlayerStyle.MINIFY,
@@ -178,7 +195,7 @@ fun MiniPlayer(
     // Keep Liquid Glass fully render-thread driven. Sampling a GraphicsLayer into a bitmap
     // every second forced a GPU readback and caused visible stalls when entering other screens.
     val glassLuminance = 0.5f
-    val useGlassSurface = isLiquidGlassEnabled == DataStoreManager.TRUE
+    val useGlassSurface = liquidGlassOverride ?: (isLiquidGlassEnabled == DataStoreManager.TRUE)
     val isDarkTheme = LocalIsDarkTheme.current
     val textColor = if (useGlassSurface) {
         if (isDarkTheme) Color.White else Color.Black
@@ -186,76 +203,19 @@ fun MiniPlayer(
         MaterialTheme.colorScheme.onSurface
     }
 
-    val (songEntity, setSongEntity) =
-        remember {
-            mutableStateOf<SongEntity?>(null)
-        }
-    val (liked, setLiked) =
-        remember {
-            mutableStateOf(false)
-        }
-    val (isPlaying, setIsPlaying) =
-        remember {
-            mutableStateOf(false)
-        }
-    val (progress, setProgress) =
-        remember {
-            mutableFloatStateOf(0f)
-        }
-    val (isCrossfading, setIsCrossfading) =
-        remember {
-            mutableStateOf(false)
-        }
-
+    val songEntity = nowPlayingState?.songEntity
+    val liked = controllerState.isLiked
+    val isPlaying = controllerState.isPlaying
     val coroutineScope = rememberCoroutineScope()
 
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
-        label = "",
-    )
+    // Prefer the live Muso metadata whenever this host supplied a PlayerConnection.
+    // The bridge SongEntity remains the fallback for the original SimpMusic callers.
+    val displayThumbnail = directMediaMetadata?.thumbnailUrl ?: songEntity?.thumbnails
+    val displayTitle = directMediaMetadata?.title ?: songEntity?.title.orEmpty()
+    val displayArtist = directMediaMetadata?.artists?.joinToString(", ") { it.name }
+        ?: songEntity?.artistName?.connectArtists().orEmpty()
 
-    val offsetX = remember { Animatable(initialValue = 0f) }
     val offsetY = remember { Animatable(0f) }
-
-    var loading by rememberSaveable {
-        mutableStateOf(true)
-    }
-
-    LaunchedEffect(key1 = true) {
-        val job1 =
-            launch {
-                sharedViewModel.nowPlayingState.collect { item ->
-                    if (item != null) {
-                        setSongEntity(item.songEntity)
-                    }
-                }
-            }
-        val job2 =
-            launch {
-                sharedViewModel.controllerState.collectLatest { state ->
-                    setLiked(state.isLiked)
-                    setIsPlaying(state.isPlaying)
-                    setIsCrossfading(state.isCrossfading)
-                }
-            }
-        val job4 =
-            launch {
-                sharedViewModel.timeline.collect { timeline ->
-                    loading = timeline.loading
-                    val prog =
-                        if (timeline.total > 0L && timeline.current >= 0L) {
-                            timeline.current.toFloat() / timeline.total
-                        } else {
-                            0f
-                        }
-                    setProgress(prog)
-                }
-            }
-        job1.join()
-        job2.join()
-        job4.join()
-    }
 
     if (getPlatform() == Platform.Android) {
         // One shape for both the Card and the clip below. They must not diverge: the clip wraps
@@ -329,7 +289,7 @@ fun MiniPlayer(
                     ),
         ) {
             if ((usePremiumFlatStyle || useM3FlexStyle) && !useGlassSurface) {
-                FlatMiniPlayerBackground(thumbnail = songEntity?.thumbnails)
+                FlatMiniPlayerBackground(thumbnail = displayThumbnail)
             }
             // Render Liquid Glass as a real overlay surface. The previous modifier was attached
             // to the Card itself, which draws before Card content; Flat/M3 backgrounds could then
@@ -347,312 +307,25 @@ fun MiniPlayer(
                         ),
                 )
             }
-            if (useM3FlexStyle) {
-                M3FlexMiniPlayerContent(
-                    songEntity = songEntity,
-                    liked = liked,
-                    isPlaying = isPlaying,
-                    loading = loading,
-                    textColor = textColor,
-                    animatedProgress = animatedProgress,
-                    offsetX = offsetX.value,
-                    sharedViewModel = sharedViewModel,
-                )
-            } else Box(modifier = Modifier.fillMaxHeight()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier
-                            .fillMaxSize(),
-                ) {
-                    Spacer(modifier = Modifier.size(8.dp))
-                    Box(modifier = Modifier.weight(1F)) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                                    .pointerInput(Unit) {
-                                        detectHorizontalDragGestures(
-                                            onDragStart = {
-                                            },
-                                            onHorizontalDrag = {
-                                                change: PointerInputChange,
-                                                dragAmount: Float,
-                                                ->
-                                                change.consume()
-                                                coroutineScope.launch {
-                                                    // Follow the finger directly. Animating every pointer
-                                                    // event caused the old mini player to lag behind fast swipes.
-                                                    offsetX.snapTo((offsetX.value + dragAmount).coerceIn(-220f, 220f))
-                                                }
-                                            },
-                                            onDragCancel = {
-                                                coroutineScope.launch {
-                                                    offsetX.animateTo(0f, tween(180))
-                                                }
-                                            },
-                                            onDragEnd = {
-                                                coroutineScope.launch {
-                                                    val current = offsetX.value
-                                                    val direction = when {
-                                                        current > 110f -> 1
-                                                        current < -110f -> -1
-                                                        else -> 0
-                                                    }
-                                                    if (direction != 0) {
-                                                        offsetX.animateTo(direction * 220f, tween(150))
-                                                        sharedViewModel.onUIEvent(if (direction > 0) UIEvent.Previous else UIEvent.Next)
-                                                        offsetX.snapTo(0f)
-                                                    } else {
-                                                        offsetX.animateTo(0f, tween(180))
-                                                    }
-                                                }
-                                            },
-                                        )
-                                    },
-                        ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(if (usePremiumFlatStyle) 48.dp else 40.dp)
-                                        // The wavy progress ring paints slightly outside its
-                                        // circle at full amplitude; without the clip its green
-                                        // arc bled past the artwork and showed as a neon
-                                        // sliver at the glass bar's edge.
-                                        .clip(CircleShape)
-                                        .align(Alignment.CenterVertically),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (isFlat) {
-                                    // Progress rides a ring around the artwork: wavy while playing, flat when paused.
-                                    val ringStroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }, cap = StrokeCap.Round)
-                                    CircularWavyProgressIndicator(
-                                        progress = { animatedProgress },
-                                        modifier = Modifier.fillMaxSize(),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        stroke = ringStroke,
-                                        trackStroke = ringStroke,
-                                        // A raw 0/1, never a tweened value: the node animates amplitude
-                                        // itself and drops new targets mid-animation (see WavySeekBar).
-                                        amplitude = { p -> if (p > 0f && isPlaying) 1f else 0f },
-                                    )
-                                }
-                                AsyncImage(
-                                    model =
-                                        ImageRequest
-                                            .Builder(LocalPlatformContext.current)
-                                            .data(songEntity?.thumbnails)
-                                            .crossfade(550)
-                                            .build(),
-                                    placeholder = rememberHolderPainter(),
-                                    error = rememberHolderPainter(),
-                                    contentDescription = null,
-                                    // Crop in the circle: FillWidth would leave bands around a 16:9 video thumbnail.
-                                    contentScale = if (isFlat) ContentScale.Crop else ContentScale.FillWidth,
-                                    modifier =
-                                        Modifier
-                                            .size(
-                                                when {
-                                                    usePremiumFlatStyle -> 44.dp
-                                                    isFlat -> 26.dp
-                                                    else -> 40.dp
-                                                },
-                                            )
-                                            .clip(if (isFlat) CircleShape else RoundedCornerShape(4.dp)),
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            AnimatedContent(
-                                targetState = songEntity,
-                                modifier = Modifier.weight(1F).fillMaxHeight(),
-                                contentAlignment = Alignment.CenterStart,
-                                transitionSpec = {
-                                    // Compare the incoming number with the previous number.
-                                    if (targetState != initialState) {
-                                        // If the target number is larger, it slides up and fades in
-                                        // while the initial (smaller) number slides up and fades out.
-                                        (
-                                            slideInHorizontally { width ->
-                                                width
-                                            } + fadeIn()
-                                        ).togetherWith(
-                                            slideOutHorizontally { width -> +width } + fadeOut(),
-                                        )
-                                    } else {
-                                        // If the target number is smaller, it slides down and fades in
-                                        // while the initial number slides down and fades out.
-                                        (
-                                            slideInHorizontally { width ->
-                                                +width
-                                            } + fadeIn()
-                                        ).togetherWith(
-                                            slideOutHorizontally { width -> width } + fadeOut(),
-                                        )
-                                    }.using(
-                                        // Disable clipping since the faded slide-in/out should
-                                        // be displayed out of bounds.
-                                        SizeTransform(clip = false),
-                                    )
-                                },
-                            ) { target ->
-                                if (target != null) {
-                                    Column(
-                                        Modifier
-                                            .wrapContentHeight()
-                                            .align(Alignment.CenterVertically),
-                                    ) {
-                                        Text(
-                                            text = (songEntity?.title ?: "").toString(),
-                                            style = if (isFlat) typo().titleSmall else typo().labelSmall,
-                                            color = textColor,
-                                            maxLines = 1,
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .wrapContentHeight(
-                                                        align = Alignment.CenterVertically,
-                                                    ).basicMarquee(
-                                                        iterations = Int.MAX_VALUE,
-                                                        animationMode = MarqueeAnimationMode.Immediately,
-                                                    ).focusable(),
-                                        )
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            androidx.compose.animation.AnimatedVisibility(visible = songEntity?.isExplicit == true) {
-                                                ExplicitBadge(
-                                                    modifier =
-                                                        Modifier
-                                                            .size(20.dp)
-                                                            .padding(end = 4.dp)
-                                                            .weight(1f),
-                                                )
-                                            }
-                                            Text(
-                                                text = (songEntity?.artistName?.connectArtists() ?: ""),
-                                                style = if (isFlat) typo().bodySmall.copy(fontSize = 10.sp) else typo().bodySmall,
-                                                maxLines = 1,
-                                                color = if (isFlat) MaterialTheme.colorScheme.onSurfaceVariant else textColor,
-                                                modifier =
-                                                    Modifier
-                                                        .weight(1f)
-                                                        .wrapContentHeight(
-                                                            align = Alignment.CenterVertically,
-                                                        ).basicMarquee(
-                                                            iterations = Int.MAX_VALUE,
-                                                            animationMode = MarqueeAnimationMode.Immediately,
-                                                        ).focusable(),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Flat: 40dp in the 56dp pill leaves an even 8dp ring.
-                    val controlSize = if (isFlat) 40.dp else 48.dp
-                    val playColor = if (isFlat) MaterialTheme.colorScheme.onPrimary else textColor
-                    Spacer(modifier = Modifier.width(if (isFlat) 8.dp else 15.dp))
-                    if (usePremiumFlatStyle) {
-                        IconButton(
-                            onClick = { sharedViewModel.onUIEvent(UIEvent.Previous) },
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.skip_previous),
-                                contentDescription = "Previous",
-                                modifier = Modifier.size(20.dp),
-                                tint = textColor,
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(2.dp))
-                    }
-                    // background(shape), not clip: the heart's like-burst draws outside its bounds.
-                    Box(
-                        modifier =
-                            if (isFlat) {
-                                Modifier
-                                    .size(controlSize)
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape)
-                            } else {
-                                Modifier
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        HeartCheckBox(checked = liked, size = 30, tint = textColor) {
-                            sharedViewModel.onUIEvent(UIEvent.ToggleLike)
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(if (isFlat) 8.dp else 15.dp))
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(controlSize)
-                                .then(if (isFlat) Modifier.background(MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Crossfade(targetState = loading, label = "") {
-                            if (it) {
-                                Box(modifier = Modifier.size(controlSize), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        color = playColor,
-                                        strokeWidth = 3.dp,
-                                    )
-                                }
-                            } else {
-                                PlayPauseButton(isPlaying = isPlaying, modifier = Modifier.size(controlSize), tint = playColor) {
-                                    sharedViewModel.onUIEvent(UIEvent.PlayPause)
-                                }
-                            }
-                        }
-                    }
-                    if (usePremiumFlatStyle) {
-                        Spacer(modifier = Modifier.width(2.dp))
-                        IconButton(
-                            onClick = { sharedViewModel.onUIEvent(UIEvent.Next) },
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.skip_next),
-                                contentDescription = "Next",
-                                modifier = Modifier.size(20.dp),
-                                tint = textColor,
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(if (isFlat) 8.dp else 15.dp))
-                }
-                // The flat card shows progress as the ring around its artwork instead.
-                if (!isFlat) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .wrapContentSize(Alignment.Center)
-                                .padding(
-                                    horizontal = 10.dp,
-                                ).align(Alignment.BottomCenter),
-                    ) {
-                        LinearProgressIndicator(
-                            progress = { animatedProgress },
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(
-                                        color = Color.Transparent,
-                                        shape = RoundedCornerShape(4.dp),
-                                    ),
-                            color = textColor,
-                            trackColor = Color.Transparent,
-                            strokeCap = StrokeCap.Round,
-                            drawStopIndicator = {},
-                        )
-                    }
-                }
-            }
+            MiniPlayerAndroidPlaybackContent(
+                displayThumbnail = displayThumbnail,
+                displayTitle = displayTitle,
+                displayArtist = displayArtist,
+                songEntity = songEntity,
+                liked = liked,
+                isPlaying = isPlaying,
+                textColor = textColor,
+                useM3FlexStyle = useM3FlexStyle,
+                usePremiumFlatStyle = usePremiumFlatStyle,
+                isFlat = isFlat,
+                sharedViewModel = sharedViewModel,
+            )
         }
     } else {
+        // Desktop keeps the timeline local to its own branch. Android's glass mini-player
+        // collects playback progress inside its dynamic child so the glass surface itself stays
+        // outside the playback recomposition path.
+        val timelineState by sharedViewModel.timeline.collectAsStateWithLifecycle()
         // Desktop bottom bar surface follows the theme (haze over content), so text and controls
         // use the theme foreground token instead of the artwork-luminance colour.
         val textColor = MaterialTheme.colorScheme.onBackground
@@ -820,7 +493,7 @@ fun MiniPlayer(
                                 model =
                                     ImageRequest
                                         .Builder(LocalPlatformContext.current)
-                                        .data(songEntity?.thumbnails)
+                                        .data(displayThumbnail)
                                         .crossfade(550)
                                         .build(),
                                 placeholder = rememberHolderPainter(),
@@ -864,7 +537,7 @@ fun MiniPlayer(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                text = (songEntity?.title ?: "").toString(),
+                                text = displayTitle,
                                 // labelSmall is 14sp — oversized against a 40dp artwork; keep its
                                 // weight, drop the size a notch.
                                 style = typo().labelSmall.copy(fontSize = 12.sp),
@@ -1230,6 +903,8 @@ private val VOLUME_SLIDER_LENGTH = 96.dp
  * hairline at rest and as a scrubber on hover — pass `thumbSize = 0.dp` to hide the thumb
  * without losing the drag target, which stays the full 16dp row height either way.
  */
+
+
 @Composable
 private fun CapsuleProgress(
     sliderValue: Float,
@@ -1325,10 +1000,363 @@ private fun CapsuleProgress(
         }
     }
 }
+/**
+ * Android-only dynamic portion of the mini player.
+ *
+ * Playback progress is intentionally collected here instead of in [MiniPlayer] itself. The
+ * Liquid Glass surface is a sibling owned by the parent, so its backdrop shader is not forced
+ * through a composition/draw pass every time the playhead snapshot changes.
+ */
+@Composable
+private fun MiniPlayerAndroidPlaybackContent(
+    displayThumbnail: String?,
+    displayTitle: String,
+    displayArtist: String,
+    songEntity: SongEntity?,
+    liked: Boolean,
+    isPlaying: Boolean,
+    textColor: Color,
+    useM3FlexStyle: Boolean,
+    usePremiumFlatStyle: Boolean,
+    isFlat: Boolean,
+    sharedViewModel: SharedViewModel,
+) {
+    var progress by remember { mutableFloatStateOf(0f) }
+    var loading by rememberSaveable { mutableStateOf(true) }
+    val coroutineScope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(initialValue = 0f) }
+
+    LaunchedEffect(Unit) {
+        sharedViewModel.timeline.collectLatest { timeline ->
+            loading = timeline.loading
+            progress =
+                if (timeline.total > 0L && timeline.current >= 0L) {
+                    timeline.current.toFloat() / timeline.total
+                } else {
+                    0f
+                }
+        }
+    }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+        label = "miniPlayerProgress",
+    )
+
+if (useM3FlexStyle) {
+    M3FlexMiniPlayerContent(
+        directThumbnail = displayThumbnail,
+        displayTitle = displayTitle,
+        displayArtist = displayArtist,
+        liked = liked,
+        isPlaying = isPlaying,
+        loading = loading,
+        textColor = textColor,
+        animatedProgress = animatedProgress,
+        offsetX = offsetX.value,
+        sharedViewModel = sharedViewModel,
+    )
+} else Box(modifier = Modifier.fillMaxHeight()) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxSize(),
+    ) {
+        Spacer(modifier = Modifier.size(8.dp))
+        Box(modifier = Modifier.weight(1F)) {
+            Row(
+                modifier =
+                    Modifier
+                        .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                        .pointerInput(Unit) {
+                            detectHorizontalDragGestures(
+                                onDragStart = {
+                                },
+                                onHorizontalDrag = {
+                                    change: PointerInputChange,
+                                    dragAmount: Float,
+                                    ->
+                                    change.consume()
+                                    coroutineScope.launch {
+                                        // Follow the finger directly. Animating every pointer
+                                        // event caused the old mini player to lag behind fast swipes.
+                                        offsetX.snapTo((offsetX.value + dragAmount).coerceIn(-220f, 220f))
+                                    }
+                                },
+                                onDragCancel = {
+                                    coroutineScope.launch {
+                                        offsetX.animateTo(0f, tween(180))
+                                    }
+                                },
+                                onDragEnd = {
+                                    coroutineScope.launch {
+                                        val current = offsetX.value
+                                        val direction = when {
+                                            current > 110f -> 1
+                                            current < -110f -> -1
+                                            else -> 0
+                                        }
+                                        if (direction != 0) {
+                                            offsetX.animateTo(direction * 220f, tween(150))
+                                            sharedViewModel.onUIEvent(if (direction > 0) UIEvent.Previous else UIEvent.Next)
+                                            offsetX.snapTo(0f)
+                                        } else {
+                                            offsetX.animateTo(0f, tween(180))
+                                        }
+                                    }
+                                },
+                            )
+                        },
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(if (usePremiumFlatStyle) 48.dp else 40.dp)
+                            // The wavy progress ring paints slightly outside its
+                            // circle at full amplitude; without the clip its green
+                            // arc bled past the artwork and showed as a neon
+                            // sliver at the glass bar's edge.
+                            .clip(CircleShape)
+                            .align(Alignment.CenterVertically),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isFlat) {
+                        // Progress rides a ring around the artwork: wavy while playing, flat when paused.
+                        val ringStroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }, cap = StrokeCap.Round)
+                        CircularWavyProgressIndicator(
+                            progress = { animatedProgress },
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            stroke = ringStroke,
+                            trackStroke = ringStroke,
+                            // A raw 0/1, never a tweened value: the node animates amplitude
+                            // itself and drops new targets mid-animation (see WavySeekBar).
+                            amplitude = { p -> if (p > 0f && isPlaying) 1f else 0f },
+                        )
+                    }
+                    AsyncImage(
+                        model =
+                            ImageRequest
+                                .Builder(LocalPlatformContext.current)
+                                .data(displayThumbnail)
+                                .crossfade(550)
+                                .build(),
+                        placeholder = rememberHolderPainter(),
+                        error = rememberHolderPainter(),
+                        contentDescription = null,
+                        // Crop in the circle: FillWidth would leave bands around a 16:9 video thumbnail.
+                        contentScale = if (isFlat) ContentScale.Crop else ContentScale.FillWidth,
+                        modifier =
+                            Modifier
+                                .size(
+                                    when {
+                                        usePremiumFlatStyle -> 44.dp
+                                        isFlat -> 26.dp
+                                        else -> 40.dp
+                                    },
+                                )
+                                .clip(if (isFlat) CircleShape else RoundedCornerShape(4.dp)),
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                AnimatedContent(
+                    targetState = songEntity,
+                    modifier = Modifier.weight(1F).fillMaxHeight(),
+                    contentAlignment = Alignment.CenterStart,
+                    transitionSpec = {
+                        // Compare the incoming number with the previous number.
+                        if (targetState != initialState) {
+                            // If the target number is larger, it slides up and fades in
+                            // while the initial (smaller) number slides up and fades out.
+                            (
+                                slideInHorizontally { width ->
+                                    width
+                                } + fadeIn()
+                            ).togetherWith(
+                                slideOutHorizontally { width -> +width } + fadeOut(),
+                            )
+                        } else {
+                            // If the target number is smaller, it slides down and fades in
+                            // while the initial number slides down and fades out.
+                            (
+                                slideInHorizontally { width ->
+                                    +width
+                                } + fadeIn()
+                            ).togetherWith(
+                                slideOutHorizontally { width -> width } + fadeOut(),
+                            )
+                        }.using(
+                            // Disable clipping since the faded slide-in/out should
+                            // be displayed out of bounds.
+                            SizeTransform(clip = false),
+                        )
+                    },
+                ) { target ->
+                    if (target != null) {
+                        Column(
+                            Modifier
+                                .wrapContentHeight()
+                                .align(Alignment.CenterVertically),
+                        ) {
+                            Text(
+                                text = displayTitle,
+                                style = if (isFlat) typo().titleSmall else typo().labelSmall,
+                                color = textColor,
+                                maxLines = 1,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentHeight(
+                                            align = Alignment.CenterVertically,
+                                        ).basicMarquee(
+                                            iterations = Int.MAX_VALUE,
+                                            animationMode = MarqueeAnimationMode.Immediately,
+                                        ).focusable(),
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.animation.AnimatedVisibility(visible = songEntity?.isExplicit == true) {
+                                    ExplicitBadge(
+                                        modifier =
+                                            Modifier
+                                                .size(20.dp)
+                                                .padding(end = 4.dp)
+                                                .weight(1f),
+                                    )
+                                }
+                                Text(
+                                    text = (songEntity?.artistName?.connectArtists() ?: ""),
+                                    style = if (isFlat) typo().bodySmall.copy(fontSize = 10.sp) else typo().bodySmall,
+                                    maxLines = 1,
+                                    color = if (isFlat) MaterialTheme.colorScheme.onSurfaceVariant else textColor,
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .wrapContentHeight(
+                                                align = Alignment.CenterVertically,
+                                            ).basicMarquee(
+                                                iterations = Int.MAX_VALUE,
+                                                animationMode = MarqueeAnimationMode.Immediately,
+                                            ).focusable(),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Flat: 40dp in the 56dp pill leaves an even 8dp ring.
+        val controlSize = if (isFlat) 40.dp else 48.dp
+        val playColor = if (isFlat) MaterialTheme.colorScheme.onPrimary else textColor
+        Spacer(modifier = Modifier.width(if (isFlat) 8.dp else 15.dp))
+        if (usePremiumFlatStyle) {
+            IconButton(
+                onClick = { sharedViewModel.onUIEvent(UIEvent.Previous) },
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.skip_previous),
+                    contentDescription = "Previous",
+                    modifier = Modifier.size(20.dp),
+                    tint = textColor,
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
+        }
+        // background(shape), not clip: the heart's like-burst draws outside its bounds.
+        Box(
+            modifier =
+                if (isFlat) {
+                    Modifier
+                        .size(controlSize)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape)
+                } else {
+                    Modifier
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            HeartCheckBox(checked = liked, size = 30, tint = textColor) {
+                sharedViewModel.onUIEvent(UIEvent.ToggleLike)
+            }
+        }
+        Spacer(modifier = Modifier.width(if (isFlat) 8.dp else 15.dp))
+        Box(
+            modifier =
+                Modifier
+                    .size(controlSize)
+                    .then(if (isFlat) Modifier.background(MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
+            contentAlignment = Alignment.Center,
+        ) {
+            Crossfade(targetState = loading, label = "") {
+                if (it) {
+                    Box(modifier = Modifier.size(controlSize), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = playColor,
+                            strokeWidth = 3.dp,
+                        )
+                    }
+                } else {
+                    PlayPauseButton(isPlaying = isPlaying, modifier = Modifier.size(controlSize), tint = playColor) {
+                        sharedViewModel.onUIEvent(UIEvent.PlayPause)
+                    }
+                }
+            }
+        }
+        if (usePremiumFlatStyle) {
+            Spacer(modifier = Modifier.width(2.dp))
+            IconButton(
+                onClick = { sharedViewModel.onUIEvent(UIEvent.Next) },
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.skip_next),
+                    contentDescription = "Next",
+                    modifier = Modifier.size(20.dp),
+                    tint = textColor,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(if (isFlat) 8.dp else 15.dp))
+    }
+    // The flat card shows progress as the ring around its artwork instead.
+    if (!isFlat) {
+        Box(
+            modifier =
+                Modifier
+                    .wrapContentSize(Alignment.Center)
+                    .padding(
+                        horizontal = 10.dp,
+                    ).align(Alignment.BottomCenter),
+        ) {
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(
+                            color = Color.Transparent,
+                            shape = RoundedCornerShape(4.dp),
+                        ),
+                color = textColor,
+                trackColor = Color.Transparent,
+                strokeCap = StrokeCap.Round,
+                drawStopIndicator = {},
+            )
+        }
+    }
+}
+}
 
 @Composable
 private fun M3FlexMiniPlayerContent(
-    songEntity: SongEntity?,
+    directThumbnail: Any?,
+    displayTitle: String,
+    displayArtist: String,
     liked: Boolean,
     isPlaying: Boolean,
     loading: Boolean,
@@ -1358,7 +1386,7 @@ private fun M3FlexMiniPlayerContent(
             AsyncImage(
                 model =
                     ImageRequest.Builder(LocalPlatformContext.current)
-                        .data(songEntity?.thumbnails)
+                        .data(directThumbnail)
                         .crossfade(260)
                         .build(),
                 placeholder = rememberHolderPainter(),
@@ -1376,7 +1404,7 @@ private fun M3FlexMiniPlayerContent(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                text = songEntity?.title.orEmpty(),
+                text = displayTitle,
                 style = typo().titleMediumEmphasized,
                 color = titleColor,
                 maxLines = 1,
@@ -1387,7 +1415,7 @@ private fun M3FlexMiniPlayerContent(
                 ),
             )
             Text(
-                text = songEntity?.artistName?.connectArtists().orEmpty(),
+                text = displayArtist,
                 style = typo().bodyMedium,
                 color = secondaryColor,
                 maxLines = 1,

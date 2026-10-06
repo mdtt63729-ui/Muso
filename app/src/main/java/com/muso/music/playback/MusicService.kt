@@ -137,6 +137,7 @@ import com.muso.music.utils.get
 import com.muso.music.utils.isInternetAvailable
 import com.muso.music.utils.reportException
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
@@ -269,6 +270,7 @@ class MusicService : MediaLibraryService(),
     private var endlessQueueEnabled = true
     private val endlessQueueAppendedIds = mutableSetOf<String>()
     private var endlessQueueJob: Job? = null
+    private var endlessRadioQueue: YouTubeQueue? = null
 
     private val normalizeFactor = MutableStateFlow(1f)
     val playerVolume = MutableStateFlow(dataStore.get(PlayerVolumeKey, 1f).coerceIn(0f, 1f))
@@ -531,7 +533,11 @@ class MusicService : MediaLibraryService(),
             .collect(scope) { enabled ->
                 endlessQueueEnabled = enabled
                 if (!enabled) {
+                    endlessRadioQueue = null
                     endlessQueueAppendedIds.clear()
+                    if (::player.isInitialized) trimQueueWhenEndlessDisabled()
+                } else if (::player.isInitialized) {
+                    maybeExtendEndlessQueue(force = true)
                 }
             }
 
@@ -734,19 +740,26 @@ class MusicService : MediaLibraryService(),
             if (initialStatus.items.isEmpty()) return@launch
             if (queue.preloadItem != null) {
                 // add missing songs back, without affecting current playing song
-                player.addMediaItems(0, initialStatus.items.subList(0, initialStatus.mediaItemIndex))
-                player.addMediaItems(initialStatus.items.subList(initialStatus.mediaItemIndex + 1, initialStatus.items.size))
-                if (player.mediaItemCount <= 1) {
-                    maybeExtendEndlessQueue()
+                val nextItems = if (endlessQueueEnabled) initialStatus.items else {
+                    val start = initialStatus.mediaItemIndex.coerceIn(0, initialStatus.items.lastIndex)
+                    initialStatus.items.subList(start, (start + NON_ENDLESS_QUEUE_SIZE).coerceAtMost(initialStatus.items.size))
                 }
+                val selectedIndex = if (endlessQueueEnabled) initialStatus.mediaItemIndex else 0
+                player.addMediaItems(0, nextItems.subList(0, selectedIndex))
+                player.addMediaItems(nextItems.subList(selectedIndex + 1, nextItems.size))
+                if (player.mediaItemCount <= 1) maybeExtendEndlessQueue(force = true)
             } else {
-                player.setMediaItems(initialStatus.items, if (initialStatus.mediaItemIndex > 0) initialStatus.mediaItemIndex else 0, initialStatus.position)
+                val items = if (endlessQueueEnabled) initialStatus.items else {
+                    val start = initialStatus.mediaItemIndex.coerceIn(0, initialStatus.items.lastIndex)
+                    initialStatus.items.subList(start, (start + NON_ENDLESS_QUEUE_SIZE).coerceAtMost(initialStatus.items.size))
+                }
+                player.setMediaItems(items, if (endlessQueueEnabled) initialStatus.mediaItemIndex else 0, if (endlessQueueEnabled) initialStatus.position else 0L)
                 player.prepare()
                 player.playWhenReady = playWhenReady
                 // A single-track play must immediately get a similar-song tail. Waiting for the
                 // first media-item transition made the queue look empty until the song ended.
                 if (player.mediaItemCount <= 1) {
-                    maybeExtendEndlessQueue()
+                    maybeExtendEndlessQueue(force = true)
                 }
             }
         }
@@ -895,43 +908,65 @@ class MusicService : MediaLibraryService(),
         }
     }
 
-    /**
-     * Endless queue: with fewer than 3 songs left and no more queue pages,
-     * fetch a radio (similar-songs) tail for the current song and append the
-     * tracks that are not already queued. Best-effort and silent on failure;
-     * one extension job at a time, and the songs already appended are never
-     * appended twice.
-     */
-    private fun maybeExtendEndlessQueue() {
-        if (!endlessQueueEnabled) return
-        if (currentQueue.hasNextPage()) return // auto-load-more handles paged queues
-        if (player.mediaItemCount - player.currentMediaItemIndex > 5) return
+    /** True continuation-backed endless queue. */
+    private fun maybeExtendEndlessQueue(force: Boolean = false) {
+        if (!endlessQueueEnabled || player.currentMetadata?.isPodcast == true) return
+        val remaining = player.mediaItemCount - player.currentMediaItemIndex
+        if (!force && remaining > ENDLESS_QUEUE_LOW_WATERMARK) return
         if (endlessQueueJob?.isActive == true) return
-        val currentId = player.currentMediaItem?.mediaId ?: return
-        val existingIds = buildSet {
-            for (index in 0 until player.mediaItemCount) {
-                add(player.getMediaItemAt(index).mediaId)
-            }
-            addAll(endlessQueueAppendedIds)
-        }
         endlessQueueJob = scope.launch(SilentHandler) {
-            runCatching {
-                val radioItems = withContext(Dispatchers.IO) {
-                    YouTube.next(WatchEndpoint(currentId))
+            try {
+                val hideExplicit = dataStore.get(HideExplicitKey, false)
+                val known = buildSet {
+                    for (index in 0 until player.mediaItemCount) add(player.getMediaItemAt(index).mediaId)
+                    addAll(endlessQueueAppendedIds)
                 }
-                    .getOrNull()
-                    ?.items
-                    .orEmpty()
-                    .map { it.toMediaItem() }
-                    .filter { it.mediaId !in existingIds }
-                    .filterExplicit(dataStore.get(HideExplicitKey, false))
-                    .take(12)
-                if (radioItems.isNotEmpty() && player.playbackState != STATE_IDLE) {
-                    endlessQueueAppendedIds += radioItems.map { it.mediaId }
-                    player.addMediaItems(radioItems)
+                if (currentQueue.hasNextPage()) {
+                    val page = withContext(Dispatchers.IO) { currentQueue.nextPage().filterExplicit(hideExplicit) }
+                    val fresh = page.filter { known.add(it.mediaId) }
+                    if (fresh.isNotEmpty() && player.playbackState != STATE_IDLE) {
+                        player.addMediaItems(fresh)
+                        endlessQueueAppendedIds += fresh.map { it.mediaId }
+                    }
+                    return@launch
                 }
+                var radio = endlessRadioQueue
+                    ?: YouTubeQueue.radio(player.currentMetadata ?: return@launch).also { endlessRadioQueue = it }
+                val fresh = mutableListOf<MediaItem>()
+                repeat(ENDLESS_QUEUE_MAX_PAGE_ATTEMPTS) {
+                    if (fresh.size >= ENDLESS_QUEUE_BATCH_SIZE) return@repeat
+                    val page = withContext(Dispatchers.IO) {
+                        if (radio.hasNextPage()) {
+                            radio.nextPage().filterExplicit(hideExplicit)
+                        } else {
+                            val restarted = YouTubeQueue.radio(player.currentMetadata ?: return@withContext emptyList())
+                            endlessRadioQueue = restarted
+                            radio = restarted
+                            restarted.getInitialStatus().items.filterExplicit(hideExplicit)
+                        }
+                    }
+                    page.forEach { if (known.add(it.mediaId) && fresh.size < ENDLESS_QUEUE_BATCH_SIZE) fresh += it }
+                }
+                if (fresh.isNotEmpty() && player.playbackState != STATE_IDLE) {
+                    player.addMediaItems(fresh)
+                    endlessQueueAppendedIds += fresh.map { it.mediaId }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("MusicService", "Endless queue extension failed", e)
+            } finally {
+                endlessQueueJob = null
             }
         }
+    }
+
+    private fun trimQueueWhenEndlessDisabled() {
+        if (player.mediaItemCount == 0) return
+        val currentIndex = player.currentMediaItemIndex.coerceAtLeast(0)
+        val keepUntilExclusive = (currentIndex + NON_ENDLESS_QUEUE_SIZE).coerceAtMost(player.mediaItemCount)
+        if (keepUntilExclusive < player.mediaItemCount) player.removeMediaItems(keepUntilExclusive, player.mediaItemCount)
+        if (currentIndex > 0 && currentIndex < player.mediaItemCount) player.removeMediaItems(0, currentIndex)
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -940,20 +975,6 @@ class MusicService : MediaLibraryService(),
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-        // Auto load more songs
-        if (dataStore.get(AutoLoadMoreKey, true) &&
-            reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
-            player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
-            currentQueue.hasNextPage()
-        ) {
-            scope.launch(SilentHandler) {
-                val mediaItems = currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false))
-                if (player.playbackState != STATE_IDLE) {
-                    player.addMediaItems(mediaItems)
-                }
-            }
-        }
-
         // Endless queue: append a radio tail while the queue is about to run
         // out (the queue's own pages are handled by auto-load-more above).
         if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
@@ -986,6 +1007,7 @@ class MusicService : MediaLibraryService(),
             currentQueue = EmptyQueue
             player.shuffleModeEnabled = false
             queueTitle = null
+            endlessRadioQueue = null
             endlessQueueAppendedIds.clear()
         }
 
@@ -1451,6 +1473,10 @@ class MusicService : MediaLibraryService(),
 
     companion object {
         private const val LYRICS_NOT_FOUND_RETRY_MS = 24L * 60 * 60 * 1000
+        private const val ENDLESS_QUEUE_LOW_WATERMARK = 5
+        private const val ENDLESS_QUEUE_BATCH_SIZE = 15
+        private const val ENDLESS_QUEUE_MAX_PAGE_ATTEMPTS = 4
+        private const val NON_ENDLESS_QUEUE_SIZE = 15
 
         const val ROOT = "root"
         const val SONG = "song"

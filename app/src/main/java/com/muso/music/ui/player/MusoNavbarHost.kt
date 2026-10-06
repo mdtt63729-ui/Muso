@@ -2,7 +2,9 @@ package com.muso.music.ui.player
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
 import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,13 +25,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.Color
 import com.maxrave.simpmusic.ui.component.liquidGlass
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.layout.layoutId
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.ConstraintSet
+import androidx.constraintlayout.compose.Dimension
+import androidx.constraintlayout.compose.Visibility
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Column
@@ -42,6 +51,9 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.simpmusic.expect.ui.rememberBackdrop
 import com.maxrave.simpmusic.ui.component.AppBottomNavigationBar
 import com.maxrave.simpmusic.ui.component.LiquidGlassAppBottomNavigationBar
+import com.maxrave.simpmusic.ui.component.BottomNavScreen
+import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
+import com.maxrave.simpmusic.ui.navigation.destination.search.SearchDestination
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import com.muso.music.constants.LiquidGlassNavBarKey
 import com.muso.music.constants.NavigationBarHeight
@@ -152,13 +164,14 @@ fun BoxScope.MusoNavbarHost(
             },
     ) {
         // Hoisted: the flat branch and the pill-only branch below both need it.
-        val nowPlayingData by sharedViewModel.nowPlayingState.collectAsState()
-        val isShowMiniPlayer by androidx.compose.runtime.remember {
-            androidx.compose.runtime.derivedStateOf {
-                val item = nowPlayingData?.mediaItem
-                item != null && item != com.maxrave.domain.data.player.GenericMediaItem.EMPTY
-            }
-        }
+        // The mini-player is a UI surface of Muso's real PlayerConnection.
+        // Do not gate it on the SimpMusic bridge's nowPlayingState: that bridge is
+        // asynchronous and can briefly (or permanently after process restore) lag
+        // behind the actual Media3 player. That was the reason non-Classic styles
+        // could render an empty/blank pill while Classic still worked.
+        val liveMediaMetadata =
+            playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()?.value
+        val isShowMiniPlayer = liveMediaMetadata != null
         if (visibleHeight <= 0.dp) {
             // Navbar-hidden screens (Settings and friends): the suite MiniPlayer
             // alone, self-styled glass or flat by the LiquidGlass setting - the
@@ -187,6 +200,8 @@ fun BoxScope.MusoNavbarHost(
                             .navigationBarsPadding()
                             .height(miniPlayerHeight),
                         backdrop = backdrop,
+                            playerConnection = playerConnection,
+                            liquidGlassOverride = liquidGlass,
                         onClick = { playerBottomSheetState.expandSoft() },
                         onClose = {
                             sharedViewModel.stopPlayer()
@@ -248,6 +263,8 @@ fun BoxScope.MusoNavbarHost(
                                 .padding(horizontal = 12.dp)
                                 .height(miniPlayerHeight),
                             backdrop = backdrop,
+                            playerConnection = playerConnection,
+                            liquidGlassOverride = glassOn,
                             onClick = { playerBottomSheetState.expandSoft() },
                             onClose = {
                                 sharedViewModel.stopPlayer()
@@ -318,7 +335,7 @@ private fun ClassicArchiveTuneMiniPlayer(
             val player = connection.player
             position = player.currentPosition.coerceAtLeast(0L)
             duration = player.duration.takeIf { it > 0L } ?: 0L
-            delay(100L)
+            delay(250L)
         }
     }
 
@@ -353,56 +370,33 @@ private fun FlatNavigationMiniPlayerCluster(
     miniPlayerStyle: MiniPlayerStyle,
     pureBlack: Boolean,
 ) {
-    // Use the same two layout states as the SimpMusic glass bar. The important
-    // difference from the old Muso flat branch is that the mini player and the
-    // navigation bar now transition as ONE layout, so a scroll cannot animate
-    // one of them while leaving the other behind for a frame.
-    AnimatedContent(
-        targetState = isScrolledToTop,
-        transitionSpec = {
-            (slideInVertically(
-                animationSpec = tween(300),
-                initialOffsetY = { it / 5 },
-            ) + fadeIn(tween(220))).togetherWith(
-                slideOutVertically(
-                    animationSpec = tween(260),
-                    targetOffsetY = { -it / 5 },
-                ) + fadeOut(tween(180))
-            ).using(SizeTransform(clip = false))
-        },
-        label = "flatNavMiniScrollTransition",
-    ) { expanded ->
-        if (expanded) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                if (isShowMiniPlayer) {
-                    if (miniPlayerStyle == MiniPlayerStyle.CLASSIC) {
-                        ClassicArchiveTuneMiniPlayer(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp)
-                                .height(miniPlayerHeight),
-                            playerConnection = playerConnection,
-                            onOpenNowPlaying = onOpenNowPlaying,
-                            navigationProximity = 0f,
-                            backdrop = backdrop,
-                            useLiquidGlass = false,
-                            pureBlack = pureBlack,
-                        )
-                    } else {
-                        com.maxrave.simpmusic.ui.screen.MiniPlayer(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp)
-                                .height(miniPlayerHeight),
-                            backdrop = backdrop,
-                            onClick = onOpenNowPlaying,
-                            onClose = onClosePlayer,
-                        )
-                    }
-                }
+    // Keep ONE player instance alive across both scroll states. The old implementation
+    // put one MiniPlayer inside the expanded column and a second one inside the collapsed
+    // row, then AnimatedContent swapped the whole trees. That is why the artwork/progress
+    // appeared to jump instead of physically moving.
+    ConstraintLayout(
+        constraintSet = flatMiniPlayerConstraints(
+            isExpanded = isScrolledToTop,
+            showMiniPlayer = isShowMiniPlayer,
+            miniPlayerHeight = miniPlayerHeight,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        animateChangesSpec = androidx.compose.animation.core.spring(
+            dampingRatio = 0.86f,
+            stiffness = 420f,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .layoutId("flatToolbar")
+                .padding(horizontal = 12.dp)
+                .then(if (!isScrolledToTop) Modifier.navigationBarsPadding() else Modifier),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (isScrolledToTop) {
+                // Full navigation at the top of the feed.
                 AppBottomNavigationBar(
                     navController = navController,
                     showAnalyticsTab = false,
@@ -410,48 +404,88 @@ private fun FlatNavigationMiniPlayerCluster(
                     reloadDestinationIfNeeded = { onReloadTab() },
                     isExpanded = true,
                 )
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .navigationBarsPadding(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppBottomNavigationBar(
-                    navController = navController,
-                    showAnalyticsTab = false,
-                    showMixForYouTab = false,
-                    reloadDestinationIfNeeded = { onReloadTab() },
-                    isExpanded = false,
-                )
-                if (isShowMiniPlayer) {
-                    Spacer(Modifier.width(8.dp))
-                    if (miniPlayerStyle == MiniPlayerStyle.CLASSIC) {
-                        ClassicArchiveTuneMiniPlayer(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(miniPlayerHeight),
-                            playerConnection = playerConnection,
-                            onOpenNowPlaying = onOpenNowPlaying,
-                            navigationProximity = 1f,
-                            backdrop = backdrop,
-                            useLiquidGlass = false,
-                            pureBlack = pureBlack,
-                        )
-                    } else {
-                        com.maxrave.simpmusic.ui.screen.MiniPlayer(
-                            Modifier
-                                .weight(1f)
-                                .height(miniPlayerHeight),
-                            backdrop = backdrop,
-                            onClick = onOpenNowPlaying,
-                            onClose = onClosePlayer,
-                        )
-                    }
+            } else {
+                // Collapsed navigation: Home + MiniPlayer + Search. The mini player is
+                // NOT inside this Row; ConstraintLayout owns its physical position.
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .clickable { navController.navigate(HomeDestination) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BottomNavScreen.Home.icon()
+                }
+                Spacer(Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .clickable { navController.navigate(SearchDestination) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BottomNavScreen.Search.icon()
                 }
             }
+        }
+
+        if (isShowMiniPlayer) {
+            if (miniPlayerStyle == MiniPlayerStyle.CLASSIC) {
+                ClassicArchiveTuneMiniPlayer(
+                    modifier = Modifier.layoutId("flatMiniPlayer"),
+                    playerConnection = playerConnection,
+                    onOpenNowPlaying = onOpenNowPlaying,
+                    navigationProximity = if (isScrolledToTop) 0f else 1f,
+                    backdrop = backdrop,
+                    useLiquidGlass = false,
+                    pureBlack = pureBlack,
+                )
+            } else {
+                com.maxrave.simpmusic.ui.screen.MiniPlayer(
+                    Modifier.layoutId("flatMiniPlayer"),
+                    backdrop = backdrop,
+                    playerConnection = playerConnection,
+                    liquidGlassOverride = false,
+                    onClick = onOpenNowPlaying,
+                    onClose = onClosePlayer,
+                )
+            }
+        }
+    }
+}
+
+private fun flatMiniPlayerConstraints(
+    isExpanded: Boolean,
+    showMiniPlayer: Boolean,
+    miniPlayerHeight: Dp,
+): ConstraintSet = ConstraintSet {
+    val toolbar = createRefFor("flatToolbar")
+    constrain(toolbar) {
+        start.linkTo(parent.start)
+        end.linkTo(parent.end)
+        bottom.linkTo(parent.bottom)
+        width = Dimension.fillToConstraints
+        height = Dimension.wrapContent
+    }
+
+    val mini = createRefFor("flatMiniPlayer")
+    constrain(mini) {
+        visibility = if (showMiniPlayer) Visibility.Visible else Visibility.Gone
+        if (isExpanded) {
+            start.linkTo(parent.start, 12.dp)
+            end.linkTo(parent.end, 12.dp)
+            bottom.linkTo(toolbar.top, 12.dp)
+            width = Dimension.fillToConstraints
+            height = Dimension.value(miniPlayerHeight)
+        } else {
+            // Exactly between the 48dp Home and 48dp Search buttons with an 8dp visual gap.
+            start.linkTo(parent.start, 68.dp)
+            end.linkTo(parent.end, 68.dp)
+            bottom.linkTo(toolbar.bottom)
+            width = Dimension.fillToConstraints
+            height = Dimension.value(48.dp)
         }
     }
 }

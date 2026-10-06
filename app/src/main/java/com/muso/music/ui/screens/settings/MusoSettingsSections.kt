@@ -388,7 +388,7 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(key = HidePlayerThumbnailKey, defaultValue = false)
     val (cropAlbumArt, onCropAlbumArtChange) = rememberPreference(key = CropAlbumArtKey, defaultValue = false)
     val (rotatingArtwork, onRotatingArtworkChange) = rememberPreference(key = RotatingArtworkKey, defaultValue = false)
-    val (showCodecOnPlayer, onShowCodecOnPlayerChange) = rememberPreference(key = ShowCodecOnPlayerKey, defaultValue = true)
+    val (showCodecOnPlayer, onShowCodecOnPlayerChange) = rememberPreference(key = ShowCodecOnPlayerKey, defaultValue = false)
 
     var showSliderOptionDialog by rememberSaveable { mutableStateOf(false) }
     if (showSliderOptionDialog) {
@@ -1691,14 +1691,14 @@ private fun WordByWordStyleDialog(
                                 Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .clickable { onStyleSelected(style) }
+                                    .clickable { onEnabledChange(true); onStyleSelected(style) }
                                     .padding(vertical = 10.dp, horizontal = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(
                                 selected = style == selectedStyle,
-                                onClick = { onStyleSelected(style) },
+                                onClick = { onEnabledChange(true); onStyleSelected(style) },
                             )
                             Text(
                                 text = lyricsAnimationStyleLabel(style),

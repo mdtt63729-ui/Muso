@@ -582,9 +582,9 @@ private fun AppleMusicMainView(
                                     model =
                                         ImageRequest
                                             .Builder(LocalPlatformContext.current)
-                                            .data(state.screenData.thumbnailURL)
+                                            .data(state.thumbnailURL)
                                             .diskCachePolicy(CachePolicy.ENABLED)
-                                            .diskCacheKey(state.screenData.thumbnailURL)
+                                            .diskCacheKey(state.thumbnailURL)
                                             .crossfade(300)
                                             .build(),
                                     placeholder = rememberHolderPainter(),
@@ -650,7 +650,7 @@ internal fun BoxScope.AppleMusicArtworkBackdrop(
     // rather than an imperative ImageLoader.execute(): the pager's AsyncImage demonstrably loads
     // this exact url while the execute() call did not, so this uses the path already proven to
     // work rather than a second one that has to be kept working.
-    var backdropUrl by remember(state.screenData.thumbnailURL) { mutableStateOf(state.screenData.thumbnailURL) }
+    var backdropUrl by remember(state.thumbnailURL) { mutableStateOf(state.thumbnailURL) }
 
     // The approved mock's page gradient is THREE stops — a clearly-tinted top, ~55%-darkened by
     // mid-page (48%), warm near-black at the bottom. The first cut's two stops to near-black read
@@ -779,7 +779,7 @@ private fun AppleMusicArtworkPage(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isCurrentPage) {
-            var artworkUrl by remember(state.screenData.thumbnailURL) { mutableStateOf(state.screenData.thumbnailURL) }
+            var artworkUrl by remember(state.thumbnailURL) { mutableStateOf(state.thumbnailURL) }
             Box(
                 modifier =
                     Modifier

@@ -500,8 +500,8 @@ fun NowPlayingContentSpotify(
                                     // retry once with `hqdefault.jpg`, which YouTube guarantees for
                                     // every video. Song artwork (googleusercontent) never matches
                                     // the replace, so this is a no-op for it.
-                                    var artworkUrl by remember(state.screenData.thumbnailURL) {
-                                        mutableStateOf(state.screenData.thumbnailURL)
+                                    var artworkUrl by remember(state.thumbnailURL) {
+                                        mutableStateOf(state.thumbnailURL)
                                     }
                                     Box(
                                         contentAlignment = Alignment.Center,
@@ -1712,9 +1712,9 @@ internal fun NowPlayingTrackInfoRow(
                 model =
                     ImageRequest
                         .Builder(LocalPlatformContext.current)
-                        .data(state.screenData.thumbnailURL)
+                        .data(state.thumbnailURL)
                         .diskCachePolicy(CachePolicy.ENABLED)
-                        .diskCacheKey(state.screenData.thumbnailURL + "BIGGER")
+                        .diskCacheKey(state.thumbnailURL + "BIGGER")
                         .crossfade(true)
                         .build(),
                 placeholder = rememberHolderPainter(),

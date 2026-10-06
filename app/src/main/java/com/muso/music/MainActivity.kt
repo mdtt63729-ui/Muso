@@ -333,6 +333,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        hideSystemBars()
         // Kill the cold-start flash: the window carries the splash's dark
         // background before Compose's first frame lands.
         window.setBackgroundDrawable(
@@ -686,15 +687,23 @@ class MainActivity : ComponentActivity() {
                                     (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed)
                         }
                     )
-                    // The suite glass bar collapses while content is scrolled away from the top.
-                    val isScrolledToTop by remember {
-                        derivedStateOf {
-                            // This custom scroll behavior is pinned and does not install a
-                            // TopAppBar, so heightOffsetLimit remains 0 and
-                            // overlappedFraction never changes. Use the behavior's accumulated contentOffset instead: negative means the feed has consumed
-                            // upward scroll; it returns to zero when the list reaches top.
-                            searchBarScrollBehavior.state.contentOffset >= -1f
-                        }
+                    // The Home screen owns the real LazyColumn, so its exact top/non-top state
+                    // is published through the Home back-stack entry. The old implementation tried
+                    // to infer this from a search/app-bar scroll behavior that is NOT attached to the
+                    // Home LazyColumn; consequently the navbar often stayed expanded and the player
+                    // never travelled into the Home/Search gap. Use the real list position on Home and
+                    // retain the existing behavior for other top-level destinations.
+                    val homeScrollAtTop by navBackStackEntry
+                        ?.savedStateHandle
+                        ?.getStateFlow("homeScrollAtTop", true)
+                        ?.collectAsState()
+                        ?: remember { mutableStateOf(true) }
+
+                    val isHomeDestination = navBackStackEntry?.destination?.hasRoute(HomeDestination::class) == true
+                    val isScrolledToTop = if (isHomeDestination) {
+                        homeScrollAtTop.value
+                    } else {
+                        searchBarScrollBehavior.state.contentOffset >= -1f
                     }
 
                     LaunchedEffect(navBackStackEntry) {
@@ -1421,6 +1430,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        hideSystemBars()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemBars()
+    }
+
+    private fun hideSystemBars() {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Notification tap while the app was already running (singleTask).
@@ -1512,10 +1538,13 @@ private fun FloatingNavBarEnv(
             // scrolls behind both (reference behaviour), otherwise every list
             // ended in a dead black strip under the mini player.
             val behindFloatingGlass = translucentNavBar || liquidGlassNavBar
-            if (shouldShowNavigationBar && !behindFloatingGlass) bottom += NavigationBarHeight
-            // The floating pill mini player rides above the bar in BOTH modes
-            // now (glass and flat), so content always reserves its height.
+            // The navigation bar and floating glass surfaces are visual overlays. They still need
+            // to be represented in the scrollable content's terminal padding, otherwise the last
+            // Home/Library/Search item can remain permanently underneath the mini player or nav
+            // pill and the user experiences a false "scroll stopped" at the bottom.
+            if (shouldShowNavigationBar) bottom += NavigationBarHeight
             if (!playerSheetDismissed) bottom += MiniPlayerHeight
+            bottom += 24.dp
             windowsInsets
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                 .add(WindowInsets(top = AppBarHeight, bottom = bottom))

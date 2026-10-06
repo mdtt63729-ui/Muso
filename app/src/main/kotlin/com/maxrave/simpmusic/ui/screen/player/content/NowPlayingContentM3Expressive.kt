@@ -657,9 +657,9 @@ internal fun ExpressiveTrackInfoRow(
                 model =
                     ImageRequest
                         .Builder(LocalPlatformContext.current)
-                        .data(state.screenData.thumbnailURL)
+                        .data(state.thumbnailURL)
                         .diskCachePolicy(CachePolicy.ENABLED)
-                        .diskCacheKey(state.screenData.thumbnailURL + "BIGGER")
+                        .diskCacheKey(state.thumbnailURL + "BIGGER")
                         .crossfade(true)
                         .build(),
                 placeholder = rememberHolderPainter(),
@@ -813,6 +813,13 @@ internal fun ColumnScope.ExpressivePlaybackControls(
             onSliderChangeFinished = actions.onSliderChangeFinished,
         )
     }
+    // Real stream codec capsule directly below the seek slider.
+    PlayerCodecCapsule(
+        state = state,
+        modifier = Modifier.padding(top = 4.dp),
+        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+        contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+    )
     // Time row — same math and negative guard as Classic
     // (formatDuration renders any negative as NA:NA).
     Row(
@@ -884,15 +891,6 @@ internal fun ColumnScope.ExpressivePlaybackControls(
             textAlign = TextAlign.Right,
         )
     }
-    // Codec/quality capsule below the times row (user request, round 185).
-    // Theme-adaptive colors: M3 Expressive is the one style that also runs on
-    // the light theme, where a white-on-white pill would vanish.
-    PlayerCodecCapsule(
-        state = state,
-        modifier = Modifier.padding(top = 4.dp),
-        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-        contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-    )
     Spacer(
         modifier =
             Modifier

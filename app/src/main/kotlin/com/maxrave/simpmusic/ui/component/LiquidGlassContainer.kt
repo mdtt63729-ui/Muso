@@ -295,6 +295,9 @@ fun Modifier.drawInteractiveGlass(
                     contrast = 1f,
                     saturation = 1.15f,
                 )
+                // Keep the glass visually soft while reducing the shader's blur radius.
+                // Backdrop blur is one of the most expensive parts of this surface, and the
+                // navbar/mini-player can coexist with several other glass surfaces on screen.
                 blur(
                     (
                         if (l > 0f) {
@@ -302,7 +305,7 @@ fun Modifier.drawInteractiveGlass(
                         } else {
                             lerp(5f.dp.toPx(), 3f.dp.toPx(), -l)
                         }
-                    ) * blurScale + 1f.dp.toPx() * press,
+                    ) * 0.8f * blurScale + 1f.dp.toPx() * press,
                 )
                 // refractionHeight stays below the stadium inradius (minDimension / 2) so the
                 // top and bottom refraction never meet at the medial axis — that meeting point on

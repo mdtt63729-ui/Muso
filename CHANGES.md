@@ -91,3 +91,24 @@
 
 Audit: brace/paren balance across all 1363 Kotlin files, all XML parsed, TOML
 parsed, project import resolution identical to the v0.5.211 baseline.
+
+## Muso playlist loading fix — 2026-10-06
+- Fixed online playlist taps that could end in the misleading `Error: Empty response` snackbar/screen.
+- Normalized `VL`/`vl` playlist IDs before loading.
+- Added a YouTube Music queue/`next` endpoint fallback when the strict playlist parser fails.
+- Fallback playlists still populate title, thumbnail, artist label, tracks and continuation so the playlist page remains usable.
+- Replaced the generic `Empty response` fallback text with a meaningful retry message when both online and local loading fail.
+
+## Lyrics international-script rendering fix
+
+- Added `LyricsFontUtils` with script-aware font selection for lyric text.
+- Latin-only lyrics continue using the selected Muso UI font.
+- Any non-Latin lyric line/word now uses Android `SansSerif` platform fallback so Devanagari, Bengali, Arabic, CJK, Tamil, Telugu, Gurmukhi and other scripts render with complete glyph coverage instead of dotted-circle/missing-mark placeholders.
+- Enabled font padding for script-safe lyric text to avoid clipping of Indic/Arabic combining marks.
+- Applied the fix to Classic lyrics, Rich Sync word-by-word lyrics, Apple Music lyrics, and Media3 video lyric subtitles.
+
+## Lyrics animation synchronization fix (2026-10-06)
+- Fixed rich-sync word end timing: when providers supply word start timestamps only, each word now ends at the next word's start instead of the entire line end.
+- Fixed grapheme segmentation for letter-by-letter animation using Unicode character boundaries, preventing Devanagari/Arabic combining marks and emoji sequences from being split incorrectly.
+- Character animation now remains inside the exact word timing window, keeping word-by-word and letter-by-letter sweeps synchronized with the playback clock.
+- Preserved frame-smooth player-position interpolation for the unified Echo lyrics renderer.

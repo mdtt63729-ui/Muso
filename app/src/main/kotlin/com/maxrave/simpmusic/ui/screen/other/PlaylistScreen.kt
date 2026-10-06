@@ -420,19 +420,16 @@ fun PlaylistScreen(
                                                         },
                                                         modifier = Modifier.fillMaxSize(),
                                                     )
-                                                    // Scrim spans ~70% of the artwork (0.42 of 0.60 of the screen).
-                                                    // It stays a long, smooth ramp - a shorter one would steepen the
-                                                    // alpha and read as an edge - while leaving the top ~30% of the
-                                                    // artwork untouched, so the thumbnail stays the dominant element
-                                                    // of the header instead of being washed out by the page colour.
-                                                    // See artworkScrimBrush for the curve itself.
+                                                    // Keep the cover vivid and dominant. The page-colour blend is
+                                                    // limited to the bottom of the hero so the artwork does not get
+                                                    // washed out by a large white overlay.
                                                     Box(
                                                         modifier =
                                                             Modifier
                                                                 .fillMaxWidth()
-                                                                .height((screenInfo.hDP * 0.42f).dp)
+                                                                .height((screenInfo.hDP * 0.28f).dp)
                                                                 .align(Alignment.BottomCenter)
-                                                                .background(artworkScrimBrush(pageBg, steps = 32)),
+                                                                .background(artworkScrimBrush(pageBg, steps = 40)),
                                                     )
                                                     Column(
                                                         modifier =
@@ -446,7 +443,7 @@ fun PlaylistScreen(
                                                         Text(
                                                             text = data.title,
                                                             style = typo().titleLarge,
-                                                            color = Color.White,
+                                                            color = onPage,
                                                             maxLines = 2,
                                                             textAlign = TextAlign.Center,
                                                         )
@@ -473,7 +470,7 @@ fun PlaylistScreen(
                                                                 Text(
                                                                     text = data.author.name,
                                                                     style = typo().titleSmall,
-                                                                    color = Color.White,
+                                                                    color = onPage,
                                                                     textAlign = TextAlign.Center,
                                                                 )
                                                             }
@@ -488,7 +485,7 @@ fun PlaylistScreen(
                                                                 }
                                                             } • ${data.year}",
                                                             style = typo().bodyMedium,
-                                                            color = Color(0xC4FFFFFF),
+                                                            color = onPage.copy(alpha = 0.72f),
                                                             textAlign = TextAlign.Center,
                                                         )
                                                     }

@@ -49,9 +49,9 @@ import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDestinatio
 // (ui/animation/MotionTokens.kt) - the Motion System PRD's single source
 // of truth. Bands: push 300-350 ms, pop 220-320 ms, parallax 15-25%.
 private val IosEasing = Motion.EnterEasing
-private const val PUSH_MS = 220
-private const val POP_MS = 180
-private const val TAB_MS = 120
+private const val PUSH_MS = 280
+private const val POP_MS = 240
+private const val TAB_MS = 180
 private const val PARALLAX_NUM = 8
 private const val PARALLAX_DEN = 10
 

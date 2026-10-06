@@ -69,6 +69,7 @@ import com.maxrave.domain.data.model.streams.TimeLine
 import com.maxrave.domain.data.model.ui.ScreenSizeInfo
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.logger.Logger
+import com.maxrave.simpmusic.ui.component.forLyricsText
 import com.maxrave.media3.ui.extension.KeepScreenOn
 import com.muso.music.playback.RenderedCanvasVideoStore
 import org.koin.compose.koinInject
@@ -675,7 +676,13 @@ fun MediaPlayerViewWithSubtitle(
                                                 } else {
                                                     it
                                                 }
-                                            },
+                                            }
+                                            .forLyricsText(
+                                                lines.getOrNull(currentLineIndex)?.words
+                                                    ?.replace(RICH_SYNC_TIMESTAMP_REGEX, "")
+                                                    ?.trim()
+                                                    ?: "",
+                                            ),
                                     color = Color.White,
                                     textAlign = TextAlign.Center,
                                     modifier =
@@ -703,7 +710,13 @@ fun MediaPlayerViewWithSubtitle(
                                                     } else {
                                                         it
                                                     }
-                                                },
+                                                }
+                                                .forLyricsText(
+                                                    translateLines.getOrNull(currentTranslatedLineIndex)?.words
+                                                        ?.replace(RICH_SYNC_TIMESTAMP_REGEX, "")
+                                                        ?.trim()
+                                                        ?: "",
+                                                ),
                                             color = Color.Yellow,
                                             textAlign = TextAlign.Center,
                                             modifier =

@@ -2,6 +2,7 @@ package com.muso.music.ui.screens
 
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import com.muso.music.ui.animation.Motion
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
@@ -133,24 +134,24 @@ fun NavGraphBuilder.navigationBuilder(
             }
         ),
         enterTransition = {
-            fadeIn(tween(250))
+            fadeIn(tween(Motion.NORMAL, easing = Motion.EnterEasing))
         },
         exitTransition = {
             if (targetState.destination.route?.startsWith("search/") == true) {
-                fadeOut(tween(200))
+                fadeOut(tween(Motion.EXIT, easing = Motion.ExitEasing))
             } else {
-                fadeOut(tween(200)) + slideOutHorizontally { -it / 2 }
+                fadeOut(tween(Motion.EXIT, easing = Motion.ExitEasing)) + slideOutHorizontally(tween(Motion.EXIT, easing = Motion.ExitEasing)) { -it / 2 }
             }
         },
         popEnterTransition = {
             if (initialState.destination.route?.startsWith("search/") == true) {
-                fadeIn(tween(250))
+                fadeIn(tween(Motion.NORMAL, easing = Motion.EnterEasing))
             } else {
-                fadeIn(tween(250)) + slideInHorizontally { -it / 2 }
+                fadeIn(tween(Motion.NORMAL, easing = Motion.EnterEasing)) + slideInHorizontally(tween(Motion.NORMAL, easing = Motion.EnterEasing)) { -it / 2 }
             }
         },
         popExitTransition = {
-            fadeOut(tween(200))
+            fadeOut(tween(Motion.EXIT, easing = Motion.ExitEasing))
         }
     ) {
         OnlineSearchResult(navController)

@@ -628,24 +628,39 @@ private fun measureMetroWords(
         // Word spacing is supplied by layout.spacePx, so the separator is not
         // treated as a timed character.
         val text = word.text
+        // Use grapheme clusters, not raw Unicode code points. Devanagari matras,
+        // Arabic combining marks, emoji ZWJ sequences, etc. must travel with their
+        // base glyph; splitting them into separate animated characters produces
+        // visibly broken letter-by-letter playback.
         val characterParts = buildList {
-            var charIndex = 0
-            while (charIndex < text.length) {
-                val codePoint = text.codePointAt(charIndex)
-                val charCount = Character.charCount(codePoint)
-                val character = text.substring(charIndex, (charIndex + charCount).coerceAtMost(text.length))
-                val characterLayout = textMeasurer.measure(
-                    text = character,
-                    style = style,
-                    maxLines = 1,
-                )
-                add(character to characterLayout)
-                charIndex += charCount
+            val iterator = java.text.BreakIterator.getCharacterInstance(java.util.Locale.ROOT)
+            iterator.setText(text)
+            var start = iterator.first()
+            while (start != java.text.BreakIterator.DONE) {
+                val end = iterator.next()
+                if (end == java.text.BreakIterator.DONE) break
+                if (end > start) {
+                    val character = text.substring(start, end)
+                    val characterLayout = textMeasurer.measure(
+                        text = character,
+                        style = style,
+                        maxLines = 1,
+                    )
+                    add(character to characterLayout)
+                }
+                start = end
             }
         }
         val wordStartMs = word.startTimeMs
-        val wordEndMs = (word.endTimeMs ?: parsedLine.lineEndTimeMs)
-            .coerceAtLeast(wordStartMs + 1L)
+        // Rich-sync providers normally expose WORD START times only. The next word's
+        // start is therefore the real end of the current word. The old renderer used
+        // the whole line end for every word, making every word/letter animation overlap
+        // the rest of the line and visibly fall out of sync.
+        val wordEndMs = (
+            word.endTimeMs
+                ?: words.getOrNull(index + 1)?.startTimeMs
+                ?: parsedLine.lineEndTimeMs
+        ).coerceAtLeast(wordStartMs + 1L)
         val totalWordDuration = (wordEndMs - wordStartMs).coerceAtLeast(1L)
         // A letter does not consume equal amounts of singing time. Vowels, syllabic nuclei and
         // CJK/Bengali-style full glyphs tend to occupy more of a sung word; punctuation and
@@ -679,9 +694,11 @@ private fun measureMetroWords(
             y += lineHeightPx
         }
         val startMs = word.startTimeMs
-        val endMs = word.endTimeMs
-            ?: words.getOrNull(index + 1)?.startTimeMs
-            ?: parsedLine.lineEndTimeMs.coerceAtLeast(startMs + 1L)
+        val endMs = (
+            word.endTimeMs
+                ?: words.getOrNull(index + 1)?.startTimeMs
+                ?: parsedLine.lineEndTimeMs
+        ).coerceAtLeast(startMs + 1L)
         current.add(
             MetroWordSlot(
                 characters = characters,

@@ -103,8 +103,8 @@ fun DebugSettings(navController: NavController) {
         )
 
     val (showCodecOnPlayer, onShowCodecOnPlayerChange) =
-        rememberPreference(
-            key = booleanPreferencesKey("show_codec_on_player"),
+        com.muso.music.utils.rememberPreference(
+            key = com.muso.music.constants.ShowCodecOnPlayerKey,
             defaultValue = false,
         )
 

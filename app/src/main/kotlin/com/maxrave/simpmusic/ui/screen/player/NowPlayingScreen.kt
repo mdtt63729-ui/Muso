@@ -92,8 +92,8 @@ import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentM3Express
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentSpotify
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
 import com.maxrave.simpmusic.ui.screen.player.content.PlayerBackdropColor
-import com.maxrave.simpmusic.ui.screen.player.content.itagQualityLabel
 import com.maxrave.simpmusic.ui.screen.player.content.toAudioCodecLabel
+import com.maxrave.simpmusic.ui.screen.player.content.toAudioContainerLabel
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetUIEvent
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel
@@ -681,11 +681,13 @@ fun NowPlayingScreenContent(
     // player style renders the badge from one source of truth.
     val (showCodecOnPlayer) = com.muso.music.utils.rememberPreference(
         key = com.muso.music.constants.ShowCodecOnPlayerKey,
-        defaultValue = true,
+        defaultValue = false,
     )
     val state =
         NowPlayingContentState(
             showCodecBadge = showCodecOnPlayer,
+            audioCodecLoading = showCodecOnPlayer && nowPlayingVideoId != null &&
+                formatState?.videoId != nowPlayingVideoId,
             screenData = screenDataState,
             controllerState = controllerState,
             timelineState = timelineState,
@@ -724,14 +726,11 @@ fun NowPlayingScreenContent(
             audioCodecLabel = formatState
                 ?.takeIf { f -> f.videoId == nowPlayingVideoId }
                 ?.let { f ->
-                val quality = itagQualityLabel(f.itag) ?: f.codecs.toAudioCodecLabel()
-                val kbps = f.bitrate?.takeIf { it > 0 }?.let { b -> "${b / 1000} kbps" }
-                when {
-                    quality != null && kbps != null -> "$quality • $kbps"
-                    quality != null -> quality
-                    else -> null
-                }
-            },
+                    val container = f.mimeType.toAudioContainerLabel()
+                    val codec = f.codecs.toAudioCodecLabel()
+                    val kbps = f.bitrate?.takeIf { it > 0 }?.let { b -> "${b / 1000} kbps" }
+                    listOfNotNull(container, codec, kbps).takeIf { it.isNotEmpty() }?.joinToString(" • ")
+                },
             videoAspectRatio = rememberVideoAspectRatio(MAIN_PLAYER) ?: 16f / 9,
         )
     val actions =
@@ -994,60 +993,39 @@ fun NowPlayingScreenContent(
         // dark canvases, so they run inside ForceDarkContent like the Apple
         // Music style above them.
         DataStoreManager.NOW_PLAYING_STYLE_MODERN ->
-            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentModern(
-                    state = state,
-                    actions = actions,
-                )
-            }
+            com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentModern(
+                state = state, actions = actions,
+            )
 
         DataStoreManager.NOW_PLAYING_STYLE_MINIMAL ->
-            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMinimal(
-                    state = state,
-                    actions = actions,
-                )
-            }
+            com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMinimal(
+                state = state, actions = actions,
+            )
 
         DataStoreManager.NOW_PLAYING_STYLE_CINEMATIC ->
-            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentCinematic(
-                    state = state,
-                    actions = actions,
-                )
-            }
+            com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentCinematic(
+                state = state, actions = actions,
+            )
 
         DataStoreManager.NOW_PLAYING_STYLE_LITTLE ->
-            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentLittle(
-                    state = state,
-                    actions = actions,
-                )
-            }
+            com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentLittle(
+                state = state, actions = actions,
+            )
 
         DataStoreManager.NOW_PLAYING_STYLE_IMMERSIVE_EXTENDED ->
-            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentImmersiveExtended(
-                    state = state,
-                    actions = actions,
-                )
-            }
+            com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentImmersiveExtended(
+                state = state, actions = actions,
+            )
 
         DataStoreManager.NOW_PLAYING_STYLE_MATERIAL_EXTENDED ->
-            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMaterialExtended(
-                    state = state,
-                    actions = actions,
-                )
-            }
+            com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentMaterialExtended(
+                state = state, actions = actions,
+            )
 
         DataStoreManager.NOW_PLAYING_STYLE_EDITORIAL ->
-            com.maxrave.simpmusic.ui.theme.ForceDarkContent {
-                com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentEditorial(
-                    state = state,
-                    actions = actions,
-                )
-            }
+            com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentEditorial(
+                state = state, actions = actions,
+            )
 
         else ->
             NowPlayingContentSpotify(

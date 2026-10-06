@@ -42,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -104,6 +105,7 @@ import com.muso.music.utils.rememberPreference
 import com.muso.music.viewmodels.HomeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.min
 import kotlin.random.Random
@@ -147,6 +149,20 @@ fun HomeScreen(
 
     val scope = rememberCoroutineScope()
     val lazylistState = rememberLazyListState()
+
+    // The bottom navigation animation must follow the REAL Home LazyColumn position.
+    // Previously MainActivity tried to infer this from an AppBar scroll behavior that is
+    // not attached to this list, so the nav never reliably entered the collapsed state.
+    LaunchedEffect(lazylistState, navController) {
+        snapshotFlow {
+            lazylistState.firstVisibleItemIndex == 0 &&
+                lazylistState.firstVisibleItemScrollOffset == 0
+        }.distinctUntilChanged().collect { atTop ->
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.set("homeScrollAtTop", atTop)
+        }
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
 

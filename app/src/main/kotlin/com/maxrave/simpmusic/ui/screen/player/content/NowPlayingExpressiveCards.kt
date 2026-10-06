@@ -283,8 +283,8 @@ internal fun ExpressiveArtworkCardPage(
                     // song. On error we retry once with `hqdefault.jpg`, which YouTube guarantees
                     // for every video. Song artwork (googleusercontent) never matches the replace,
                     // so this is a no-op for it.
-                    var artworkUrl by remember(state.screenData.thumbnailURL) {
-                        mutableStateOf(state.screenData.thumbnailURL)
+                    var artworkUrl by remember(state.thumbnailURL) {
+                        mutableStateOf(state.thumbnailURL)
                     }
                     AsyncImage(
                         model =

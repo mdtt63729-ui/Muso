@@ -380,8 +380,8 @@ fun Queue(
     var sleepTimerTimeLeft by remember { mutableStateOf(0L) }
 
     val (showCodecOnPlayer) =
-        rememberPreference(
-            key = booleanPreferencesKey("show_codec_on_player"),
+        com.muso.music.utils.rememberPreference(
+            key = com.muso.music.constants.ShowCodecOnPlayerKey,
             defaultValue = false,
         )
 

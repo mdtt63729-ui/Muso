@@ -1,6 +1,7 @@
 package com.muso.music.ui.screens.search
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -109,9 +110,7 @@ fun OnlineSearchScreen(
 
     LazyColumn(
         state = lazyListState,
-        contentPadding = WindowInsets.systemBars
-            .only(WindowInsetsSides.Bottom)
-            .asPaddingValues()
+        contentPadding = PaddingValues(bottom = 220.dp)
     ) {
         items(
             items = viewState.history,

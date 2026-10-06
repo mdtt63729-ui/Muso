@@ -2,8 +2,15 @@ package com.muso.music.ui.component
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -31,8 +38,32 @@ fun BoxScope.HideOnScrollFAB(
 ) {
     AnimatedVisibility(
         visible = visible && lazyListState.isScrollingUp(),
-        enter = slideInVertically { it },
-        exit = slideOutVertically { it },
+        enter =
+            slideInHorizontally(
+                initialOffsetX = { fullWidth -> fullWidth },
+                animationSpec = spring(
+                    dampingRatio = 0.68f,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            ) +
+                scaleIn(
+                    initialScale = 0.86f,
+                    animationSpec = spring(
+                        dampingRatio = 0.72f,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) +
+                fadeIn(animationSpec = tween(120)),
+        exit =
+            slideOutHorizontally(
+                targetOffsetX = { fullWidth -> fullWidth },
+                animationSpec = tween(180),
+            ) +
+                scaleOut(
+                    targetScale = 0.92f,
+                    animationSpec = tween(160),
+                ) +
+                fadeOut(animationSpec = tween(120)),
         modifier = Modifier
             .align(Alignment.BottomEnd)
             .windowInsetsPadding(
@@ -61,8 +92,32 @@ fun BoxScope.HideOnScrollFAB(
 ) {
     AnimatedVisibility(
         visible = visible && lazyListState.isScrollingUp(),
-        enter = slideInVertically { it },
-        exit = slideOutVertically { it },
+        enter =
+            slideInHorizontally(
+                initialOffsetX = { fullWidth -> fullWidth },
+                animationSpec = spring(
+                    dampingRatio = 0.68f,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            ) +
+                scaleIn(
+                    initialScale = 0.86f,
+                    animationSpec = spring(
+                        dampingRatio = 0.72f,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) +
+                fadeIn(animationSpec = tween(120)),
+        exit =
+            slideOutHorizontally(
+                targetOffsetX = { fullWidth -> fullWidth },
+                animationSpec = tween(180),
+            ) +
+                scaleOut(
+                    targetScale = 0.92f,
+                    animationSpec = tween(160),
+                ) +
+                fadeOut(animationSpec = tween(120)),
         modifier = Modifier
             .align(Alignment.BottomEnd)
             .windowInsetsPadding(
@@ -91,8 +146,32 @@ fun BoxScope.HideOnScrollFAB(
 ) {
     AnimatedVisibility(
         visible = visible && scrollState.isScrollingUp(),
-        enter = slideInVertically { it },
-        exit = slideOutVertically { it },
+        enter =
+            slideInHorizontally(
+                initialOffsetX = { fullWidth -> fullWidth },
+                animationSpec = spring(
+                    dampingRatio = 0.68f,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            ) +
+                scaleIn(
+                    initialScale = 0.86f,
+                    animationSpec = spring(
+                        dampingRatio = 0.72f,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) +
+                fadeIn(animationSpec = tween(120)),
+        exit =
+            slideOutHorizontally(
+                targetOffsetX = { fullWidth -> fullWidth },
+                animationSpec = tween(180),
+            ) +
+                scaleOut(
+                    targetScale = 0.92f,
+                    animationSpec = tween(160),
+                ) +
+                fadeOut(animationSpec = tween(120)),
         modifier = Modifier
             .align(Alignment.BottomEnd)
             .windowInsetsPadding(

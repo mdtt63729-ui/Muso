@@ -858,6 +858,10 @@ fun MusoSuiteBridge(
     }
 
     // --- timeline poll ---
+    // The UI interpolates the playhead from the real PlayerConnection when it needs
+    // frame-level lyric timing. The shared timeline is therefore a coarse UI snapshot,
+    // not a 4 Hz animation clock. Updating it at 500 ms cuts background recompositions
+    // in half while keeping elapsed/remaining labels and mini-player progress smooth.
     LaunchedEffect(player) {
         while (isActive) {
             val total = player.duration.takeIf { it != androidx.media3.common.C.TIME_UNSET } ?: 0L
@@ -867,7 +871,7 @@ fun MusoSuiteBridge(
                 bufferedPercent = player.bufferedPercentage,
                 loading = player.playbackState == androidx.media3.common.Player.STATE_BUFFERING,
             )
-            kotlinx.coroutines.delay(250)
+            kotlinx.coroutines.delay(500)
         }
     }
 

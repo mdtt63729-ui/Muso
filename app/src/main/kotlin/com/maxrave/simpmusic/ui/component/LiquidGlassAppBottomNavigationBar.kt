@@ -284,25 +284,24 @@ fun LiquidGlassAppBottomNavigationBar(
                 .padding(WindowInsets.navigationBars.asPaddingValues())
                 .padding(bottom = 8.dp)
                 .imePadding(),
-        animateChangesSpec = tween(240),
+        // Use a gentle spring instead of a fixed tween. The same MiniPlayer instance stays alive
+        // while its bounds move from "above the navbar" to "between Home and Search". This prevents
+        // the old teardown/recompose jump and gives the requested smooth + slightly bouncy motion.
+        animateChangesSpec = androidx.compose.animation.core.spring(
+            dampingRatio = 0.86f,
+            stiffness = 420f,
+        ),
     ) {
-        // Expanded state: the normal capsule + search FAB sit at the bottom, while the
-        // full-width mini player sits immediately above them.
-        // Collapsed state: the SAME three surfaces are kept alive, but become one row:
-        // Home/Library circle | compact mini player | Search circle. Keeping the mini player
-        // as a single composable avoids tearing down its artwork/progress state during scroll.
+        val selectedScreen =
+            bottomNavScreens.find { it.ordinal == selectedIndex } ?: BottomNavScreen.Home
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             modifier =
                 Modifier
-                    .then(
-                        if (isExpanded) {
-                            Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                        } else {
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-                        },
-                    )
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
                     .layoutId("toolbar"),
         ) {
             if (isExpanded) {
@@ -335,9 +334,8 @@ fun LiquidGlassAppBottomNavigationBar(
                     BottomNavScreen.Search.icon()
                 }
             } else {
-                // Collapsed row — exactly three peers on one baseline.
-                val selectedScreen =
-                    bottomNavScreens.find { it.ordinal == selectedIndex } ?: BottomNavScreen.Home
+                // Collapsed state: Home/Library/etc. collapse to one selected Home-style button;
+                // the single persistent MiniPlayer occupies the centre; Search remains on the right.
                 Box(
                     modifier =
                         Modifier
@@ -362,26 +360,9 @@ fun LiquidGlassAppBottomNavigationBar(
                             },
                     contentAlignment = Alignment.Center,
                 ) {
-                    // The Home/Library capsule collapses into this one selected navigation button.
                     selectedScreen.icon()
                 }
-                Spacer(Modifier.size(8.dp))
-                if (isShowMiniPlayer) {
-                    MiniPlayer(
-                        Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        backdrop = backdrop,
-                        onClick = onOpenNowPlaying,
-                        onClose = {
-                            viewModel.stopPlayer()
-                            viewModel.isServiceRunning = false
-                        },
-                    )
-                } else {
-                    Spacer(Modifier.weight(1f).height(48.dp))
-                }
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.weight(1f))
                 Box(
                     modifier =
                         Modifier
@@ -401,19 +382,22 @@ fun LiquidGlassAppBottomNavigationBar(
                 }
             }
         }
-        MiniPlayer(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .height(56.dp)
-                .layoutId("miniPlayer"),
-            backdrop = backdrop,
-            onClick = onOpenNowPlaying,
-            onClose = {
-                viewModel.stopPlayer()
-                viewModel.isServiceRunning = false
-            },
-        )
+
+        // IMPORTANT: this is the only MiniPlayer instance in both states. ConstraintLayout moves
+        // and resizes this exact surface instead of destroying one player and creating another.
+        if (isShowMiniPlayer) {
+            MiniPlayer(
+                Modifier
+                    .layoutId("miniPlayer")
+                    .then(if (isExpanded) Modifier.height(56.dp) else Modifier.height(48.dp)),
+                backdrop = backdrop,
+                onClick = onOpenNowPlaying,
+                onClose = {
+                    viewModel.stopPlayer()
+                    viewModel.isServiceRunning = false
+                },
+            )
+        }
     }
 }
 
@@ -433,16 +417,21 @@ private fun decoupledConstraints(
 
         val miniPlayer = createRefFor("miniPlayer")
         constrain(miniPlayer) {
+            visibility = if (isMiniplayerShow) Visibility.Visible else Visibility.Gone
             if (isExpanded) {
-                start.linkTo(parent.start)
-                end.linkTo(parent.end)
-                bottom.linkTo(toolbar.top, margin = 12.dp)
-                width = if (isMiniplayerShow) Dimension.matchParent else Dimension.wrapContent
-                visibility = if (isMiniplayerShow) Visibility.Visible else Visibility.Gone
+                start.linkTo(parent.start, 12.dp)
+                end.linkTo(parent.end, 12.dp)
+                bottom.linkTo(toolbar.top, 12.dp)
+                width = Dimension.fillToConstraints
+                height = Dimension.value(56.dp)
             } else {
-                // The collapsed row owns the mini player; hide the expanded copy so there is
-                // never a second player competing for measure/draw time during the transition.
-                visibility = Visibility.Gone
+                // Home button = 48dp + 8dp gap. Search button = 48dp + 8dp gap.
+                // The player therefore lands exactly between the two buttons.
+                start.linkTo(parent.start, 68.dp)
+                end.linkTo(parent.end, 68.dp)
+                bottom.linkTo(toolbar.bottom)
+                width = Dimension.fillToConstraints
+                height = Dimension.value(48.dp)
             }
         }
     }

@@ -265,7 +265,7 @@ fun AppleMusicLyricsLineItem(
                 typo().headlineLarge.copy(
                     fontSize = AppleMusicLyricFontSize,
                     lineHeight = AppleMusicLyricLineHeight,
-                ),
+                ).forLyricsText(originalWords),
         )
         if (romanizedWords != null) {
             Spacer(modifier = Modifier.height(AppleMusicMainToSubGap))
@@ -277,7 +277,7 @@ fun AppleMusicLyricsLineItem(
                     typo().bodyMedium.copy(
                         fontSize = AppleMusicSubLineFontSize,
                         lineHeight = AppleMusicSubLineHeight,
-                    ),
+                    ).forLyricsText(romanizedWords),
                 // Follows the line's own state exactly as the translation does: readable white-ish
                 // on the sung line, the same grey as the lyric everywhere else.
                 color = if (isCurrent) AppleMusicRomanizedColor else AppleMusicInactiveLineColor,
@@ -293,7 +293,7 @@ fun AppleMusicLyricsLineItem(
                     typo().bodyMedium.copy(
                         fontSize = AppleMusicSubLineFontSize,
                         lineHeight = AppleMusicSubLineHeight,
-                    ),
+                    ).forLyricsText(translatedWords),
                 // The colour still follows the line's own state; AMLL carries the whole sub-line at
                 // a flat 0.3 opacity on top of that, which is applied as a modifier so it composes
                 // with appleMusicLyricFocus's own dimming instead of fighting it.

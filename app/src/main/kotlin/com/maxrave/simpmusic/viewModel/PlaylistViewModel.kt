@@ -394,7 +394,7 @@ class PlaylistViewModel(
                             }
                     }
                 } else {
-                    _uiState.value = Error("Empty response")
+                    _uiState.value = Error("Unable to load this playlist. Please try again.")
                 }
             }
     }

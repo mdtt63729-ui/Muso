@@ -167,6 +167,7 @@ import com.maxrave.simpmusic.ui.icon.Update
 import com.maxrave.simpmusic.ui.navigation.destination.list.AlbumDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
 import com.maxrave.simpmusic.ui.theme.seed
+import com.maxrave.simpmusic.ui.theme.LocalForceDarkText
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetUIEvent
@@ -843,6 +844,17 @@ fun QueueBottomSheet(
     musicServiceHandler: MediaPlayerHandler = koinInject<MediaPlayerHandler>(),
     dataStoreManager: DataStoreManager = koinInject(),
 ) {
+    val nowPlayingStyle by sharedViewModel
+        .getNowPlayingStyle()
+        .collectAsStateWithLifecycle(DataStoreManager.NOW_PLAYING_STYLE_SPOTIFY)
+    val immersiveQueue = nowPlayingStyle == DataStoreManager.NOW_PLAYING_STYLE_IMMERSIVE_EXTENDED
+    val queueForeground = if (immersiveQueue) Color.White else rememberSurfaceDarkColors().content
+    val queueScheme = MaterialTheme.colorScheme.copy(
+        onBackground = queueForeground,
+        onSurface = queueForeground,
+        onSurfaceVariant = queueForeground.copy(alpha = 0.76f),
+        primary = queueForeground,
+    )
     val coroutineScope = rememberCoroutineScope()
     val localDensity = LocalDensity.current
     val windowInsets = WindowInsets.systemBars
@@ -938,6 +950,8 @@ fun QueueBottomSheet(
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
         shape = RectangleShape,
     ) {
+        MaterialTheme(colorScheme = queueScheme) {
+            CompositionLocalProvider(LocalForceDarkText provides immersiveQueue) {
         Card(
             modifier =
                 Modifier
@@ -1160,6 +1174,8 @@ fun QueueBottomSheet(
                         EndOfPage(withoutCredit = true)
                     }
                 }
+            }
+        }
             }
         }
     }

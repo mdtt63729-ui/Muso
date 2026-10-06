@@ -207,8 +207,8 @@ fun BottomSheetPlayer(
             formatAudioInfo(currentAudioFormat, dbFormat)
         }
 
-        // Keep-screen-on while the sheet is expanded, plus the immersive
-        // system-bar behaviour shared with the old native player.
+        // Keep-screen-on while the sheet is expanded. The whole app uses
+        // immersive system bars, so the player must never force them visible.
         val immersiveView = LocalView.current
         LaunchedEffect(state.isExpanded, keepScreenOn) {
             val window = (immersiveView.context as? Activity)?.window ?: return@LaunchedEffect
@@ -220,14 +220,17 @@ fun BottomSheetPlayer(
             val insetsController = WindowCompat.getInsetsController(window, immersiveView)
             insetsController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            insetsController.show(WindowInsetsCompat.Type.systemBars())
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
         }
         DisposableEffect(immersiveView) {
             onDispose {
                 val window = (immersiveView.context as? Activity)?.window ?: return@onDispose
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                WindowCompat.getInsetsController(window, immersiveView)
-                    .show(WindowInsetsCompat.Type.systemBars())
+                WindowCompat.getInsetsController(window, immersiveView).apply {
+                    systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    hide(WindowInsetsCompat.Type.systemBars())
+                }
             }
         }
 

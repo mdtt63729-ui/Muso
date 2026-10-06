@@ -139,6 +139,7 @@ import com.maxrave.simpmusic.ui.icon.Shuffle
 import com.maxrave.simpmusic.ui.icon.SkipNext
 import com.maxrave.simpmusic.ui.icon.SkipPrevious
 import com.maxrave.simpmusic.viewModel.UIEvent
+import com.maxrave.simpmusic.ui.theme.LocalForceDarkText
 import com.materialkolor.ktx.toColor
 import com.materialkolor.ktx.toHct
 import moe.rukamori.archivetune.ui.component.PlayerSliderTrack
@@ -180,7 +181,7 @@ private fun atUltraHigh(url: String?): String? {
 private fun atTrackArtworkUrl(page: Int, state: NowPlayingContentState): String? =
     atUltraHigh(
         state.artworkQueue.getOrNull(page)?.thumbnails?.lastOrNull()?.url
-            ?: state.screenData.thumbnailURL,
+            ?: state.thumbnailURL,
     )
 
 /** The centered "Now Playing / playlist" header above the artwork (Thumbnail.kt). */
@@ -278,7 +279,7 @@ private fun ATStaticArtwork(
 ) {
     val url = atUltraHigh(
         state.artworkQueue.getOrNull(state.currentOrderIndex)?.thumbnails?.lastOrNull()?.url
-            ?: state.screenData.thumbnailURL,
+            ?: state.thumbnailURL,
     )
     Box(
         modifier = modifier
@@ -484,6 +485,11 @@ private fun ATCinemaShell(
             modifier = Modifier.padding(horizontal = 32.dp),
         )
 
+        PlayerCodecCapsule(
+            state = state,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+
         Spacer(Modifier.height(4.dp))
 
         ATTimeLabels(state = state, textColor = textBackgroundColor)
@@ -491,14 +497,6 @@ private fun ATCinemaShell(
         Spacer(Modifier.height(12.dp))
 
         transport()
-
-        // Codec/quality capsule (user request, round 185)
-        PlayerCodecCapsule(
-            state = state,
-            modifier = Modifier
-                .padding(top = 10.dp)
-                .align(Alignment.CenterHorizontally),
-        )
 
                 Spacer(Modifier.height(30.dp))
             }
@@ -1171,6 +1169,13 @@ fun NowPlayingContentLittle(state: NowPlayingContentState, actions: NowPlayingCo
                     )
                 }
 
+                PlayerCodecCapsule(
+                    state = state,
+                    modifier = Modifier.padding(top = (6f * scale).dp),
+                    containerColor = textColor.copy(alpha = 0.10f),
+                    contentColor = textColor.copy(alpha = 0.82f),
+                )
+
                 Spacer(Modifier.height((14f * scale).dp))
                 Spacer(Modifier.height((6f * scale).dp))
 
@@ -1323,11 +1328,32 @@ fun NowPlayingContentImmersiveExtended(
     state: NowPlayingContentState,
     actions: NowPlayingContentActions,
 ) {
-    val foreground = Color.White
-    val secondaryForeground = foreground.copy(alpha = 0.72f)
     val backdropUrl = atUltraHigh(
         state.artworkQueue.getOrNull(state.currentOrderIndex)?.thumbnails?.lastOrNull()?.url
-            ?: state.screenData.thumbnailURL,
+            ?: state.thumbnailURL,
+    )
+
+    // The V8 backdrop is not the raw palette color: the artwork is drawn at 66% opacity and then
+    // covered by a 52% black scrim. The old foreground test looked only at the raw palette seed,
+    // so a bright red/orange cover could incorrectly produce BLACK text over the much darker
+    // rendered surface (exactly what the screenshots show). Resolve contrast against the surface
+    // that is actually painted instead.
+    val renderedArtwork = state.startColor.value.copy(alpha = 0.66f).compositeOver(Color.Black)
+    val renderedBackdrop = Color.Black.copy(alpha = 0.52f).compositeOver(renderedArtwork)
+    val isLightRenderedBackdrop = renderedBackdrop.luminance() > 0.52f
+    val foreground = if (isLightRenderedBackdrop) Color.Black else Color.White
+    val secondaryForeground = foreground.copy(alpha = 0.72f)
+    val adaptiveScheme = MaterialTheme.colorScheme.copy(
+        background = renderedBackdrop,
+        surface = renderedBackdrop,
+        surfaceVariant = if (isLightRenderedBackdrop) Color(0xFFE9E9E9) else Color(0xFF252525),
+        onBackground = foreground,
+        onSurface = foreground,
+        onSurfaceVariant = foreground.copy(alpha = 0.78f),
+        primary = foreground,
+        onPrimary = renderedBackdrop,
+        primaryContainer = foreground.copy(alpha = 0.14f),
+        onPrimaryContainer = foreground,
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1357,12 +1383,17 @@ fun NowPlayingContentImmersiveExtended(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        MaterialTheme(colorScheme = adaptiveScheme) {
+            CompositionLocalProvider(
+                LocalContentColor provides foreground,
+                LocalForceDarkText provides isLightRenderedBackdrop.not(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
             Spacer(Modifier.height(14.dp))
             // V8Header: centered "Now playing" + subtitle
             Column(
@@ -1479,6 +1510,12 @@ fun NowPlayingContentImmersiveExtended(
                 inactiveColor = foreground.copy(alpha = 0.32f),
                 trackHeight = 9.dp,
             )
+            PlayerCodecCapsule(
+                state = state,
+                modifier = Modifier.padding(top = 4.dp),
+                containerColor = foreground.copy(alpha = 0.10f),
+                contentColor = foreground.copy(alpha = 0.86f),
+            )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1492,37 +1529,6 @@ fun NowPlayingContentImmersiveExtended(
                     color = foreground,
                     modifier = Modifier.align(Alignment.CenterStart),
                 )
-                Box(
-                    modifier = Modifier.align(Alignment.Center),
-                ) {
-                    state.audioCodecLabel?.let { codec ->
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = foreground.copy(alpha = 0.1f),
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = foreground.copy(alpha = 0.13f),
-                            ),
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            ) {
-                                Icon(
-                                    imageVector = SimpIcons.GraphicEq,
-                                    contentDescription = null,
-                                    tint = foreground.copy(alpha = 0.72f),
-                                    modifier = Modifier.size(15.dp),
-                                )
-                                Text(
-                                    text = codec,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = foreground.copy(alpha = 0.72f),
-                                )
-                            }
-                        }
-                    }
-                }
                 Text(
                     text = makeTimeString(state.timelineState.total),
                     style = MaterialTheme.typography.labelMedium,
@@ -1595,6 +1601,8 @@ fun NowPlayingContentImmersiveExtended(
             }
 
             Spacer(Modifier.height(16.dp))
+                }
+            }
         }
     }
 }
@@ -1828,6 +1836,12 @@ fun NowPlayingContentMaterialExtended(
                 .fillMaxWidth()
                 .height(36.dp),
         )
+        PlayerCodecCapsule(
+            state = state,
+            modifier = Modifier.padding(top = 4.dp),
+            containerColor = dynamicTextColor.copy(alpha = 0.10f),
+            contentColor = dynamicTextColor.copy(alpha = 0.86f),
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1873,11 +1887,6 @@ fun NowPlayingContentMaterialExtended(
             },
             tintOtherIcons = dynamicTextColor,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-
-        PlayerCodecCapsule(
-            state = state,
-            modifier = Modifier.padding(top = 6.dp),
         )
 
         Spacer(Modifier.height(16.dp))
@@ -1974,7 +1983,7 @@ fun NowPlayingContentEditorial(
             EditorialDieCutArt(
                 artworkUrl = atUltraHigh(
                     state.artworkQueue.getOrNull(state.currentOrderIndex)?.thumbnails?.lastOrNull()?.url
-                        ?: state.screenData.thumbnailURL,
+                        ?: state.thumbnailURL,
                 ),
                 songId = songId,
                 isPlaying = state.controllerState.isPlaying,
@@ -2134,6 +2143,12 @@ fun NowPlayingContentEditorial(
                             ),
                             modifier = Modifier.fillMaxWidth(),
                         )
+                    PlayerCodecCapsule(
+                        state = state,
+                        modifier = Modifier.padding(top = 5.dp),
+                        containerColor = accent.copy(alpha = 0.12f),
+                        contentColor = accent.copy(alpha = 0.9f),
+                    )
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),

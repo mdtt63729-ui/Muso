@@ -354,9 +354,9 @@ internal fun AppleMusicCompactHeader(
             model =
                 ImageRequest
                     .Builder(LocalPlatformContext.current)
-                    .data(state.screenData.thumbnailURL)
+                    .data(state.thumbnailURL)
                     .diskCachePolicy(CachePolicy.ENABLED)
-                    .diskCacheKey(state.screenData.thumbnailURL)
+                    .diskCacheKey(state.thumbnailURL)
                     .crossfade(300)
                     .build(),
             placeholder = rememberHolderPainter(),
@@ -856,9 +856,11 @@ internal fun ColumnScope.AppleMusicPlaybackControls(
             )
         }
     }
+    com.maxrave.simpmusic.ui.screen.player.content.PlayerCodecCapsule(
+        state = state,
+        modifier = Modifier.padding(top = 5.dp),
+    )
     AppleMusicTimesRow(state = state, typography = typography, modifier = Modifier.padding(top = 8.dp))
-    // Codec/quality capsule below the times row (user request, round 185).
-    com.maxrave.simpmusic.ui.screen.player.content.PlayerCodecCapsule(state = state)
     Spacer(modifier = Modifier.height(12.dp))
     AppleMusicTransportRow(
         controllerState = state.controllerState,

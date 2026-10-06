@@ -7,6 +7,10 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,6 +66,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.data.model.lyrics.RomanizationLanguage
@@ -733,18 +739,37 @@ fun LyricsView(
 
                             // Line sync or unsynced
                             appleStyle -> {
-                                AppleMusicLyricsLineItem(
-                                    originalWords = words,
-                                    translatedWords = translatedWords,
-                                    romanizedWords = romanizedWords,
-                                    // Strictly the sung line — NOT Classic's `|| syncType != LINE_SYNCED`.
-                                    // That clause keys off syncType, which lit every line of a
-                                    // LINE_SYNCED sheet too and put two lit lines on screen at once.
-                                    // [allLinesCurrent] is the narrow version: it fires only when the
-                                    // timestamps genuinely cannot order anything, i.e. an unsynced
-                                    // sheet, where every line being current is the wanted result.
-                                    isCurrent = index == renderCurrentLineIndex || allLinesCurrent,
-                                )
+                                // Do not bypass the global animation-style picker when Apple
+                                // visual lyrics are selected. Previously this branch always used
+                                // AppleMusicLyricsLineItem, so KARAOKE/FADE/Lyrics V2/etc. appeared
+                                // not to apply.
+                                if (effectiveEchoLyricsStyle != com.muso.music.constants.LyricsAnimationStyle.NONE) {
+                                    val lineStart = if (useEstimatedSync) estimatedLineWindows[index].first
+                                        else line.startTimeMs.toLongOrNull() ?: 0L
+                                    val lineEnd = if (useEstimatedSync) estimatedLineWindows[index].second
+                                        else line.endTimeMs.toLongOrNull()
+                                            ?: estimatedLineWindows.getOrNull(index + 1)?.first
+                                            ?: (lineStart + 1_000L)
+                                    EchoLyricsLine(
+                                        parsedLine = synthesizeCharacterTimedLine(words.stripRichSyncTimestamps(), lineStart, lineEnd),
+                                        translatedWords = translatedWords,
+                                        romanizedWords = romanizedWords,
+                                        currentTimeMs = playbackState.currentTimeMs.value,
+                                        playerOffsetMs = lyricsOffsetMs.toLong(),
+                                        isCurrent = index == renderCurrentLineIndex || allLinesCurrent,
+                                        style = effectiveEchoLyricsStyle,
+                                        modifier = Modifier.clickable {
+                                            onLineClick(lineStart.toFloat() * 100f / playbackState.totalMs.value.coerceAtLeast(1L))
+                                        },
+                                    )
+                                } else {
+                                    AppleMusicLyricsLineItem(
+                                        originalWords = words,
+                                        translatedWords = translatedWords,
+                                        romanizedWords = romanizedWords,
+                                        isCurrent = index == renderCurrentLineIndex || allLinesCurrent,
+                                    )
+                                }
                             }
 
                             // Line sync or unsynced: use existing LyricsLineItem
@@ -931,14 +956,14 @@ fun LyricsLineItem(
                         com.muso.music.constants.LyricsPosition.CENTER -> TextAlign.Center
                         com.muso.music.constants.LyricsPosition.RIGHT -> TextAlign.Right
                     },
-                ),
+                ).forLyricsText(originalWords),
                 modifier = Modifier.fillMaxWidth(),
                 color = if (bold && isCurrent) Color.White else DimOriginalColor,
             )
             if (romanizedWords != null) {
                 Text(
                     text = romanizedWords,
-                    style = typo().bodyMedium,
+                    style = typo().bodyMedium.forLyricsText(romanizedWords),
                     // Neither the original's white nor the translation's yellow: a reading is a
                     // third KIND of thing, and giving it the translation's colour would read as
                     // two translations stacked.
@@ -948,7 +973,7 @@ fun LyricsLineItem(
             if (translatedWords != null) {
                 Text(
                     text = translatedWords,
-                    style = typo().bodyMedium,
+                    style = typo().bodyMedium.forLyricsText(translatedWords),
                     color = if (bold && isCurrent) Color.Yellow else DimTranslatedColor,
                 )
             }
@@ -1265,7 +1290,7 @@ fun RichSyncLyricsLineItem(
         if (romanizedWords != null) {
             Text(
                 text = romanizedWords,
-                style = translatedStyleOverride ?: typo().bodyMedium,
+                style = (translatedStyleOverride ?: typo().bodyMedium).forLyricsText(romanizedWords),
                 color = if (isCurrent) DimRomanizedCurrentColor else DimRomanizedColor,
             )
         }
@@ -1274,7 +1299,7 @@ fun RichSyncLyricsLineItem(
         if (translatedWords != null) {
             Text(
                 text = translatedWords,
-                style = translatedStyleOverride ?: typo().bodyMedium,
+                style = (translatedStyleOverride ?: typo().bodyMedium).forLyricsText(translatedWords),
                 color = translatedColorOverride ?: if (isCurrent) Color.Yellow else DimTranslatedColor,
             )
         }
@@ -1314,7 +1339,7 @@ private fun AnimatedWord(
         typo().headlineLarge.copy(
             fontSize = customFontSize ?: userTextSize.sp,
             lineHeight = (userTextSize * userLineSpacing).sp,
-        )
+        ).forLyricsText(word)
 
     if (!isCurrent) {
         Text(text = word, style = style, color = pendingColorOverride ?: DimOriginalColor)
@@ -1593,48 +1618,48 @@ fun FullscreenLyricsSheet(
     nowPlayingStyle: String,
     onDismiss: () -> Unit,
 ) {
-    val sheetState =
-        rememberModalBottomSheetState(
-            skipPartiallyExpanded = true,
-        )
-    val coroutineScope = rememberCoroutineScope()
-    // ModalBottomSheet caps its width at 640dp by default, which would squeeze the two-column
-    // landscape layout into a centred strip on a phone turned sideways. Portrait keeps the default.
-    val screenInfo = getScreenSizeInfo()
-    val isLandscape = screenInfo.wDP > screenInfo.hDP
+    // Fullscreen lyrics are a page, not a bottom sheet. ModalBottomSheet added a second large
+    // slide/measure animation on top of the lyrics content and produced the visible jump/grow/
+    // shrink when entering and leaving fullscreen. Own one small transition here instead.
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
 
-    ModalBottomSheet(
-        onDismissRequest = {
+    fun requestClose() { visible = false }
+
+    LaunchedEffect(visible) {
+        if (!visible) {
+            delay(190L)
             onDismiss()
-        },
-        containerColor = Color.Black,
-        contentColor = Color.Transparent,
-        dragHandle = {},
-        sheetGesturesEnabled = false,
-        scrimColor = Color.Black.copy(alpha = .5f),
-        sheetMaxWidth = if (isLandscape) Dp.Unspecified else BottomSheetDefaults.SheetMaxWidth,
-        sheetState = sheetState,
-        modifier =
-            Modifier
-                .fillMaxHeight(),
-        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
-        shape = RectangleShape,
-    ) {
-        FullscreenLyricsContent(
-            sharedViewModel = sharedViewModel,
-            navController = navController,
-            color = color,
-            state = state,
-            actions = actions,
-            nowPlayingStyle = nowPlayingStyle,
-            // A dismiss the page asks for itself slides the sheet away before it leaves
-            // composition, instead of cutting it off mid-screen.
-            onDismiss = {
-                coroutineScope.launch {
-                    sheetState.hide()
-                    onDismiss()
-                }
-            },
-        )
+        }
     }
-}
+
+    Dialog(
+        onDismissRequest = { requestClose() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(190, easing = FastOutSlowInEasing)) +
+                scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.985f),
+            exit = fadeOut(tween(150, easing = FastOutSlowInEasing)) +
+                scaleOut(tween(170, easing = FastOutSlowInEasing), targetScale = 0.985f),
+        ) {
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                FullscreenLyricsContent(
+                    sharedViewModel = sharedViewModel,
+                    navController = navController,
+                    color = color,
+                    state = state,
+                    actions = actions,
+                    nowPlayingStyle = nowPlayingStyle,
+                    onDismiss = { requestClose() },
+                )
+            }
+        }
+    }
+
