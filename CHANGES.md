@@ -1,3 +1,11 @@
+## Muso 0.5.243 — fix the 15 "Unresolved reference 'serviceOrNull'" errors
+- 0.5.242 declared serviceOrNull / localPlayerOrNull as PLAIN primary-constructor parameters
+  and read them from the service / localPlayer getters. Kotlin only allows a plain
+  constructor parameter to be read from property initializers and init blocks, so CI failed
+  with 15 "Unresolved reference 'serviceOrNull'" errors, all in getters and method bodies.
+- Fix: both are now `private val` - fields - so the getters and the queue/Together/canvas
+  methods can read them. Nothing else changed.
+
 ## Muso 0.5.242 — fix the CI break from the 0.5.240 bridge
 - 0.5.240 made PlayerConnection.service a PRIVATE, NULLABLE MusicService?. The ArchiveTune UI
   reads `connection.service...` in 42 places and `connection.localPlayer...` in 2 more, so CI

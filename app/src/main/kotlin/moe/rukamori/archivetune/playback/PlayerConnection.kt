@@ -58,10 +58,13 @@ internal enum class CanvasArtworkRefetchResult {
 class PlayerConnection private constructor(
     context: Context,
     val player: Player,
-    localPlayerOrNull: ExoPlayer?,
+    // `val`, not a plain parameter: a Kotlin constructor parameter can only be read from
+    // property initializers and init blocks, and these two are read from the `service` /
+    // `localPlayer` getters below, so they have to be fields.
+    private val localPlayerOrNull: ExoPlayer?,
     val database: MusicDatabase,
     scope: CoroutineScope,
-    serviceOrNull: MusicService?,
+    private val serviceOrNull: MusicService?,
     val mediaMetadata: MutableStateFlow<MediaMetadata?>,
     waitingForNetworkConnectionFlow: StateFlow<Boolean>,
     queueRestoreCompletedFlow: StateFlow<Boolean>,
