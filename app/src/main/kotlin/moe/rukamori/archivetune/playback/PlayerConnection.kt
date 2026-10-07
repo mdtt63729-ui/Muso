@@ -26,6 +26,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -53,21 +54,69 @@ internal enum class CanvasArtworkRefetchResult {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class PlayerConnection(
+class PlayerConnection private constructor(
     context: Context,
-    binder: MusicBinder,
+    val player: Player,
+    val localPlayer: Player,
     val database: MusicDatabase,
     scope: CoroutineScope,
+    /**
+     * Null when this connection wraps a player that ArchiveTune's own service does not own -
+     * the Muso bridge below. Every service-only operation (queue control, Together, canvas)
+     * is inert in that case.
+     */
+    private val service: MusicService?,
+    val mediaMetadata: MutableStateFlow<MediaMetadata?>,
+    waitingForNetworkConnectionFlow: StateFlow<Boolean>,
+    queueRestoreCompletedFlow: StateFlow<Boolean>,
 ) : Player.Listener {
-    val service = binder.service
-    val player = service.player
-    val localPlayer = service.localPlayer
+
+    /** ArchiveTune's own playback stack. */
+    constructor(
+        context: Context,
+        binder: MusicBinder,
+        database: MusicDatabase,
+        scope: CoroutineScope,
+    ) : this(
+        context = context,
+        player = binder.service.player,
+        localPlayer = binder.service.localPlayer,
+        database = database,
+        scope = scope,
+        service = binder.service,
+        mediaMetadata = binder.service.currentMediaMetadata,
+        waitingForNetworkConnectionFlow = binder.service.waitingForNetworkConnection,
+        queueRestoreCompletedFlow = binder.service.queueRestoreCompleted,
+    )
+
+    /**
+     * Muso bridge: wrap an externally-owned player - Muso's playback service - so the
+     * ArchiveTune renderers can run against it. The Enhanced lyrics sheet reads only
+     * [player], [mediaMetadata] and the database, so the queue / Together / canvas
+     * operations this class exposes are deliberately inert here.
+     */
+    constructor(
+        context: Context,
+        player: Player,
+        mediaMetadata: MutableStateFlow<MediaMetadata?>,
+        database: MusicDatabase,
+        scope: CoroutineScope,
+    ) : this(
+        context = context,
+        player = player,
+        localPlayer = player,
+        database = database,
+        scope = scope,
+        service = null,
+        mediaMetadata = mediaMetadata,
+        waitingForNetworkConnectionFlow = MutableStateFlow(false),
+        queueRestoreCompletedFlow = MutableStateFlow(true),
+    )
 
     val playbackState = MutableStateFlow(player.playbackState)
     private val _isPlaying = MutableStateFlow(player.isPlaying)
     val isPlaying = _isPlaying.asStateFlow()
     val playbackParameters = MutableStateFlow(player.playbackParameters)
-    val mediaMetadata = service.currentMediaMetadata
     val currentSong =
         mediaMetadata.flatMapLatest {
             database.song(it?.id)
@@ -96,12 +145,15 @@ class PlayerConnection(
 
     val error = MutableStateFlow<PlaybackException?>(null)
     private var dismissedPlaybackError: PlaybackException? = null
-    val waitingForNetworkConnection = service.waitingForNetworkConnection
-    val queueRestoreCompleted = service.queueRestoreCompleted
+    val waitingForNetworkConnection = waitingForNetworkConnectionFlow
+    val queueRestoreCompleted = queueRestoreCompletedFlow
 
-    internal val canvasNetworkAllowed = service.canvasPlaybackUseCase.policy
-        .map { it.networkAllowed }
-        .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), false)
+    internal val canvasNetworkAllowed: StateFlow<Boolean> = service
+        ?.canvasPlaybackUseCase
+        ?.policy
+        ?.map { it.networkAllowed }
+        ?.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), false)
+        ?: MutableStateFlow(false)
 
     private val canvasArtworkRefetchMutex = Mutex()
     private val _isCanvasArtworkRefetching = MutableStateFlow(false)
@@ -115,14 +167,14 @@ class PlayerConnection(
         playbackState.value = player.playbackState
         _isPlaying.value = player.isPlaying
         playbackParameters.value = player.playbackParameters
-        queueTitle.value = service.queueTitle
+        queueTitle.value = service?.queueTitle
         queueWindows.value = player.getQueueWindows()
         currentWindowIndex.value = player.getCurrentQueueIndex()
         currentMediaItemIndex.value = player.currentMediaItemIndex
         shuffleModeEnabled.value = player.shuffleModeEnabled
         repeatMode.value = player.repeatMode
-        if (player.mediaItemCount > 0 && service.currentMediaMetadata.value == null) {
-            service.currentMediaMetadata.value = player.currentMetadata
+        if (player.mediaItemCount > 0 && mediaMetadata.value == null) {
+            mediaMetadata.value = player.currentMetadata
         }
 
         metadataExtractionJob =
@@ -229,35 +281,35 @@ class PlayerConnection(
         }
 
     fun playQueue(queue: Queue) {
-        service.playQueue(queue)
+        service?.playQueue(queue)
     }
 
     fun startRadioSeamlessly() {
-        service.startRadioSeamlessly()
+        service?.startRadioSeamlessly()
     }
 
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
     fun playNext(items: List<MediaItem>) {
-        service.playNext(items)
+        service?.playNext(items)
     }
 
     fun moveQueueItemToNext(mediaItemIndex: Int) {
-        service.moveQueueItemToNext(mediaItemIndex)
+        service?.moveQueueItemToNext(mediaItemIndex)
     }
 
     fun addToQueue(item: MediaItem) = addToQueue(listOf(item))
 
     fun addToQueue(items: List<MediaItem>) {
-        service.addToQueue(items)
+        service?.addToQueue(items)
     }
 
     fun playFromVoiceSearch(query: String) {
-        service.playFromVoiceSearch(query)
+        service?.playFromVoiceSearch(query)
     }
 
     fun toggleLike() {
-        service.toggleLike()
+        service?.toggleLike()
     }
 
     internal suspend fun refetchCanvasArtwork(
@@ -270,7 +322,7 @@ class PlayerConnection(
         return try {
             val country = Locale.getDefault().country
             val storefront = if (country.length == 2) country.lowercase(Locale.ROOT) else "us"
-            val refreshed = service.canvasPlaybackUseCase.refresh(
+            val refreshed = service?.canvasPlaybackUseCase?.refresh(
                 CanvasPlaybackRequest(
                     mediaId = metadata.id,
                     title = metadata.title,
@@ -299,9 +351,9 @@ class PlayerConnection(
     }
 
     fun seekToNext() {
-        val state = service.togetherSessionState.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
+        val state = service?.togetherSessionState?.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
         if (state?.role is moe.rukamori.archivetune.together.TogetherRole.Guest) {
-            service.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipNext)
+            service?.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipNext)
             return
         }
         player.seekToNext()
@@ -310,9 +362,9 @@ class PlayerConnection(
     }
 
     fun seekToPrevious() {
-        val state = service.togetherSessionState.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
+        val state = service?.togetherSessionState?.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
         if (state?.role is moe.rukamori.archivetune.together.TogetherRole.Guest) {
-            service.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipPrevious)
+            service?.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipPrevious)
             return
         }
         player.seekToPrevious()
@@ -347,7 +399,7 @@ class PlayerConnection(
         reason: Int,
     ) {
         queueWindows.value = player.getQueueWindows()
-        queueTitle.value = service.queueTitle
+        queueTitle.value = service?.queueTitle
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()

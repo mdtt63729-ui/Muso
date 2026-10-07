@@ -227,23 +227,9 @@ private fun EchoCanvasLine(
                         LyricsAnimationStyle.NONE -> {
                             color = if (isCurrent && (wordComplete || wordActive)) EchoSungWordColor else EchoPendingWordColor
                         }
-                        LyricsAnimationStyle.FADE -> {
-                            alpha = if (isCurrent) 0.35f + 0.65f * eased else 0.35f
-                        }
-                        LyricsAnimationStyle.KARAOKE -> Unit
-                        LyricsAnimationStyle.LYRICS_V2 -> {
-                            val rise = if (wordActive || wordComplete) 1f else 0f
-                            alpha = if (isCurrent) 0.30f + 0.70f * rise else 0.30f
-                            translationY = (1f - rise) * 6f
-                            if (wordActive) scale = 1f + 0.06f * pulse * v2Bounce.coerceIn(0f, 2f)
-                        }
-                        LyricsAnimationStyle.V2_MODE -> {
-                            translationY = if (wordActive) -4f * v2Bounce.coerceIn(0f, 2f) * pulse else 0f
-                            scale = 1f + 0.015f * v2Bounce.coerceIn(0f, 2f) * pulse
-                            if (wordActive) {
-                                alpha *= 0.92f + 0.08f * (eased * v2Glow.coerceIn(0f, 2f))
-                            }
-                        }
+                        // IMMERSIVE is drawn by the Apple-Music sheet, not here; the
+                        // Enhanced word animation is the fallback if it is ever reached.
+                        LyricsAnimationStyle.IMMERSIVE,
                         LyricsAnimationStyle.ENHANCED -> {
                             alpha = if (isCurrent) 0.40f + 0.60f * eased else 0.28f
                             translationY = if (wordActive) (1f - eased) * 2.5f else 0f
@@ -255,7 +241,7 @@ private fun EchoCanvasLine(
                     // v2FillWidth intentionally stays a timing preference. Its old implementation
                     // changed layout/measurement while the song was playing; keeping it out of the
                     // layout pass removes that source of frame spikes while preserving the setting.
-                    val fill = if (style == LyricsAnimationStyle.KARAOKE) eased else eased
+                    val fill = eased
                     val drawColor = lerpColor(EchoPendingWordColor, color, fill).copy(alpha = alpha)
                     val charX = x + slot.characters.take(charIndex).sumOf { it.widthPx.toDouble() }.toFloat()
                     withTransform({
@@ -350,45 +336,7 @@ private fun EchoWord(
             alpha = if (isLineCurrent) 1f else 0.35f
         }
 
-        LyricsAnimationStyle.FADE -> {
-            color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-            alpha = if (isLineCurrent) {
-                0.35f + 0.65f * smoothstep(progress)
-            } else {
-                0.35f
-            }
-        }
-
-        LyricsAnimationStyle.KARAOKE -> {
-            // LetterSyncedWord below performs the actual per-character fill.
-            color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-            alpha = if (isLineCurrent) 1f else 0.35f
-        }
-
-        LyricsAnimationStyle.LYRICS_V2 -> {
-            val rise = if (isWordActive || isWordComplete) 1f else 0f
-            color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-            alpha = if (isLineCurrent) 0.30f + 0.70f * rise else 0.30f
-            translationY = (1f - rise) * 6f
-            if (isWordActive) {
-                scale = 1f + 0.06f * rise
-            }
-        }
-
-        LyricsAnimationStyle.V2_MODE -> {
-            // Ported from ArchiveTune LyricsV2's AnimatedWordV2:
-            // linear word progress, sine bounce/float and transient glow.
-            color = if (isLineCurrent) EchoSungWordColor else EchoPendingWordColor
-            alpha = if (isLineCurrent) 1f else 0.30f
-            translationY = if (isWordActive) -4f * 1f * pulse else 0f
-            scale = 1f + 0.015f * 1f * pulse
-            if (isWordActive) {
-                val glowProgress = (progress * 2f).coerceAtMost(1f)
-                // Keep the timing effect but avoid a per-frame text-shadow blur pass.
-                alpha = alpha * (0.92f + 0.08f * glowProgress * 1f)
-            }
-        }
-
+        LyricsAnimationStyle.IMMERSIVE,
         LyricsAnimationStyle.ENHANCED -> {
             // Enhanced keeps ArchiveTune's smooth focus treatment but uses the
             // same character clock so it remains genuinely letter-synced.
@@ -737,7 +685,7 @@ fun VideoEchoLyricsOverlay(
         .lyricsOffsetMs.collectAsStateWithLifecycle(0)
     val selectedStyle by com.muso.music.utils.rememberEnumPreference(
         key = com.muso.music.constants.LyricsAnimationStyleKey,
-        defaultValue = LyricsAnimationStyle.LYRICS_V2,
+        defaultValue = LyricsAnimationStyle.ENHANCED,
     )
     val wordByWordEnabled by com.muso.music.utils.rememberPreference(
         com.muso.music.constants.WordByWordLyricsEnabledKey,

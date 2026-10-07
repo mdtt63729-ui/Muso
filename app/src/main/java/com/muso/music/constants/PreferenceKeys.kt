@@ -39,12 +39,14 @@ val LyricsModeEnabledKey = booleanPreferencesKey("lyricsModeEnabled")
  * resolved playback timeline; the style changes visuals only.
  */
 enum class LyricsAnimationStyle {
-    NONE,
-    FADE,
-    KARAOKE,
-    LYRICS_V2,
-    V2_MODE,
+    /** Word-by-word glow / focus animation. */
     ENHANCED,
+
+    /** The Apple-Music lyrics sheet: blurred backdrop, centred lines, dimmed neighbours. */
+    IMMERSIVE,
+
+    /** Static lines - no animation at all. */
+    NONE,
 }
 val LiquidGlassNavBarKey = booleanPreferencesKey("liquidGlassNavBar")
 val LyricsOffsetKey = intPreferencesKey("lyricsOffsetMs")

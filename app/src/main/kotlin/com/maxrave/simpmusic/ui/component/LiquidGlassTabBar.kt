@@ -225,10 +225,12 @@ fun LiquidGlassTabBar(
                             saturation = 1.5f,
                         )
                         blur(
-                            // Stronger than the bar's blur so the active pill reads as a clearly
-                            // frosted surface (the previous amount was too weak / too close to the bar).
-                            (if (l > 0f) lerp(8f.dp.toPx(), 16f.dp.toPx(), l) else lerp(8f.dp.toPx(), 2f.dp.toPx(), -l)) +
-                                20f.dp.toPx(),
+                            // Still stronger than the bar's blur so the active pill reads as a
+                            // clearly frosted surface, but this used to be 8-16dp PLUS a flat
+                            // 20dp - 28-36dp in total, by far the most expensive shader in the
+                            // app, and it slides on every drag frame. Halved; still clearly frosted.
+                            (if (l > 0f) lerp(5f.dp.toPx(), 9f.dp.toPx(), l) else lerp(5f.dp.toPx(), 2f.dp.toPx(), -l)) +
+                                8f.dp.toPx(),
                         )
                     },
                     highlight = { Highlight.Default.copy(alpha = 0.6f) },

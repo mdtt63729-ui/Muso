@@ -1,3 +1,76 @@
+## Muso 0.5.241 — Liquid Glass lag + fullscreen lyrics closing itself
+- Liquid Glass lag, part 1: MainActivity applied Modifier.layerBackdrop(glassBackdrop) to
+  the whole NavHost unconditionally, so the entire app content recorded itself into a
+  full-screen graphics layer every frame even with the setting OFF, where nothing samples
+  it. Now gated on liquidGlassState (the same State<Boolean> behind LocalLiquidGlassEnabled).
+- Liquid Glass lag, part 2: blur radii cut. drawInteractiveGlass 5-8dp*0.8 + 1dp*press ->
+  4-6dp*0.8 (press term dropped: it respecified the shader every press frame for no visible
+  change). LiquidGlassTabBar's selection blob 8-16dp + a flat 20dp (28-36dp) -> 5-9dp + 8dp
+  (13-17dp) - it was the most expensive shader in the app and slides on every drag frame.
+- Fullscreen lyrics: FullscreenLyricsSheet tracked its open state as a boolean flipped by a
+  LaunchedEffect, with a second effect dismissing when it read false. That watcher is first
+  composed against false, so on a busy frame it saw a closed page and dismissed it ~190ms
+  after opening. Replaced with a MutableTransitionState (the pattern NowPlayingScreen's
+  desktop branch already uses) - the race is gone, not narrowed. Enter/exit unchanged.
+- Docs: added docs/FIX_LIQUID_GLASS_LAG_AND_FULLSCREEN_LYRICS.md.
+
+## Muso 0.5.240 — ArchiveTune ENHANCED lyrics: the bridge (4 steps, integration complete)
+- Selecting the Enhanced lyrics animation style now renders ArchiveTune's own
+  ui/component/LyricsEnhanced against Muso's live player, so the animation is ArchiveTune's
+  code rather than a look-alike.
+- Step 1: moe.rukamori.archivetune.playback.PlayerConnection gained a private primary
+  constructor over the pieces plus two secondaries - the original binder-based one, and a
+  bridge taking (context, player, mediaMetadata flow, database, scope). service became
+  MusicService?, its 21 uses were handled (metadata/network/queue-restore now come from
+  constructor params; the service-only queue/Together/canvas ops are inert via service?.),
+  and canvasNetworkAllowed degrades to a constant false flow.
+- Step 2: MusoEnhancedLyrics resolves LyricsRenderViewModel with hiltViewModel() and binds
+  it to the current song (bind(mediaId, durationMs)).
+- Step 3: LyricsView checks the lyrics animation style first and, when it is Enhanced,
+  renders MusoEnhancedLyrics and returns.
+- Step 4: LyricsEnhanced needs only LocalPlayerConnection and LocalAnimationsDisabled; the
+  bridge composable provides both.
+- New file: com/muso/music/ui/component/MusoEnhancedLyrics.kt.
+- Docs: added docs/ARCHIVETUNE_ENHANCED_BRIDGE.md.
+
+## Muso 0.5.239 — ArchiveTune "Enhanced" lyrics: smooth playhead ported
+- Checked github.com/rukamori/ArchiveTune (commit 2445921): its two lyrics animation
+  styles are LyricsMode { V2, ENHANCED }, and ENHANCED renders ui/component/LyricsEnhanced.
+- LyricsEnhanced is ALREADY vendored in this app and is upstream-identical (a full diff
+  shows only the R import and the Phase-4 lifecycle collector). It does not run because
+  (a) its only caller is ArchiveTune's own player screen, which has no caller in Muso, and
+  (b) it needs the ArchiveTune LocalPlayerConnection, which Muso provides as null and
+  cannot fill - ArchiveTune's PlayerConnection constructor requires ArchiveTune's own
+  MusicBinder from a MusicService that is not registered.
+- What makes ArchiveTune's Enhanced fluid is its PLAYHEAD, and that is now ported into
+  LyricsView.rememberSmoothPlayhead verbatim, with ArchiveTune's own constants: project
+  the smoothed position forward by the elapsed frame time, then correct 8% of the drift
+  per frame (capped at 2 ms), snapping only past 250 ms. Muso's renderer used to snap
+  playhead = player.currentPosition every frame, which inherits the player clock's
+  quantisation and is what made the wipe jitter.
+- Still needed for a literal renderer swap (staged, see the doc): a PlayerConnection
+  bridge, the LyricsRenderViewModel wiring, the render hook, and the locals.
+- Docs: added docs/ARCHIVETUNE_ENHANCED_INTEGRATION.md.
+
+## Muso 0.5.238 — lyrics: exactly three animation styles, and the smoothness fixes
+- LyricsAnimationStyle is now exactly three values, in this order: ENHANCED (word-by-word
+  glow/focus), IMMERSIVE (the Apple-Music lyrics sheet), NONE (static). The six old values
+  (FADE/KARAOKE/LYRICS_V2/V2_MODE plus the two kept) produced the same visible animation in
+  several cases, which is why picking a style changed nothing. Default is now ENHANCED.
+- IMMERSIVE selects the Apple-Music sheet directly: LyricsView.appleStyle is true for it
+  (or when the suite's lyrics style says so), and the MusoSuiteHost bridge that writes
+  dsm.lyricsStyle now accounts for the animation style too. Old saved values migrate to
+  ENHANCED via toEnum's fallback, so nothing crashes.
+- Smoothness: the per-line depth-of-field blur applied Modifier.blur to EVERY visible line
+  with an animated radius, so every line carried a RenderEffect that was re-issued every
+  frame of a 400 ms tween. Now the radius is not animated (alpha still glides, which is
+  free) and only the two lines either side of the sung line are blurred; further lines rely
+  on the alpha dimming, where the blur was invisible anyway.
+- Also fixed: the Lyrics blur setting was dead - it was read in Settings but nothing
+  consumed it, and the Apple-Music lines hard-coded blurEnabled = !isDragging. It is now
+  honoured, so turning it off removes the remaining blur passes.
+- Docs: added docs/LYRICS_THREE_STYLES_AND_SMOOTHNESS.md.
+
 ## Muso 0.5.237 — fix the app-wide lag (preference getter fell back to disk)
 - The two synchronous preference getters in DataStore.kt were written as
   "snapshot?.let { it[key] } ?: runBlocking(Dispatchers.IO) { data.first()[key] }", where

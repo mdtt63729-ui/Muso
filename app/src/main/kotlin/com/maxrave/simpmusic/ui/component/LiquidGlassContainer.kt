@@ -299,13 +299,17 @@ fun Modifier.drawInteractiveGlass(
                 // Backdrop blur is one of the most expensive parts of this surface, and the
                 // navbar/mini-player can coexist with several other glass surfaces on screen.
                 blur(
+                    // Trimmed from 5-8dp to 4-6dp, and the press term is gone: blur radius
+                    // is the most expensive part of this shader, and tying it to the press
+                    // progress re-specified the effect on every frame of a press for a
+                    // change nobody can see. The pill still reads as frosted.
                     (
                         if (l > 0f) {
-                            lerp(5f.dp.toPx(), 8f.dp.toPx(), l)
+                            lerp(4f.dp.toPx(), 6f.dp.toPx(), l)
                         } else {
-                            lerp(5f.dp.toPx(), 3f.dp.toPx(), -l)
+                            lerp(4f.dp.toPx(), 2.5f.dp.toPx(), -l)
                         }
-                    ) * 0.8f * blurScale + 1f.dp.toPx() * press,
+                    ) * 0.8f * blurScale,
                 )
                 // refractionHeight stays below the stadium inradius (minDimension / 2) so the
                 // top and bottom refraction never meet at the medial axis — that meeting point on

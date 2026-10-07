@@ -904,7 +904,19 @@ class MainActivity : ComponentActivity() {
                             // it — nesting a glass surface in its own source crashes the
                             // RuntimeShader with a render-feedback loop).
                             modifier = Modifier
-                                .layerBackdrop(glassBackdrop)
+                                // Record the content layer the glass refracts ONLY while
+                                // Liquid Glass is on. That record is a full-screen graphics
+                                // layer rebuilt every frame the content redraws - every
+                                // scroll, every page transition - and with the setting off
+                                // no surface samples it, so the app was paying the most
+                                // expensive part of the effect for glass it never drew.
+                                .then(
+                                    if (liquidGlassState.value) {
+                                        Modifier.layerBackdrop(glassBackdrop)
+                                    } else {
+                                        Modifier
+                                    },
+                                )
                                 .then(
                                     if (isTopLevelTab(navBackStackEntry?.destination) ||
                                         navBackStackEntry?.destination?.route?.startsWith("search/") == true) {

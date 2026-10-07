@@ -605,4 +605,5 @@
     <string name="mini_player_background_glow">Glow</string>
     <string name="lyrics_style_v2_mode">V2 Mode</string>
     <string name="lyrics_style_enhanced">Enhanced</string>
+    <string name="lyrics_style_immersive">Immersive</string>
 </resources>

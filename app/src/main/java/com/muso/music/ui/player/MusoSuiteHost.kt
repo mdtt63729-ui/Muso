@@ -696,10 +696,17 @@ fun MusoSuiteBridge(
         com.muso.music.constants.LyricsStyleKey,
         com.muso.music.constants.LyricsStyle.CLASSIC,
     )
-    LaunchedEffect(musoLyricsStyle, musoPlayerStyle) {
+    // The lyrics animation-style picker's IMMERSIVE entry also selects the Apple-Music sheet,
+    // so it drives the suite's lyrics style alongside the player style.
+    val lyricsAnimationStyleBridge by com.muso.music.utils.rememberEnumPreference(
+        com.muso.music.constants.LyricsAnimationStyleKey,
+        com.muso.music.constants.LyricsAnimationStyle.ENHANCED,
+    )
+    LaunchedEffect(musoLyricsStyle, musoPlayerStyle, lyricsAnimationStyleBridge) {
         dsmBridge.lyricsStyle.value =
             if (musoLyricsStyle == com.muso.music.constants.LyricsStyle.APPLE_MUSIC ||
-                musoPlayerStyle == com.muso.music.constants.PlayerStyle.IMMERSIVE
+                musoPlayerStyle == com.muso.music.constants.PlayerStyle.IMMERSIVE ||
+                lyricsAnimationStyleBridge == com.muso.music.constants.LyricsAnimationStyle.IMMERSIVE
             ) {
                 com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_APPLE_MUSIC
             } else {

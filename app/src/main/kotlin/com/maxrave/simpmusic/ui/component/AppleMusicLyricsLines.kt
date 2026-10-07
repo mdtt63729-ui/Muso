@@ -51,6 +51,13 @@ import kotlin.math.abs
 // depth of field proportional.
 private const val BLUR_PER_LINE_EM = 0.095f
 private const val BLUR_MAX_EM = 0.45f
+
+/**
+ * Only lines this close to the sung line are blurred. Blur is a RenderEffect, so each
+ * blurred line is an extra GPU pass per frame; past this distance the line is already
+ * dimmed to MIN_LINE_ALPHA and the blur is invisible anyway.
+ */
+private const val BLUR_MAX_LINES = 2
 // AMLL's resolveOpacity returns a flat 1 for unsung lines, but the reference screenshots plainly
 // fade with distance — the line under the sung one sits at roughly half, the next at a third, and
 // beyond that they all but vanish. AMLL is reproducing Apple, not defining it, and on this point
@@ -202,7 +209,10 @@ fun Modifier.appleMusicLyricFocus(
             else -> (1f - distance * ALPHA_FALLOFF_PER_LINE).coerceAtLeast(MIN_LINE_ALPHA)
         }
 
-    val blurRadius by animateDpAsState(targetValue = targetBlur, animationSpec = tween(400), label = "appleMusicLyricBlur")
+    // The radius is deliberately NOT animated. Animating it re-issued the RenderEffect on
+    // every line for the whole 400 ms tween, which is a large part of the lyrics-view
+    // jank; the alpha below still animates, which is free (no RenderEffect).
+    val blurRadius = if (distance <= BLUR_MAX_LINES) targetBlur else 0.dp
     val lineAlpha by animateFloatAsState(targetValue = targetAlpha, animationSpec = tween(400), label = "appleMusicLyricAlpha")
 
     // alpha BEFORE blur: blurring an already-faded line keeps the two effects independent, whereas

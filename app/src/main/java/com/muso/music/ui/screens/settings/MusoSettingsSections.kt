@@ -1102,7 +1102,7 @@ fun PreferenceGroupScope.musoMiscPlayerRows() {
 
 @Composable
 fun PreferenceGroupScope.musoLyricsRows() {
-    val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.LYRICS_V2)
+    val (lyricsAnimationStyle, onLyricsAnimationStyleChange) = rememberEnumPreference(key = LyricsAnimationStyleKey, defaultValue = LyricsAnimationStyle.ENHANCED)
     val (wordByWordEnabled, onWordByWordEnabledChange) = rememberPreference(key = WordByWordLyricsEnabledKey, defaultValue = true)
     val (lyricsTextPosition, onLyricsTextPositionChange) = rememberEnumPreference(key = LyricsTextPositionKey, defaultValue = LyricsPosition.CENTER)
     val (lyricsTextSize, onLyricsTextSizeChange) = rememberPreference(key = LyricsTextSizeKey, defaultValue = 26)
@@ -1716,10 +1716,7 @@ private fun WordByWordStyleDialog(
 @Composable
 private fun lyricsAnimationStyleLabel(style: LyricsAnimationStyle): String =
     when (style) {
-        LyricsAnimationStyle.NONE -> stringResource(R.string.lyrics_style_none)
-        LyricsAnimationStyle.FADE -> stringResource(R.string.lyrics_style_fade)
-        LyricsAnimationStyle.KARAOKE -> stringResource(R.string.lyrics_style_karaoke)
-        LyricsAnimationStyle.LYRICS_V2 -> stringResource(R.string.lyrics_style_lyrics_v2)
-        LyricsAnimationStyle.V2_MODE -> stringResource(R.string.lyrics_style_v2_mode)
         LyricsAnimationStyle.ENHANCED -> stringResource(R.string.lyrics_style_enhanced)
+        LyricsAnimationStyle.IMMERSIVE -> stringResource(R.string.lyrics_style_immersive)
+        LyricsAnimationStyle.NONE -> stringResource(R.string.lyrics_style_none)
     }

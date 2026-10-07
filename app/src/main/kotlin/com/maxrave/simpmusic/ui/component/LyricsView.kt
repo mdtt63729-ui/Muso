@@ -6,6 +6,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -98,6 +99,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.roundToLong
 import kotlin.math.sqrt
 import kotlin.math.min
 import kotlin.math.max
@@ -109,6 +111,18 @@ private const val TAG = "LyricsView"
 // playhead below is allowed to run ahead of the last real tick, so a stalled tick — paused
 // playback, a wedged player — can never drift further than the granularity we already live with.
 private const val PLAYHEAD_TICK_MS = 300L
+
+// --- ArchiveTune Enhanced playhead (ported verbatim) -------------------------------
+// ArchiveTune's ENHANCED lyrics mode does not read the player's position straight into
+// its playhead: it PROJECTS the smoothed position forward by the elapsed frame time and
+// then nudges it a small fraction of the way toward the player's real position each
+// frame. Reading the raw position (what this renderer used to do) inherits every
+// quantisation step of the player clock, which is what made the karaoke wipe jitter.
+// Same constants as ArchiveTune's ui/component/LyricsEnhanced.kt.
+private const val SMOOTH_PLAYBACK_MAX_FORWARD_DRIFT_MS = 250.0
+private const val SMOOTH_PLAYBACK_MAX_BACKWARD_DRIFT_MS = 250.0
+private const val SMOOTH_PLAYBACK_DRIFT_CORRECTION = 0.08
+private const val SMOOTH_PLAYBACK_MAX_CORRECTION_PER_FRAME_MS = 2.0
 
 // A rich-synced line followed by a silence at least this long gets a row of dots standing in for
 // the instrumental, the way Apple Music marks one. Rich sync only: it is the one format that knows
@@ -441,6 +455,18 @@ fun LyricsView(
     dataStoreManager: DataStoreManager = koinInject(),
     romanizer: LyricsRomanizerRepository = koinInject(),
 ) {
+    // Enhanced: the user picked the Enhanced lyrics animation style, which is ArchiveTune's
+    // ENHANCED lyrics mode. Render ArchiveTune's own sheet (ui/component/LyricsEnhanced) via
+    // the bridge instead of the suite's renderer, so the animation is exactly ArchiveTune's.
+    val musoLyricsAnimationStyle by com.muso.music.utils.rememberEnumPreference(
+        com.muso.music.constants.LyricsAnimationStyleKey,
+        com.muso.music.constants.LyricsAnimationStyle.ENHANCED,
+    )
+    if (musoLyricsAnimationStyle == com.muso.music.constants.LyricsAnimationStyle.ENHANCED) {
+        com.muso.music.ui.component.MusoEnhancedLyrics(modifier = modifier)
+        return
+    }
+
     val listState = rememberLazyListState()
     // AMLL drops blur to zero while the user is scrolling by hand (resolveBlurLevel:
     // `if (this.scrollState.isTouchScrolled || isFocused) return 0`) — you are reading ahead at
@@ -462,6 +488,12 @@ fun LyricsView(
     // which the `now <= 0L` guard below already reads as "no line yet" — correct, since in heard
     // time the song has not reached its first line.
     val lyricsOffsetMs by dataStoreManager.lyricsOffsetMs.collectAsStateWithLifecycle(0)
+    // The Lyrics blur setting existed in the UI but nothing read it - the Apple-Music lines
+    // hard-coded blurEnabled = !isDragging. Wiring it here makes the toggle real.
+    val lyricsBlurEnabled by com.muso.music.utils.rememberPreference(
+        com.muso.music.constants.LyricsBlurEnabledKey,
+        true,
+    )
     // Word-by-word animation style (Echo-Music PRD). FLARE = the suite's own
     // rich-sync wipe; anything else swaps the line for the Echo renderer.
     val echoLyricsStyle by com.muso.music.utils.rememberEnumPreference(
@@ -469,7 +501,7 @@ fun LyricsView(
         // User request: FLARE - the suite's own rich-sync wipe - is the default
         // again. The setting now lives with the other lyrics settings
         // (Settings -> Player and audio, lyrics section).
-        defaultValue = com.muso.music.constants.LyricsAnimationStyle.LYRICS_V2,
+        defaultValue = com.muso.music.constants.LyricsAnimationStyle.ENHANCED,
     )
     // Round 182 (user request): the lyrics-mode engine switch is gone from
     // settings - word-by-word is the ONLY lyrics engine, so its switch is the
@@ -479,10 +511,12 @@ fun LyricsView(
         true,
     )
     val effectiveEchoLyricsStyle =
-        if (wordByWordEnabled) {
-            echoLyricsStyle
-        } else {
-            com.muso.music.constants.LyricsAnimationStyle.NONE
+        when {
+            !wordByWordEnabled -> com.muso.music.constants.LyricsAnimationStyle.NONE
+            // IMMERSIVE is drawn by the Apple-Music sheet below, not by the Echo word renderer.
+            echoLyricsStyle == com.muso.music.constants.LyricsAnimationStyle.IMMERSIVE ->
+                com.muso.music.constants.LyricsAnimationStyle.NONE
+            else -> com.muso.music.constants.LyricsAnimationStyle.ENHANCED
         }
 
     // Read here rather than taken as a parameter: all four call sites (the fullscreen sheet and
@@ -491,7 +525,13 @@ fun LyricsView(
     // though Settings hides the option below Android 12 — a DataStore restored from a backup, or
     // carried to another device, can still hold APPLE_MUSIC on a phone that cannot draw it.
     val lyricsStyle by dataStoreManager.lyricsStyle.collectAsStateWithLifecycle(DataStoreManager.LYRICS_STYLE_CLASSIC)
-    val appleStyle = lyricsStyle == DataStoreManager.LYRICS_STYLE_APPLE_MUSIC && isLyricsBlurSupported()
+    // IMMERSIVE in the lyrics animation-style picker selects the Apple-Music sheet directly,
+    // so the choice takes effect even when the player style is not Immersive.
+    val appleStyle =
+        (
+            lyricsStyle == DataStoreManager.LYRICS_STYLE_APPLE_MUSIC ||
+                echoLyricsStyle == com.muso.music.constants.LyricsAnimationStyle.IMMERSIVE
+        ) && isLyricsBlurSupported()
 
     // Read here for the same reason the style is: all four call sites want the user's one choice,
     // so threading it through each of them would be four copies of the same lookup. The stored
@@ -873,7 +913,7 @@ fun LyricsView(
                                         .fillMaxWidth()
                                         .appleMusicLyricFocus(
                                             distanceFromCurrent,
-                                            blurEnabled = !isDragging,
+                                            blurEnabled = lyricsBlurEnabled && !isDragging,
                                             hasActiveLine = renderCurrentLineIndex >= 0,
                                             allLinesCurrent = allLinesCurrent,
                                         ),
@@ -1176,13 +1216,40 @@ private fun rememberSmoothPlayhead(
         }
         val player = playerConnection?.player
         if (player != null) {
+            // ArchiveTune's Enhanced playhead: project forward by the elapsed frame time,
+            // then correct a fraction of the drift each frame instead of snapping to the
+            // player's (quantised) position.
+            var smoothedMs = player.currentPosition.toDouble()
+            var previousFrameNanos = 0L
             while (true) {
-                withFrameNanos {
-                    if (player.isPlaying) {
-                        playhead.longValue = player.currentPosition.coerceAtLeast(0L)
-                    } else {
-                        playhead.longValue = latestRawMs.value.coerceAtLeast(0L)
-                    }
+                val frameNanos = withFrameNanos { it }
+                val rawMs = if (player.isPlaying) player.currentPosition else latestRawMs.value
+                if (!player.isPlaying || previousFrameNanos == 0L) {
+                    smoothedMs = rawMs.toDouble()
+                    previousFrameNanos = frameNanos
+                } else {
+                    val elapsedMs =
+                        ((frameNanos - previousFrameNanos).coerceAtLeast(0L) / 1_000_000.0) *
+                            player.playbackParameters.speed.toDouble()
+                    val projectedMs = smoothedMs + elapsedMs
+                    val driftMs = rawMs.toDouble() - projectedMs
+                    smoothedMs =
+                        if (driftMs > SMOOTH_PLAYBACK_MAX_FORWARD_DRIFT_MS ||
+                            driftMs < -SMOOTH_PLAYBACK_MAX_BACKWARD_DRIFT_MS
+                        ) {
+                            rawMs.toDouble()
+                        } else {
+                            projectedMs +
+                                (driftMs * SMOOTH_PLAYBACK_DRIFT_CORRECTION).coerceIn(
+                                    -SMOOTH_PLAYBACK_MAX_CORRECTION_PER_FRAME_MS,
+                                    SMOOTH_PLAYBACK_MAX_CORRECTION_PER_FRAME_MS,
+                                )
+                        }
+                    previousFrameNanos = frameNanos
+                }
+                val next = smoothedMs.roundToLong().coerceAtLeast(0L)
+                if (playhead.longValue != next) {
+                    playhead.longValue = next
                 }
             }
         }
@@ -1625,14 +1692,18 @@ fun FullscreenLyricsSheet(
     // Fullscreen lyrics are a page, not a bottom sheet. ModalBottomSheet added a second large
     // slide/measure animation on top of the lyrics content and produced the visible jump/grow/
     // shrink when entering and leaving fullscreen. Own one small transition here instead.
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
+    // A MutableTransitionState, not a `visible` boolean flipped from a LaunchedEffect.
+    // With the boolean the close-watcher effect was first composed against
+    // `visible = false`, so on a frame where the opening flip had not landed yet it read
+    // the page as closed and dismissed it ~190ms after it opened - the fullscreen lyrics
+    // shut themselves. The transition state starts closed with the target already open, so
+    // the page can only close when something actually asks it to.
+    val visibility = remember { MutableTransitionState(false).apply { targetState = true } }
 
-    fun requestClose() { visible = false }
+    fun requestClose() { visibility.targetState = false }
 
-    LaunchedEffect(visible) {
-        if (!visible) {
-            delay(190L)
+    LaunchedEffect(visibility.currentState, visibility.isIdle) {
+        if (visibility.isIdle && !visibility.currentState) {
             onDismiss()
         }
     }
@@ -1647,7 +1718,7 @@ fun FullscreenLyricsSheet(
         ),
     ) {
         AnimatedVisibility(
-            visible = visible,
+            visibleState = visibility,
             enter = fadeIn(tween(190, easing = FastOutSlowInEasing)) +
                 scaleIn(tween(220, easing = FastOutSlowInEasing), initialScale = 0.985f),
             exit = fadeOut(tween(150, easing = FastOutSlowInEasing)) +
