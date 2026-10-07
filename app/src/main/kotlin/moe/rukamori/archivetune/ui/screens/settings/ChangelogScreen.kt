@@ -159,7 +159,7 @@ fun ChangelogScreen(
                     ) {
                         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                        items(releases, key = { it.tagName }) { release ->
+                        items(releases) { release ->
                             ReleaseCard(release = release)
                         }
 

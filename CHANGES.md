@@ -1,3 +1,29 @@
+## Muso 0.5.237 — fix the app-wide lag (preference getter fell back to disk)
+- The two synchronous preference getters in DataStore.kt were written as
+  "snapshot?.let { it[key] } ?: runBlocking(Dispatchers.IO) { data.first()[key] }", where
+  the elvis binds to the VALUE, not to the snapshot. So every read of an UNSET preference
+  (i.e. most reads in the app) - and of a legitimately null one - fell through to a
+  blocking DataStore read on the calling thread. That is app-wide main-thread disk I/O:
+  the reported lag with or without a song playing.
+- Introduced by the 0.5.230 crash-guard rewrite; 0.5.225-0.5.229 were correct. Fixed by
+  moving the fallback back onto the snapshot, keeping the ClassCastException guard.
+- Docs: added docs/FIX_PREFERENCE_READ_LAG.md.
+
+## Muso 0.5.236 — fix the Home crash (duplicate Lazy key)
+- A device run of 0.5.235 crashed on startup, on Home:
+  java.lang.IllegalArgumentException: Key "FEmusic_moods_and_genres_category" was already
+  used.
+- Cause: 0.5.232 keyed the Home mood/genre row with key = { it.endpoint.browseId }, but
+  that browseId is a CATEGORY id shared by every entry in the row, so the key was not
+  unique. (0.5.235 fixed the COMPILE errors in these keys; this fixes a RUNTIME duplicate.)
+- Fix: every key added in 0.5.232/0.5.233 that is not backed by a database primary key is
+  reverted - moodAndGenres, the two Home YouTube rows, YouTubeBrowseScreen, the three
+  artist menus, ModalBottomSheet listYouTubePlaylist, and ChangelogScreen releases.
+  Kept (DB primary key or unique by construction): HomeScreen keepListening,
+  AddToPlaylistDialog playlists, ModalBottomSheet listLocalPlaylist and listAction,
+  ArchiveTune PlayerMenu (distinctBy), and the two ArchiveTune notAddedList rows.
+- Docs: added docs/CRASH_FIX_MOOD_GENRES_KEY.md.
+
 ## Muso 0.5.235 — fix the six CI compile errors from the stable-state keys
 - CI failed at :app:compileFossReleaseKotlin with six errors, all from the list keys added
   in 0.5.232/0.5.233. Fixed:

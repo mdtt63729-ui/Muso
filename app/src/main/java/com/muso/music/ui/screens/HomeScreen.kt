@@ -571,7 +571,7 @@ fun HomeScreen(
                             .asPaddingValues(),
                         modifier = Modifier.animateItem()
                     ) {
-                        items(it.items, key = { it.id }) { item ->
+                        items(it.items) { item ->
                             ytGridItem(item)
                         }
                     }
@@ -606,7 +606,7 @@ fun HomeScreen(
                             .asPaddingValues(),
                         modifier = Modifier.animateItem()
                     ) {
-                        items(section.items, key = { it.id }) { item ->
+                        items(section.items) { item ->
                             ytGridItem(item)
                         }
                     }
@@ -682,7 +682,7 @@ fun HomeScreen(
                             .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp)
                             .animateItem()
                     ) {
-                        items(moodAndGenres, key = { it.endpoint.browseId }) {
+                        items(moodAndGenres) {
                             MoodAndGenresButton(
                                 title = it.title,
                                 onClick = {

@@ -107,7 +107,7 @@ fun YouTubeSongMenu(
         ListDialog(
             onDismiss = { showSelectArtistDialog = false }
         ) {
-            items(artists, key = { it.id ?: it.name }) { artist ->
+            items(artists) { artist ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

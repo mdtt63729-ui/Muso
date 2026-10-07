@@ -2574,7 +2574,7 @@ fun AddToPlaylistModalBottomSheet(
                         Crossfade(isYouTubePlaylistClicked) { clicked ->
                             if (clicked) {
                                 LazyColumn {
-                                    items(listYouTubePlaylist, key = { it.browseId }) { playlist ->
+                                    items(listYouTubePlaylist) { playlist ->
                                         Box(
                                             modifier =
                                                 Modifier

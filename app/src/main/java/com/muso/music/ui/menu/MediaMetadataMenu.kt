@@ -96,7 +96,7 @@ fun MediaMetadataMenu(
         ListDialog(
             onDismiss = { showSelectArtistDialog = false }
         ) {
-            items(artists, key = { it.id ?: it.name }) { artist ->
+            items(artists) { artist ->
                 Box(
                     contentAlignment = Alignment.CenterStart,
                     modifier = Modifier

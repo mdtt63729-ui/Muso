@@ -61,7 +61,16 @@ fun primePreferences(context: Context) {
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? {
     val snapshot = PreferencesSnapshot.current(this)
     return try {
-        snapshot?.let { it[key] } ?: runBlocking(Dispatchers.IO) { data.first()[key] }
+        // The fallback must key off the SNAPSHOT, not off the value. Writing this as
+        // `snapshot?.let { it[key] } ?: runBlocking { ... }` made an ABSENT key - and a
+        // legitimately null one - fall through to a blocking DataStore read, which is
+        // most preference reads in the app. That reintroduced exactly the main-thread
+        // I/O this mirror exists to remove.
+        if (snapshot != null) {
+            snapshot[key]
+        } else {
+            runBlocking(Dispatchers.IO) { data.first()[key] }
+        }
     } catch (e: ClassCastException) {
         // A value stored under this name with a different type - two layers declaring
         // the same key name as different types, see docs/PHASE9_SETTINGS.md - makes the
@@ -73,10 +82,14 @@ operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? {
 fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>, defaultValue: T): T {
     val snapshot = PreferencesSnapshot.current(this)
     return try {
-        snapshot?.let { it[key] } ?: runBlocking(Dispatchers.IO) { data.first()[key] }
+        if (snapshot != null) {
+            snapshot[key] ?: defaultValue
+        } else {
+            runBlocking(Dispatchers.IO) { data.first()[key] ?: defaultValue }
+        }
     } catch (e: ClassCastException) {
-        null
-    } ?: defaultValue
+        defaultValue
+    }
 }
 
 fun <T> preference(

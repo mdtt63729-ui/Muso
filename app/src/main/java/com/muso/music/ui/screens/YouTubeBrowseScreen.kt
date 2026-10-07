@@ -78,7 +78,7 @@ fun YouTubeBrowseScreen(
                 }
             }
 
-            items(it.items, key = { it.id }) { item ->
+            items(it.items) { item ->
                 YouTubeListItem(
                     item = item,
                     isActive = when (item) {
