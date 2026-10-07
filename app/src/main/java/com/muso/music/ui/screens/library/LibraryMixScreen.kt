@@ -62,6 +62,7 @@ import com.muso.music.ui.component.SongListItem
 import com.muso.music.ui.menu.SongMenu
 import com.muso.music.utils.rememberPreference
 import com.muso.music.utils.rememberEnumPreference
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * LIBRARY HOME (Material 3 redesign, reference image 581028):
@@ -82,14 +83,14 @@ fun LibraryMixScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val (sortType, onSortTypeChange) = rememberEnumPreference(MixSortTypeKey, MixSortType.CREATE_DATE)
     val (sortDescending, onSortDescendingChange) = rememberPreference(MixSortDescendingKey, true)
 
-    val likedSongs by viewModel.likedSongs.collectAsState()
-    val recentSongs by viewModel.recentSongs.collectAsState()
+    val likedSongs by viewModel.likedSongs.collectAsStateWithLifecycle()
+    val recentSongs by viewModel.recentSongs.collectAsStateWithLifecycle()
 
     val recentlyPlayedTitle = stringResource(R.string.recently_played)
 

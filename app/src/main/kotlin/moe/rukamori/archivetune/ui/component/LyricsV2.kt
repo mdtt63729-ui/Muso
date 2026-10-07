@@ -120,6 +120,7 @@ import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.viewmodels.LyricsRenderScreenState
 import kotlin.math.abs
 import kotlin.math.roundToLong
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // ──────────────────────────────────────────────────────────────────────
 // Constants
@@ -175,7 +176,7 @@ fun LyricsV2(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val preparedLyrics = (lyricsState as? LyricsRenderScreenState.Success)?.lyrics
     val preferences = preparedLyrics?.preferences

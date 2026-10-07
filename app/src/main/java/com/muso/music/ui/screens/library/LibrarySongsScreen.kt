@@ -67,6 +67,7 @@ import com.muso.music.ui.menu.SongSelectionMenu
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import com.muso.music.viewmodels.LibrarySongsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -80,18 +81,18 @@ fun LibrarySongsScreen(
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIBRARY)
     val (sortType, onSortTypeChange) = rememberEnumPreference(SongSortTypeKey, SongSortType.CREATE_DATE)
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
 
-    val songs by viewModel.allSongs.collectAsState()
+    val songs by viewModel.allSongs.collectAsStateWithLifecycle()
 
     val lazyListState = rememberLazyListState()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
+    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsStateWithLifecycle()
 
     var inSelectMode by rememberSaveable { mutableStateOf(false) }
     val selection = rememberSaveable(

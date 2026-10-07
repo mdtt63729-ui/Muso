@@ -64,6 +64,7 @@ import com.muso.music.ui.menu.AlbumMenu
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import com.muso.music.viewmodels.LibraryAlbumsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -75,8 +76,8 @@ fun LibraryAlbumsScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val gridCellSize by rememberEnumPreference(GridCellSizeKey, GridCellSize.SMALL)
     var filter by rememberEnumPreference(AlbumFilterKey, AlbumFilter.LIBRARY)
@@ -84,14 +85,14 @@ fun LibraryAlbumsScreen(
     val (sortType, onSortTypeChange) = rememberEnumPreference(AlbumSortTypeKey, AlbumSortType.CREATE_DATE)
     val (sortDescending, onSortDescendingChange) = rememberPreference(AlbumSortDescendingKey, true)
 
-    val albums by viewModel.allAlbums.collectAsState()
+    val albums by viewModel.allAlbums.collectAsStateWithLifecycle()
 
     val coroutineScope = rememberCoroutineScope()
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
+    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsStateWithLifecycle()
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {

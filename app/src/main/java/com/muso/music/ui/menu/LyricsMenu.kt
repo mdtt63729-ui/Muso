@@ -56,6 +56,7 @@ import com.muso.music.ui.component.GridMenuItem
 import com.muso.music.ui.component.ListDialog
 import com.muso.music.ui.component.TextFieldDialog
 import com.muso.music.viewmodels.LyricsMenuViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 
 @Composable
@@ -180,8 +181,8 @@ fun LyricsMenu(
     }
 
     if (showSearchResultDialog) {
-        val results by viewModel.results.collectAsState()
-        val isLoading by viewModel.isLoading.collectAsState()
+        val results by viewModel.results.collectAsStateWithLifecycle()
+        val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
         var expandedItemIndex by rememberSaveable {
             mutableIntStateOf(-1)

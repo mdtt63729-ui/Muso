@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -318,157 +318,168 @@ fun PlayerSettings(navController: NavController) {
     ) { innerPadding ->
         val topPadding = innerPadding.calculateTopPadding()
 
-        Column(
-            Modifier
-                .padding(top = topPadding)
-                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = SettingsDimensions.ScreenBottomPadding),
+        LazyColumn(
+            modifier =
+                Modifier
+                    .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)),
+            contentPadding =
+                PaddingValues(
+                    top = topPadding,
+                    bottom = SettingsDimensions.ScreenBottomPadding,
+                ),
         ) {
-            PreferenceGroup(title = stringResource(R.string.player)) {
-                musoAudioQualityRows()
-                musoAudioBehaviourRows()
-                musoAudioEffectsRow(navController)
+            item {
+                PreferenceGroup(title = stringResource(R.string.player)) {
+                    musoAudioQualityRows()
+                    musoAudioBehaviourRows()
+                    musoAudioEffectsRow(navController)
 
-                /* muso-integration: kit audio quality row — replaced by the Muso-backed row below. */
+                    /* muso-integration: kit audio quality row — replaced by the Muso-backed row below. */
 
-                playbackPerformancePreferences(
-                    state = playbackPerformanceSettingsState,
-                    onLowDataModeChange = onLowDataModeChange,
-                    onPreloadNextSongChange = onPreloadNextSongChange,
-                    onRetry = onPlaybackPerformanceRetry,
-                )
-
-                /* muso-integration: kit history duration row — replaced by the Muso-backed row below. */
-
-                /* muso-integration: kit crossfade row — replaced by the Muso-backed row below. */
-
-                /* muso-integration: kit crossfade duration row — replaced by the Muso-backed row below. */
-
-                item {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.crossfade_gapless_title)) },
-                        description = stringResource(R.string.crossfade_gapless_description),
-                        icon = { Icon(painterResource(R.drawable.fast_forward), null) },
-                        checked = crossfadeGapless,
-                        onCheckedChange = onCrossfadeGaplessChange,
-                        isEnabled = crossfadeEnabled,
+                    playbackPerformancePreferences(
+                        state = playbackPerformanceSettingsState,
+                        onLowDataModeChange = onLowDataModeChange,
+                        onPreloadNextSongChange = onPreloadNextSongChange,
+                        onRetry = onPlaybackPerformanceRetry,
                     )
-                }
 
-                /* muso-integration: kit skip silence row — replaced by the Muso-backed row below. */
+                    /* muso-integration: kit history duration row — replaced by the Muso-backed row below. */
 
-                /* muso-integration: kit audio normalization row — replaced by the Muso-backed row below. */
+                    /* muso-integration: kit crossfade row — replaced by the Muso-backed row below. */
 
-                /* muso-integration: kit audio offload row — replaced by the Muso-backed row below. */
+                    /* muso-integration: kit crossfade duration row — replaced by the Muso-backed row below. */
 
-                /* muso-integration: kit seek seconds row — replaced by the Muso-backed row below. */
+                    item {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.crossfade_gapless_title)) },
+                            description = stringResource(R.string.crossfade_gapless_description),
+                            icon = { Icon(painterResource(R.drawable.fast_forward), null) },
+                            checked = crossfadeGapless,
+                            onCheckedChange = onCrossfadeGaplessChange,
+                            isEnabled = crossfadeEnabled,
+                        )
+                    }
 
-                /* muso-integration: kit pause on mute row — replaced by the Muso-backed row below. */
+                    /* muso-integration: kit skip silence row — replaced by the Muso-backed row below. */
 
-                item(visible = pauseOnDeviceMute) {
-                    val context = LocalContext.current
-                    val disabledLabel = stringResource(R.string.device_mute_recovery_volume_disabled)
-                    val recoveryVolumeText =
-                        remember(context, disabledLabel) {
-                            { value: Int ->
-                                if (value == 0) {
-                                    disabledLabel
-                                } else {
-                                    context.getString(R.string.percentage_format, value)
+                    /* muso-integration: kit audio normalization row — replaced by the Muso-backed row below. */
+
+                    /* muso-integration: kit audio offload row — replaced by the Muso-backed row below. */
+
+                    /* muso-integration: kit seek seconds row — replaced by the Muso-backed row below. */
+
+                    /* muso-integration: kit pause on mute row — replaced by the Muso-backed row below. */
+
+                    item(visible = pauseOnDeviceMute) {
+                        val context = LocalContext.current
+                        val disabledLabel = stringResource(R.string.device_mute_recovery_volume_disabled)
+                        val recoveryVolumeText =
+                            remember(context, disabledLabel) {
+                                { value: Int ->
+                                    if (value == 0) {
+                                        disabledLabel
+                                    } else {
+                                        context.getString(R.string.percentage_format, value)
+                                    }
                                 }
                             }
-                        }
-                    NumberPickerPreference(
-                        title = { Text(stringResource(R.string.device_mute_recovery_volume)) },
-                        icon = { Icon(painterResource(R.drawable.volume_up), null) },
-                        value = deviceMutePlaybackRecoveryVolume,
-                        onValueChange = onDeviceMutePlaybackRecoveryVolumeChange,
-                        minValue = 0,
-                        maxValue = 100,
-                        valueText = recoveryVolumeText,
-                        isEnabled = pauseOnDeviceMute,
-                    )
-                }
+                        NumberPickerPreference(
+                            title = { Text(stringResource(R.string.device_mute_recovery_volume)) },
+                            icon = { Icon(painterResource(R.drawable.volume_up), null) },
+                            value = deviceMutePlaybackRecoveryVolume,
+                            onValueChange = onDeviceMutePlaybackRecoveryVolumeChange,
+                            minValue = 0,
+                            maxValue = 100,
+                            valueText = recoveryVolumeText,
+                            isEnabled = pauseOnDeviceMute,
+                        )
+                    }
 
-                item {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.auto_start_on_bluetooth)) },
-                        description = stringResource(R.string.auto_start_on_bluetooth_desc),
-                        icon = { Icon(painterResource(R.drawable.bluetooth), null) },
-                        checked = autoStartOnBluetooth,
-                        onCheckedChange = onAutoStartOnBluetoothChange,
+                    item {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.auto_start_on_bluetooth)) },
+                            description = stringResource(R.string.auto_start_on_bluetooth_desc),
+                            icon = { Icon(painterResource(R.drawable.bluetooth), null) },
+                            checked = autoStartOnBluetooth,
+                            onCheckedChange = onAutoStartOnBluetoothChange,
+                        )
+                    }
+                }
+            }
+
+            item {
+                PreferenceGroup(title = stringResource(R.string.sponsor_block_group)) {
+                    sponsorBlockPreferences(
+                        state = sponsorBlockSettingsState,
+                        onEnabledChange = onSponsorBlockEnabledChange,
+                        onCategorySheetOpen = onSponsorBlockCategorySheetOpen,
+                        onCategorySheetDismiss = onSponsorBlockCategorySheetDismiss,
+                        onCategoryCheckedChange = onSponsorBlockCategoryCheckedChange,
+                        onCategorySelectionConfirm = onSponsorBlockCategorySelectionConfirm,
+                        onApiUrlEditorOpen = onSponsorBlockApiUrlEditorOpen,
+                        onRetry = onSponsorBlockRetry,
                     )
                 }
             }
 
-            PreferenceGroup(title = stringResource(R.string.sponsor_block_group)) {
-                sponsorBlockPreferences(
-                    state = sponsorBlockSettingsState,
-                    onEnabledChange = onSponsorBlockEnabledChange,
-                    onCategorySheetOpen = onSponsorBlockCategorySheetOpen,
-                    onCategorySheetDismiss = onSponsorBlockCategorySheetDismiss,
-                    onCategoryCheckedChange = onSponsorBlockCategoryCheckedChange,
-                    onCategorySelectionConfirm = onSponsorBlockCategorySelectionConfirm,
-                    onApiUrlEditorOpen = onSponsorBlockApiUrlEditorOpen,
-                    onRetry = onSponsorBlockRetry,
-                )
+            item {
+                PreferenceGroup(title = stringResource(R.string.queue)) {
+                    musoQueueRows()
+
+                    /* muso-integration: kit persistent queue row — replaced by the Muso-backed row below. */
+
+                    item {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.permanent_shuffle)) },
+                            description = stringResource(R.string.permanent_shuffle_desc),
+                            icon = { Icon(painterResource(R.drawable.shuffle), null) },
+                            checked = permanentShuffle,
+                            onCheckedChange = onPermanentShuffleChange,
+                        )
+                    }
+
+                    /* muso-integration: kit auto download row — replaced by the Muso-backed row below. */
+
+                    /* muso-integration: kit auto skip on error row — replaced by the Muso-backed row below. */
+                }
             }
 
-            PreferenceGroup(title = stringResource(R.string.queue)) {
-                musoQueueRows()
+            item {
+                PreferenceGroup(title = stringResource(R.string.misc)) {
+                    musoMiscPlayerRows()
 
-                /* muso-integration: kit persistent queue row — replaced by the Muso-backed row below. */
+                    /* muso-integration: kit stop on task clear row — replaced by the Muso-backed row below. */
 
-                item {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.permanent_shuffle)) },
-                        description = stringResource(R.string.permanent_shuffle_desc),
-                        icon = { Icon(painterResource(R.drawable.shuffle), null) },
-                        checked = permanentShuffle,
-                        onCheckedChange = onPermanentShuffleChange,
-                    )
-                }
+                    /* muso-integration: kit wakelock row — replaced by the Muso-backed row below. */
 
-                /* muso-integration: kit auto download row — replaced by the Muso-backed row below. */
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.artist_separators)) },
+                            description = artistSeparators.map { "\"$it\"" }.joinToString("  "),
+                            icon = { Icon(painterResource(R.drawable.artist), null) },
+                            onClick = { showArtistSeparatorsDialog = true },
+                        )
+                    }
 
-                /* muso-integration: kit auto skip on error row — replaced by the Muso-backed row below. */
-            }
+                    item {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.external_downloader)) },
+                            description = stringResource(R.string.external_downloader_desc),
+                            icon = { Icon(painterResource(R.drawable.download), null) },
+                            checked = externalDownloaderEnabled,
+                            onCheckedChange = onExternalDownloaderEnabledChange,
+                        )
+                    }
 
-            PreferenceGroup(title = stringResource(R.string.misc)) {
-                musoMiscPlayerRows()
-
-                /* muso-integration: kit stop on task clear row — replaced by the Muso-backed row below. */
-
-                /* muso-integration: kit wakelock row — replaced by the Muso-backed row below. */
-
-                item {
-                    PreferenceEntry(
-                        title = { Text(stringResource(R.string.artist_separators)) },
-                        description = artistSeparators.map { "\"$it\"" }.joinToString("  "),
-                        icon = { Icon(painterResource(R.drawable.artist), null) },
-                        onClick = { showArtistSeparatorsDialog = true },
-                    )
-                }
-
-                item {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.external_downloader)) },
-                        description = stringResource(R.string.external_downloader_desc),
-                        icon = { Icon(painterResource(R.drawable.download), null) },
-                        checked = externalDownloaderEnabled,
-                        onCheckedChange = onExternalDownloaderEnabledChange,
-                    )
-                }
-
-                item {
-                    PreferenceEntry(
-                        title = { Text(stringResource(R.string.external_downloader_package)) },
-                        description = externalDownloaderPackage.ifEmpty { stringResource(R.string.external_downloader_package_desc) },
-                        icon = { Icon(painterResource(R.drawable.integration), null) },
-                        onClick = { showExternalDownloaderPackageDialog = true },
-                        isEnabled = externalDownloaderEnabled,
-                    )
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.external_downloader_package)) },
+                            description = externalDownloaderPackage.ifEmpty { stringResource(R.string.external_downloader_package_desc) },
+                            icon = { Icon(painterResource(R.drawable.integration), null) },
+                            onClick = { showExternalDownloaderPackageDialog = true },
+                            isEnabled = externalDownloaderEnabled,
+                        )
+                    }
                 }
             }
         }

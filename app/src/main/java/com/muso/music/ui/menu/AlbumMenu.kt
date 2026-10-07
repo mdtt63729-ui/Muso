@@ -70,6 +70,7 @@ import com.muso.music.ui.component.ListDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun AlbumMenu(
@@ -82,7 +83,7 @@ fun AlbumMenu(
     val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val scope = rememberCoroutineScope()
-    val libraryAlbum by database.album(originalAlbum.id).collectAsState(initial = originalAlbum)
+    val libraryAlbum by database.album(originalAlbum.id).collectAsStateWithLifecycle(initialValue = originalAlbum)
     val album = libraryAlbum ?: originalAlbum
     var songs by remember {
         mutableStateOf(emptyList<Song>())

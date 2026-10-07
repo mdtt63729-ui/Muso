@@ -67,6 +67,7 @@ import com.muso.music.ui.menu.YouTubeSongMenu
 import com.muso.music.ui.menu.YouTubeSongSelectionMenu
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.ArtistItemsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -78,15 +79,15 @@ fun ArtistItemsScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
 
-    val title by viewModel.title.collectAsState()
-    val itemsPage by viewModel.itemsPage.collectAsState()
+    val title by viewModel.title.collectAsStateWithLifecycle()
+    val itemsPage by viewModel.itemsPage.collectAsStateWithLifecycle()
     val songIndex: Map<String, SongItem> by remember(itemsPage) {
         derivedStateOf {
             itemsPage?.items

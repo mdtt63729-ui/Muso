@@ -109,7 +109,6 @@ fun BoxScope.MusoNavbarHost(
     val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
     val density = LocalDensity.current
     val miniPlayerHeight = when (miniPlayerStyle) {
-        MiniPlayerStyle.M3_FLEX -> 72.dp
         MiniPlayerStyle.CLASSIC -> 70.dp
         else -> 56.dp
     }
@@ -344,8 +343,8 @@ private fun ClassicArchiveTuneMiniPlayer(
         modifier = modifier.clickable(onClick = onOpenNowPlaying),
     ) {
         MusoClassicMiniPlayer(
-            position = position,
-            duration = duration,
+            position = { position },
+            duration = { duration },
             modifier = Modifier.fillMaxWidth(),
             pureBlack = pureBlack,
             navigationProximityProvider = { navigationProximity.coerceIn(0f, 1f) },

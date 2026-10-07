@@ -68,6 +68,7 @@ import java.time.LocalDateTime
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.round
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun PlayerMenu(
@@ -81,11 +82,11 @@ fun PlayerMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val playerVolume = playerConnection.service.playerVolume.collectAsState()
+    val playerVolume = playerConnection.service.playerVolume.collectAsStateWithLifecycle()
     val activityResultLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
-    val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
+    val librarySong by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
 
-    val download by LocalDownloadUtil.current.getDownload(mediaMetadata.id).collectAsState(initial = null)
+    val download by LocalDownloadUtil.current.getDownload(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
 
     val artists = remember(mediaMetadata.artists) {
         mediaMetadata.artists.filter { it.id != null }
@@ -116,7 +117,7 @@ fun PlayerMenu(
         ListDialog(
             onDismiss = { showSelectArtistDialog = false }
         ) {
-            items(artists) { artist ->
+            items(artists, key = { it.id }) { artist ->
                 Box(
                     contentAlignment = Alignment.CenterStart,
                     modifier = Modifier

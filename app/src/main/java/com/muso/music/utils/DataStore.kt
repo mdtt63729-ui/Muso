@@ -9,24 +9,75 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.muso.music.extensions.toEnum
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.properties.ReadOnlyProperty
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? =
-    runBlocking(Dispatchers.IO) {
-        data.first()[key]
-    }
+/**
+ * In-memory mirror of the settings DataStore.
+ *
+ * The synchronous accessors below used to run `runBlocking(Dispatchers.IO)` on
+ * every read, which blocked the calling thread - usually the main thread - until
+ * the DataStore finished its file I/O. The mirror is primed once at application
+ * start ([primePreferences]) and then kept live by a single collector, so a read
+ * is a memory lookup instead of an I/O wait.
+ */
+private object PreferencesSnapshot {
+    private val snapshots =
+        java.util.concurrent.ConcurrentHashMap<DataStore<Preferences>, kotlinx.coroutines.flow.MutableStateFlow<Preferences?>>()
+    private val started = java.util.concurrent.ConcurrentHashMap.newKeySet<DataStore<Preferences>>()
+    private val scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>, defaultValue: T): T =
-    runBlocking(Dispatchers.IO) {
-        data.first()[key] ?: defaultValue
+    fun current(dataStore: DataStore<Preferences>): Preferences? = snapshots[dataStore]?.value
+
+    /**
+     * Starts the one live collector for [dataStore] and loads the first snapshot
+     * synchronously. Called from Application.onCreate, before any activity or
+     * service can read a preference, so the blocking read happens exactly once -
+     * at startup - instead of on every accessor call.
+     */
+    fun prime(dataStore: DataStore<Preferences>) {
+        val flow = snapshots.getOrPut(dataStore) { kotlinx.coroutines.flow.MutableStateFlow(null) }
+        if (!started.add(dataStore)) return
+        scope.launch {
+            dataStore.data.collect { flow.value = it }
+        }
+        runCatching { flow.value = runBlocking(Dispatchers.IO) { dataStore.data.first() } }
     }
+}
+
+/** Primes the settings mirror. Call once from Application.onCreate. */
+fun primePreferences(context: Context) {
+    PreferencesSnapshot.prime(context.dataStore)
+}
+
+operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? {
+    val snapshot = PreferencesSnapshot.current(this)
+    return try {
+        snapshot?.let { it[key] } ?: runBlocking(Dispatchers.IO) { data.first()[key] }
+    } catch (e: ClassCastException) {
+        // A value stored under this name with a different type - two layers declaring
+        // the same key name as different types, see docs/PHASE9_SETTINGS.md - makes the
+        // typed read throw. A preference read must never crash the app.
+        null
+    }
+}
+
+fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>, defaultValue: T): T {
+    val snapshot = PreferencesSnapshot.current(this)
+    return try {
+        snapshot?.let { it[key] } ?: runBlocking(Dispatchers.IO) { data.first()[key] }
+    } catch (e: ClassCastException) {
+        null
+    } ?: defaultValue
+}
 
 fun <T> preference(
     context: Context,
@@ -50,9 +101,9 @@ fun <T> rememberPreference(
 
     val state = remember {
         context.dataStore.data
-            .map { it[key] ?: defaultValue }
+            .map { prefs -> runCatching { prefs[key] }.getOrNull() ?: defaultValue }
             .distinctUntilChanged()
-    }.collectAsState(context.dataStore[key] ?: defaultValue)
+    }.collectAsStateWithLifecycle(context.dataStore[key] ?: defaultValue)
 
     return remember {
         object : MutableState<T> {
@@ -83,9 +134,9 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
     val initialValue = context.dataStore[key].toEnum(defaultValue = defaultValue)
     val state = remember {
         context.dataStore.data
-            .map { it[key].toEnum(defaultValue = defaultValue) }
+            .map { prefs -> runCatching { prefs[key] }.getOrNull().toEnum(defaultValue = defaultValue) }
             .distinctUntilChanged()
-    }.collectAsState(initialValue)
+    }.collectAsStateWithLifecycle(initialValue)
 
     return remember {
         object : MutableState<T> {

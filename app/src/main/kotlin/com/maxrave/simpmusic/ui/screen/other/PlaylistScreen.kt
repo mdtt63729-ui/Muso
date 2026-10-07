@@ -252,8 +252,8 @@ fun PlaylistScreen(
     val playingTrack by sharedViewModel.nowPlayingState
         .mapLatest {
             it?.songEntity
-        }.collectAsState(initial = null)
-    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsState(initial = false)
+        }.collectAsStateWithLifecycle(initialValue = null)
+    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsStateWithLifecycle(initialValue = false)
 
     var currentItem by remember {
         mutableStateOf<Track?>(null)

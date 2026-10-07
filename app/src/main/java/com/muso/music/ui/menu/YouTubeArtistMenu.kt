@@ -26,6 +26,7 @@ import com.muso.music.ui.component.GridMenu
 import com.muso.music.ui.component.GridMenuItem
 import com.muso.music.ui.component.YouTubeListItem
 import java.time.LocalDateTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun YouTubeArtistMenu(
@@ -35,7 +36,7 @@ fun YouTubeArtistMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val libraryArtist by database.artist(artist.id).collectAsState(initial = null)
+    val libraryArtist by database.artist(artist.id).collectAsStateWithLifecycle(initialValue = null)
 
     YouTubeListItem(
         item = artist,

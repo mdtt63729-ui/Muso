@@ -35,6 +35,7 @@ import com.muso.music.ui.component.shimmer.ShimmerHost
 import com.muso.music.ui.menu.YouTubeAlbumMenu
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.NewReleaseViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -47,10 +48,10 @@ fun NewReleaseScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
 
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val newReleaseAlbums by viewModel.newReleaseAlbums.collectAsState()
+    val newReleaseAlbums by viewModel.newReleaseAlbums.collectAsStateWithLifecycle()
 
     val coroutineScope = rememberCoroutineScope()
 

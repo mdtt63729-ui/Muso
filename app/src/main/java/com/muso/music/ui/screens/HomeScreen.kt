@@ -109,6 +109,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.min
 import kotlin.random.Random
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -121,22 +122,22 @@ fun HomeScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
 
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val quickPicks by viewModel.quickPicks.collectAsState()
-    val forgottenFavorites by viewModel.forgottenFavorites.collectAsState()
-    val keepListening by viewModel.keepListening.collectAsState()
-    val similarRecommendations by viewModel.similarRecommendations.collectAsState()
-    val accountPlaylists by viewModel.accountPlaylists.collectAsState()
-    val homePage by viewModel.homePage.collectAsState()
-    val explorePage by viewModel.explorePage.collectAsState()
+    val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
+    val forgottenFavorites by viewModel.forgottenFavorites.collectAsStateWithLifecycle()
+    val keepListening by viewModel.keepListening.collectAsStateWithLifecycle()
+    val similarRecommendations by viewModel.similarRecommendations.collectAsStateWithLifecycle()
+    val accountPlaylists by viewModel.accountPlaylists.collectAsStateWithLifecycle()
+    val homePage by viewModel.homePage.collectAsStateWithLifecycle()
+    val explorePage by viewModel.explorePage.collectAsStateWithLifecycle()
 
-    val allLocalItems by viewModel.allLocalItems.collectAsState()
-    val allYtItems by viewModel.allYtItems.collectAsState()
+    val allLocalItems by viewModel.allLocalItems.collectAsStateWithLifecycle()
+    val allYtItems by viewModel.allYtItems.collectAsStateWithLifecycle()
 
-    val isLoading by viewModel.isLoading.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val pullRefreshState = rememberPullToRefreshState()
 
     val quickPicksLazyGridState = rememberLazyGridState()
@@ -164,7 +165,7 @@ fun HomeScreen(
         }
     }
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
+    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsStateWithLifecycle()
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {
@@ -358,14 +359,14 @@ fun HomeScreen(
         ) {
 
             quickPicks?.takeIf { it.isNotEmpty() }?.let { quickPicks ->
-                item {
+                item(key = "quickPicks_title") {
                     NavigationTitle(
                         title = stringResource(R.string.quick_picks),
                         modifier = Modifier.animateItem()
                     )
                 }
 
-                item {
+                item(key = "quickPicks_grid") {
                     LazyHorizontalGrid(
                         state = quickPicksLazyGridState,
                         rows = GridCells.Fixed(4),
@@ -383,7 +384,7 @@ fun HomeScreen(
                             key = { it.id }
                         ) { originalSong ->
                             // fetch song from database to keep updated
-                            val song by database.song(originalSong.id).collectAsState(initial = originalSong)
+                            val song by database.song(originalSong.id).collectAsStateWithLifecycle(initialValue = originalSong)
 
                             SongListItem(
                                 song = song!!,
@@ -418,14 +419,14 @@ fun HomeScreen(
             }
 
             forgottenFavorites?.takeIf { it.isNotEmpty() }?.let { forgottenFavorites ->
-                item {
+                item(key = "forgottenFavorites_title") {
                     NavigationTitle(
                         title = stringResource(R.string.forgotten_favorites),
                         modifier = Modifier.animateItem()
                     )
                 }
 
-                item {
+                item(key = "forgottenFavorites_grid") {
                     // take min in case list size is less than 4
                     val rows = min(4, forgottenFavorites.size)
                     LazyHorizontalGrid(
@@ -444,7 +445,7 @@ fun HomeScreen(
                             items = forgottenFavorites,
                             key = { it.id }
                         ) { originalSong ->
-                            val song by database.song(originalSong.id).collectAsState(initial = originalSong)
+                            val song by database.song(originalSong.id).collectAsStateWithLifecycle(initialValue = originalSong)
 
                             SongListItem(
                                 song = song!!,
@@ -479,14 +480,14 @@ fun HomeScreen(
             }
 
             keepListening?.takeIf { it.isNotEmpty() }?.let { keepListening ->
-                item {
+                item(key = "keepListening_title") {
                     NavigationTitle(
                         title = stringResource(R.string.keep_listening),
                         modifier = Modifier.animateItem()
                     )
                 }
 
-                item {
+                item(key = "keepListening_grid") {
                     val rows = if (keepListening.size > 6) 2 else 1
                     LazyHorizontalGrid(
                         state = rememberLazyGridState(),
@@ -499,7 +500,7 @@ fun HomeScreen(
                             }) * rows)
                             .animateItem()
                     ) {
-                        items(keepListening) {
+                        items(keepListening, key = { it.id }) {
                             localGridItem(it)
                         }
                     }
@@ -507,7 +508,7 @@ fun HomeScreen(
             }
 
             accountPlaylists?.takeIf { it.isNotEmpty() }?.let { accountPlaylists ->
-                item {
+                item(key = "accountPlaylists_title") {
                     NavigationTitle(
                         title = stringResource(R.string.your_youtube_playlists),
                         onClick = {
@@ -517,7 +518,7 @@ fun HomeScreen(
                     )
                 }
 
-                item {
+                item(key = "accountPlaylists_row") {
                     LazyRow(
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
@@ -535,7 +536,7 @@ fun HomeScreen(
             }
 
             similarRecommendations?.forEach {
-                item {
+                item(key = "similar_${it.title.id}_title") {
                     NavigationTitle(
                         label = stringResource(R.string.similar_to),
                         title = it.title.title,
@@ -563,28 +564,28 @@ fun HomeScreen(
                     )
                 }
 
-                item {
+                item(key = "similar_${it.title.id}_row") {
                     LazyRow(
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
                             .asPaddingValues(),
                         modifier = Modifier.animateItem()
                     ) {
-                        items(it.items) { item ->
+                        items(it.items, key = { it.id }) { item ->
                             ytGridItem(item)
                         }
                     }
                 }
             }
 
-            homePage?.sections?.forEach {
-                item {
+            homePage?.sections?.forEachIndexed { index, section ->
+                item(key = "home_section_${index}_title") {
                     NavigationTitle(
-                        title = it.title,
-                        label = it.label,
-                        thumbnail = it.thumbnail?.let { thumbnailUrl ->
+                        title = section.title,
+                        label = section.label,
+                        thumbnail = section.thumbnail?.let { thumbnailUrl ->
                             {
-                                val shape = if (it.endpoint?.isArtistEndpoint == true) CircleShape else RoundedCornerShape(ThumbnailCornerRadius)
+                                val shape = if (section.endpoint?.isArtistEndpoint == true) CircleShape else RoundedCornerShape(ThumbnailCornerRadius)
                                 AsyncImage(
                                     model = thumbnailUrl,
                                     contentDescription = null,
@@ -598,14 +599,14 @@ fun HomeScreen(
                     )
                 }
 
-                item {
+                item(key = "home_section_${index}_row") {
                     LazyRow(
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
                             .asPaddingValues(),
                         modifier = Modifier.animateItem()
                     ) {
-                        items(it.items) { item ->
+                        items(section.items, key = { it.id }) { item ->
                             ytGridItem(item)
                         }
                     }
@@ -613,7 +614,7 @@ fun HomeScreen(
             }
 
             explorePage?.newReleaseAlbums?.let { newReleaseAlbums ->
-                item {
+                item(key = "newReleaseAlbums_title") {
                     NavigationTitle(
                         title = stringResource(R.string.new_release_albums),
                         onClick = {
@@ -623,7 +624,7 @@ fun HomeScreen(
                     )
                 }
 
-                item {
+                item(key = "newReleaseAlbums_row") {
                     LazyRow(
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
@@ -663,7 +664,7 @@ fun HomeScreen(
             }
 
             explorePage?.moodAndGenres?.let { moodAndGenres ->
-                item {
+                item(key = "moodAndGenres_title") {
                     NavigationTitle(
                         title = stringResource(R.string.mood_and_genres),
                         onClick = {
@@ -673,7 +674,7 @@ fun HomeScreen(
                     )
                 }
 
-                item {
+                item(key = "moodAndGenres_grid") {
                     LazyHorizontalGrid(
                         rows = GridCells.Fixed(4),
                         contentPadding = PaddingValues(6.dp),
@@ -681,7 +682,7 @@ fun HomeScreen(
                             .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp)
                             .animateItem()
                     ) {
-                        items(moodAndGenres) {
+                        items(moodAndGenres, key = { it.endpoint.browseId }) {
                             MoodAndGenresButton(
                                 title = it.title,
                                 onClick = {
@@ -697,7 +698,7 @@ fun HomeScreen(
             }
 
             if (isLoading) {
-                item {
+                item(key = "loading") {
                     ShimmerHost(
                         modifier = Modifier.animateItem()
                     ) {

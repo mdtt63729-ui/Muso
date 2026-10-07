@@ -112,6 +112,7 @@ import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.viewmodels.LyricsRenderScreenState
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private const val LRC_LEAD_MS = 300L
 private const val WORD_SYNC_LEAD_MS = 0L
@@ -135,8 +136,8 @@ fun LyricsEnhanced(
     val context = LocalContext.current
     val animationsDisabled = LocalAnimationsDisabled.current
 
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val playbackParameters by playerConnection.playbackParameters.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val playbackParameters by playerConnection.playbackParameters.collectAsStateWithLifecycle()
 
     val preparedLyrics = (lyricsState as? LyricsRenderScreenState.Success)?.lyrics
     val preferences = preparedLyrics?.preferences

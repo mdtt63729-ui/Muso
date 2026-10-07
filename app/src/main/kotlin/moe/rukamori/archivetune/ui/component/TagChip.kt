@@ -41,6 +41,7 @@ import androidx.core.graphics.toColorInt
 import com.muso.music.R
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.TagEntity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -51,7 +52,7 @@ fun PlaylistTagChips(
     onTagClick: ((TagEntity) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val tags by database.playlistTags(playlistId).collectAsState(initial = emptyList())
+    val tags by database.playlistTags(playlistId).collectAsStateWithLifecycle(initialValue = emptyList())
 
     if (tags.isNotEmpty()) {
         FlowRow(
@@ -190,7 +191,7 @@ fun TagsFilterChips(
     onTagToggle: (TagEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val allTags by database.allTags().collectAsState(initial = emptyList())
+    val allTags by database.allTags().collectAsStateWithLifecycle(initialValue = emptyList())
 
     if (allTags.isNotEmpty()) {
         FlowRow(

@@ -42,6 +42,7 @@ import com.muso.music.ui.component.EmptyPlaceholder
 import com.muso.music.utils.makeTimeString
 import com.muso.music.viewmodels.PodcastViewModel
 import com.muso.music.viewmodels.UploadedViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Podcast episode list (ReTune port, online): episodes of a subscribed show; tapping one
@@ -52,7 +53,7 @@ fun PodcastScreen(
     navController: NavController,
     viewModel: PodcastViewModel = hiltViewModel(),
 ) {
-    val episodes by viewModel.episodes.collectAsState()
+    val episodes by viewModel.episodes.collectAsStateWithLifecycle()
     OnlineSongsScreen(
         navController = navController,
         title = stringResource(R.string.filter_podcasts),
@@ -66,7 +67,7 @@ fun UploadedScreen(
     navController: NavController,
     viewModel: UploadedViewModel = hiltViewModel(),
 ) {
-    val songs by viewModel.songs.collectAsState()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
     OnlineSongsScreen(
         navController = navController,
         title = stringResource(R.string.uploaded),

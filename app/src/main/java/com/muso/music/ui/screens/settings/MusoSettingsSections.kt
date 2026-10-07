@@ -496,8 +496,6 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
             valueText = {
                 when (it) {
                     MiniPlayerStyle.MINIFY -> stringResource(R.string.mini_player_style_minify)
-                    MiniPlayerStyle.FLAT -> stringResource(R.string.mini_player_style_flat)
-                    MiniPlayerStyle.M3_FLEX -> stringResource(R.string.mini_player_style_m3_flex)
                     MiniPlayerStyle.CLASSIC -> stringResource(R.string.mini_player_style_classic)
                 }
             },

@@ -44,6 +44,7 @@ import com.muso.music.constants.MiniPlayerHeight
 import com.muso.music.constants.ThumbnailCornerRadius
 import com.muso.music.extensions.togglePlayPause
 import com.muso.music.models.MediaMetadata
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun MiniPlayer(
@@ -52,11 +53,11 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val playbackState by playerConnection.playbackState.collectAsState()
-    val error by playerConnection.error.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val canSkipNext by playerConnection.canSkipNext.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
+    val error by playerConnection.error.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier

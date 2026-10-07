@@ -69,6 +69,7 @@ import com.muso.music.ui.component.SongListItem
 import com.muso.music.ui.component.TextFieldDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SongMenu(
@@ -81,9 +82,9 @@ fun SongMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val songState = database.song(originalSong.id).collectAsState(initial = originalSong)
+    val songState = database.song(originalSong.id).collectAsStateWithLifecycle(initialValue = originalSong)
     val song = songState.value ?: originalSong
-    val download by LocalDownloadUtil.current.getDownload(originalSong.id).collectAsState(initial = null)
+    val download by LocalDownloadUtil.current.getDownload(originalSong.id).collectAsStateWithLifecycle(initialValue = null)
 
     val scope = rememberCoroutineScope()
     var refetchIconDegree by remember { mutableFloatStateOf(0f) }

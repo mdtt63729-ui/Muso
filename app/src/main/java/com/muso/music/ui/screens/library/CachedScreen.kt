@@ -43,6 +43,7 @@ import com.muso.music.ui.component.SongListItem
 import com.muso.music.ui.menu.SongMenu
 import com.muso.music.viewmodels.CachedViewModel
 import kotlin.random.Random
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Songs that are fully present in the streaming cache — playable offline for as long as
@@ -57,10 +58,10 @@ fun CachedScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val songs by viewModel.songs.collectAsState()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
     val title = stringResource(R.string.cached)
 
     LazyColumn(

@@ -94,6 +94,7 @@ import com.muso.music.ui.utils.fadingEdge
 import com.muso.music.ui.utils.resize
 import com.muso.music.viewmodels.ArtistViewModel
 import java.time.LocalDateTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -108,12 +109,12 @@ fun ArtistScreen(
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val artistPage = viewModel.artistPage
-    val libraryArtist by viewModel.libraryArtist.collectAsState()
-    val librarySongs by viewModel.librarySongs.collectAsState()
+    val libraryArtist by viewModel.libraryArtist.collectAsStateWithLifecycle()
+    val librarySongs by viewModel.librarySongs.collectAsStateWithLifecycle()
 
     val lazyListState = rememberLazyListState()
 

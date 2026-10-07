@@ -86,6 +86,7 @@ import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.utils.makeTimeString
 import moe.rukamori.archivetune.utils.rememberPreference
 import kotlin.math.roundToInt
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -257,8 +258,8 @@ fun DebugSettings(navController: NavController) {
 
 @Composable
 private fun DiscordDebugSection() {
-    val lastStartTs: Long? by DiscordPresenceManager.lastRpcStartTimeFlow.collectAsState(initial = null)
-    val lastEndTs: Long? by DiscordPresenceManager.lastRpcEndTimeFlow.collectAsState(initial = null)
+    val lastStartTs: Long? by DiscordPresenceManager.lastRpcStartTimeFlow.collectAsStateWithLifecycle(initialValue = null)
+    val lastEndTs: Long? by DiscordPresenceManager.lastRpcEndTimeFlow.collectAsStateWithLifecycle(initialValue = null)
     val lastStart: String = lastStartTs?.let { makeTimeString(it) } ?: "—"
     val lastEnd: String = lastEndTs?.let { makeTimeString(it) } ?: "—"
     val isRunning = DiscordPresenceManager.isRunning()
@@ -432,8 +433,8 @@ private fun DebugTimestampItem(
 private fun NerdStatsSection(playerConnection: moe.rukamori.archivetune.playback.PlayerConnection?) {
     if (playerConnection == null) return
 
-    val currentFormat by playerConnection.currentFormat.collectAsState(initial = null)
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val currentFormat by playerConnection.currentFormat.collectAsStateWithLifecycle(initialValue = null)
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val player = playerConnection.player
 
     var bufferPercentage by remember { mutableStateOf(0) }

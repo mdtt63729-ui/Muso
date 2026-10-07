@@ -34,6 +34,7 @@ import com.muso.music.ui.component.shimmer.ShimmerHost
 import com.muso.music.ui.menu.YouTubePlaylistMenu
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.AccountViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -47,7 +48,7 @@ fun AccountScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
-    val playlists by viewModel.playlists.collectAsState()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = GridThumbnailHeight + 24.dp),

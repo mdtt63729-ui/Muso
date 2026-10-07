@@ -53,6 +53,7 @@ import moe.rukamori.archivetune.constants.PlaylistSortType
 import moe.rukamori.archivetune.db.entities.Playlist
 import moe.rukamori.archivetune.ui.component.IconButton
 import moe.rukamori.archivetune.ui.utils.backToMain
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +63,7 @@ fun HiddenPlaylistsScreen(navController: NavController) {
         .playlists(
             PlaylistSortType.CREATE_DATE,
             descending = true,
-        ).collectAsState(initial = emptyList())
+        ).collectAsStateWithLifecycle(initialValue = emptyList())
 
     val hiddenPlaylists = allPlaylists.filter { it.playlist.isHidden }
 

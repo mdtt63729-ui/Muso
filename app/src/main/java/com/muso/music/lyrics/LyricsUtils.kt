@@ -1,12 +1,19 @@
 package com.muso.music.lyrics
 
 import android.text.format.DateUtils
-import com.muso.music.ui.component.animateScrollDuration
+
+/**
+ * Scroll-animation lead time (ms) used when picking the line being sung.
+ *
+ * Moved here from the retired ui/component/Lyrics.kt renderer: this is the only
+ * symbol from that file anything still used.
+ */
+const val animateScrollDuration = 300L
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
-    val LINE_REGEX = "((\\[\\d\\d:\\d\\d\\.\\d{2,3}\\])+)(.+)".toRegex()
-    val TIME_REGEX = "\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\]".toRegex()
+    val LINE_REGEX = "((\\[\\d{1,2}:\\d{1,2}(?:[.:]\\d{1,3})?\\])+)(.+)".toRegex()
+    val TIME_REGEX = "\\[(\\d{1,2}):(\\d{1,2})(?:[.:](\\d{1,3}))?\\]".toRegex()
 
     // LRC metadata tags - [ar:], [ti:], [by:], [re:], [ve:], [offset:], [length:]...
     // They are file headers, never lyrics: always dropped.
@@ -65,21 +72,35 @@ object LyricsUtils {
             val min = timeMatchResult.groupValues[1].toLong()
             val sec = timeMatchResult.groupValues[2].toLong()
             val milString = timeMatchResult.groupValues[3]
-            var mil = milString.toLong()
-            if (milString.length == 2) {
-                mil *= 10
+            // The fraction is optional in LRC and may be written with 1-3 digits
+            // (tenths / hundredths / thousandths); the older format also separates
+            // it with a colon instead of a dot. All of those used to be dropped.
+            val mil = when (milString.length) {
+                0 -> 0L
+                1 -> milString.toLong() * 100
+                2 -> milString.toLong() * 10
+                else -> milString.toLong()
             }
             val time = min * DateUtils.MINUTE_IN_MILLIS + sec * DateUtils.SECOND_IN_MILLIS + mil
             LyricsEntry(time, text)
         }.toList()
     }
 
+    /**
+     * Index of the line being sung at [position], or -1 before the first line.
+     * [lines] must be sorted by time, which [parseLyrics] guarantees.
+     *
+     * Binary search: this is called on every playback-position tick, so the old
+     * linear scan cost O(lines) per tick.
+     */
     fun findCurrentLineIndex(lines: List<LyricsEntry>, position: Long): Int {
-        for (index in lines.indices) {
-            if (lines[index].time >= position + animateScrollDuration) {
-                return index - 1
-            }
+        val target = position + animateScrollDuration
+        var lo = 0
+        var hi = lines.size
+        while (lo < hi) {
+            val mid = (lo + hi) / 2
+            if (lines[mid].time >= target) hi = mid else lo = mid + 1
         }
-        return lines.lastIndex
+        return if (lo == lines.size) lines.lastIndex else lo - 1
     }
 }

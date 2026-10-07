@@ -56,6 +56,7 @@ import com.muso.music.ui.menu.YouTubeSongMenu
 import com.muso.music.viewmodels.OnlineSearchSuggestionViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun OnlineSearchScreen(
@@ -78,10 +79,10 @@ fun OnlineSearchScreen(
 
     val scope = rememberCoroutineScope()
 
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val viewState by viewModel.viewState.collectAsState()
+    val viewState by viewModel.viewState.collectAsStateWithLifecycle()
 
     val lazyListState = rememberLazyListState()
 

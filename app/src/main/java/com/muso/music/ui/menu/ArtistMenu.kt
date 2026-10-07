@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun ArtistMenu(
@@ -40,7 +41,7 @@ fun ArtistMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val artistState = database.artist(originalArtist.id).collectAsState(initial = originalArtist)
+    val artistState = database.artist(originalArtist.id).collectAsStateWithLifecycle(initialValue = originalArtist)
     val artist = artistState.value ?: originalArtist
 
     ArtistListItem(

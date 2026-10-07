@@ -148,12 +148,12 @@ fun PlayerMenu(
         }
     val activityResultLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
-    val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
+    val librarySong by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
     val coroutineScope = rememberCoroutineScope()
 
     val download by LocalDownloadUtil.current
         .getDownload(mediaMetadata.id)
-        .collectAsState(initial = null)
+        .collectAsStateWithLifecycle(initialValue = null)
 
     val artists =
         remember(mediaMetadata.artists) {
@@ -245,7 +245,7 @@ fun PlayerMenu(
         ListDialog(
             onDismiss = { showSelectArtistDialog = false },
         ) {
-            items(splitArtists.distinctBy { it.name }) { splitArtist ->
+            items(splitArtists.distinctBy { it.name }, key = { it.name }) { splitArtist ->
                 ListItem(
                     headlineContent = {
                         Text(
@@ -982,7 +982,7 @@ fun PlayerMenu(
                                 )
                             },
                             supportingContent = {
-                                val playbackParameters by playerConnection.playbackParameters.collectAsState()
+                                val playbackParameters by playerConnection.playbackParameters.collectAsStateWithLifecycle()
                                 Text(
                                     text = "x${formatMultiplier(
                                         playbackParameters.speed,

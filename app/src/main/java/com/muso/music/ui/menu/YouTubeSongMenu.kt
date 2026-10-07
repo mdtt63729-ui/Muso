@@ -63,6 +63,7 @@ import com.muso.music.ui.component.ListItem
 import com.muso.music.utils.joinByBullet
 import com.muso.music.utils.makeTimeString
 import java.time.LocalDateTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun YouTubeSongMenu(
@@ -73,8 +74,8 @@ fun YouTubeSongMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val librarySong by database.song(song.id).collectAsState(initial = null)
-    val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
+    val librarySong by database.song(song.id).collectAsStateWithLifecycle(initialValue = null)
+    val download by LocalDownloadUtil.current.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
     val artists = remember {
         song.artists.mapNotNull {
             it.id?.let { artistId ->
@@ -106,7 +107,7 @@ fun YouTubeSongMenu(
         ListDialog(
             onDismiss = { showSelectArtistDialog = false }
         ) {
-            items(artists) { artist ->
+            items(artists, key = { it.id }) { artist ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

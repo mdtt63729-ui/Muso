@@ -16,7 +16,7 @@ data class LyricsEntry(
     val text: String,
     val words: List<LyricsWord> = emptyList(),
 ) : Comparable<LyricsEntry> {
-    override fun compareTo(other: LyricsEntry): Int = (time - other.time).toInt()
+    override fun compareTo(other: LyricsEntry): Int = time.compareTo(other.time)
 
     companion object {
         val HEAD_LYRICS_ENTRY = LyricsEntry(0L, "")

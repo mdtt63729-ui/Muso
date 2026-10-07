@@ -65,8 +65,8 @@ private const val MiniPlayerPaletteCacheSize = 24
 
 @Composable
 fun MusoClassicMiniPlayer(
-    position: Long,
-    duration: Long,
+    position: () -> Long,
+    duration: () -> Long,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
     navigationProximityProvider: () -> Float = { 0f },
@@ -88,8 +88,8 @@ fun MusoClassicMiniPlayer(
 
 @Composable
 private fun NewMiniPlayer(
-    position: Long,
-    duration: Long,
+    position: () -> Long,
+    duration: () -> Long,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
     navigationProximityProvider: () -> Float,

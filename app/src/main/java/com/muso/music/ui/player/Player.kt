@@ -64,6 +64,7 @@ import com.muso.music.utils.rememberPreference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * MUSO PLAYER — SimpMusic suite only.
@@ -101,9 +102,9 @@ fun BottomSheetPlayer(
 
     val keepScreenOn by rememberPreference(KeepScreenOnKey, defaultValue = false)
 
-    val playbackState by playerConnection.playbackState.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
 
     var position by rememberSaveable(playbackState) {
         mutableLongStateOf(playerConnection.player.currentPosition)
@@ -112,7 +113,12 @@ fun BottomSheetPlayer(
         mutableLongStateOf(playerConnection.player.duration)
     }
 
-    LaunchedEffect(playbackState) {
+    // The position tick exists only for the collapsed mini player's progress bar.
+    // That mini player is not rendered anywhere - showCollapsedMiniPlayer is false
+    // at the only call site - so the old unconditional loop recomposed this whole
+    // player sheet 10x/second for two values nothing read.
+    LaunchedEffect(playbackState, showCollapsedMiniPlayer) {
+        if (!showCollapsedMiniPlayer) return@LaunchedEffect
         if (playbackState == Player.STATE_READY) {
             while (isActive) {
                 delay(100)
@@ -202,7 +208,7 @@ fun BottomSheetPlayer(
         // The stored format (written on first play) is the reliable source of the
         // stream's real bitrate - the media3 track format often carries none for
         // progressive streams, which is why the pill used to show no kbps.
-        val dbFormat by database.format(mediaMetadata?.id).collectAsState(initial = null)
+        val dbFormat by database.format(mediaMetadata?.id).collectAsStateWithLifecycle(initialValue = null)
         val codecLabel = remember(currentAudioFormat, dbFormat) {
             formatAudioInfo(currentAudioFormat, dbFormat)
         }

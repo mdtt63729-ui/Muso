@@ -106,6 +106,7 @@ import moe.rukamori.archivetune.utils.parseSpeedDialPins
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.utils.serializeSpeedDialPins
 import moe.rukamori.archivetune.utils.toggleSpeedDialPin
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MutableCollectionMutableState")
@@ -124,7 +125,7 @@ fun YouTubePlaylistMenu(
     val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val syncUtils = LocalSyncUtils.current
-    val dbPlaylist by database.playlistByBrowseId(playlist.id).collectAsState(initial = null)
+    val dbPlaylist by database.playlistByBrowseId(playlist.id).collectAsStateWithLifecycle(initialValue = null)
     val (speedDialSongIds, onSpeedDialSongIdsChange) = rememberPreference(SpeedDialSongIdsKey, "")
     val speedDialPins = remember(speedDialSongIds) { parseSpeedDialPins(speedDialSongIds) }
     val playlistPin =
@@ -428,7 +429,7 @@ fun YouTubePlaylistMenu(
                 )
             }
 
-            items(notAddedList) { song ->
+            items(notAddedList, key = { it.videoId }) { song ->
                 ListItem(
                     headlineContent = { Text(text = song.title) },
                     leadingContent = {

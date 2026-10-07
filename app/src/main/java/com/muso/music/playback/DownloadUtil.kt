@@ -445,13 +445,64 @@ class DownloadUtil @Inject constructor(
 
     fun getDownload(songId: String?): Flow<Download?> = downloads.map { it[songId] }
 
-    init {
-        val result = mutableMapOf<String, Download>()
-        val cursor = downloadManager.downloadIndex.getDownloads()
-        while (cursor.moveToNext()) {
-            result[cursor.download.request.id] = cursor.download
+    /**
+     * media3 reports download progress several times a second per active download.
+     * Only republish when something the UI actually shows has moved - the state, or
+     * the whole-percent progress. Every other tick is a duplicate that would copy the
+     * whole map and recompose every download row and button.
+     */
+    private fun shouldPublishDownload(previous: Download?, next: Download): Boolean {
+        if (previous == null) return true
+        if (previous.state != next.state) return true
+        if (next.state != Download.STATE_DOWNLOADING) return true
+        val oldPercent = previous.percentDownloaded
+        val newPercent = next.percentDownloaded
+        if (oldPercent == androidx.media3.common.C.PERCENTAGE_UNSET ||
+            newPercent == androidx.media3.common.C.PERCENTAGE_UNSET
+        ) {
+            return true
         }
-        downloads.value = result
+        return oldPercent.toInt() != newPercent.toInt()
+    }
+
+    init {
+        // Reading the persisted download index touches the download-index database.
+        // DownloadUtil is a @Singleton injected into MainActivity, so this init ran on
+        // the main thread and blocked startup. The read - and the artwork retention
+        // that depends on its result - now happen on cacheScope.
+        cacheScope.launch {
+            val result = mutableMapOf<String, Download>()
+            runCatching {
+                val cursor = downloadManager.downloadIndex.getDownloads()
+                while (cursor.moveToNext()) {
+                    result[cursor.download.request.id] = cursor.download
+                }
+            }
+            downloads.value = result
+
+            // Offline artwork (user request): keep a high-quality thumbnail on
+            // disk for every downloaded OR fully player-cached song so thumbnails
+            // survive with no network. Existing files are kept as-is, so this only
+            // performs actual downloads for songs that don't have artwork yet.
+            runCatching {
+                val downloadedIds = result.keys
+                // Failure-safe: if the player cache cannot be listed, skip the
+                // retention pass entirely instead of pruning cached songs' artwork.
+                val fullyCachedIds = runCatching {
+                    playerCache.keys.filter { id -> playerCache.isCached(id, 0, Long.MAX_VALUE) }
+                }.getOrNull()
+                if (fullyCachedIds != null) {
+                    runCatching {
+                        artworkRepository.retainForDownloads(downloadedIds + fullyCachedIds)
+                    }
+                }
+                (downloadedIds.filter { id -> result[id]?.state == Download.STATE_COMPLETED } + (fullyCachedIds ?: emptyList()))
+                    .distinct()
+                    .forEach { songId ->
+                        runCatching { cacheArtworkForSong(songId) }
+                    }
+            }
+        }
         cacheScope.launch {
             RenderedCanvasVideoStore.renderedIds.collect { renderedIds ->
                 renderedIds.forEach { songId ->
@@ -464,6 +515,7 @@ class DownloadUtil @Inject constructor(
         downloadManager.addListener(
             object : DownloadManager.Listener {
                 override fun onDownloadChanged(downloadManager: DownloadManager, download: Download, finalException: Exception?) {
+                    if (!shouldPublishDownload(downloads.value[download.request.id], download)) return
                     downloads.update { map ->
                         map.toMutableMap().apply {
                             set(download.request.id, download)
@@ -499,29 +551,6 @@ class DownloadUtil @Inject constructor(
                 }
             }
         )
-
-        // Offline artwork (user request): keep a high-quality thumbnail on
-        // disk for every downloaded OR fully player-cached song so thumbnails
-        // survive with no network. Existing files are kept as-is, so this only
-        // performs actual downloads for songs that don't have artwork yet.
-        cacheScope.launch {
-            val downloadedIds = result.keys
-            // Failure-safe: if the player cache cannot be listed, skip the
-            // retention pass entirely instead of pruning cached songs' artwork.
-            val fullyCachedIds = runCatching {
-                playerCache.keys.filter { id -> playerCache.isCached(id, 0, Long.MAX_VALUE) }
-            }.getOrNull()
-            if (fullyCachedIds != null) {
-                runCatching {
-                    artworkRepository.retainForDownloads(downloadedIds + fullyCachedIds)
-                }
-            }
-            (downloadedIds.filter { id -> result[id]?.state == Download.STATE_COMPLETED } + (fullyCachedIds ?: emptyList()))
-                .distinct()
-                .forEach { songId ->
-                    runCatching { cacheArtworkForSong(songId) }
-                }
-        }
 
         // Echo Player and Audio: keep downloads waiting for Wi-Fi while enabled.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {

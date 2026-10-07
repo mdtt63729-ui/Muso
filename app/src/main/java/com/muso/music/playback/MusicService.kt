@@ -145,6 +145,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -1445,6 +1446,11 @@ class MusicService : MediaLibraryService(),
 
     override fun onDestroy() {
         com.muso.music.suite.SuitePlayerRegistry.player = null
+        // The service's own scopes were never cancelled: coroutines launched from the
+        // service (queue loading, crossfade, canvas preload) kept running against a
+        // destroyed service and held it alive.
+        scope.cancel()
+        canvasScope.cancel()
         volumeObserver?.let { contentResolver.unregisterContentObserver(it) }
         volumeObserver = null
         if (dataStore.get(PersistentQueueKey, true)) {

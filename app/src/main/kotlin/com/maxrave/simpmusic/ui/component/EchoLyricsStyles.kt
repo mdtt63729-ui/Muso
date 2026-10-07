@@ -49,6 +49,7 @@ import com.maxrave.simpmusic.extension.ParsedRichSyncLine
 import com.maxrave.simpmusic.ui.screen.player.content.stripRichSyncTimestamps
 import com.maxrave.simpmusic.ui.theme.typo
 import com.muso.music.constants.LyricsAnimationStyle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Ink of a word that has not been sung yet. */
 private val EchoPendingWordColor = Color(0xFF9E9E9E)
@@ -733,7 +734,7 @@ fun VideoEchoLyricsOverlay(
     if (lines.isEmpty()) return
 
     val lyricsOffsetMs by org.koin.compose.koinInject<com.maxrave.domain.manager.DataStoreManager>()
-        .lyricsOffsetMs.collectAsState(0)
+        .lyricsOffsetMs.collectAsStateWithLifecycle(0)
     val selectedStyle by com.muso.music.utils.rememberEnumPreference(
         key = com.muso.music.constants.LyricsAnimationStyleKey,
         defaultValue = LyricsAnimationStyle.LYRICS_V2,

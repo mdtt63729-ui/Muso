@@ -81,6 +81,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // Muso (PRD §8): the canvas loop segment, 5-15 seconds. 15 s = the allowed maximum.
 private const val CANVAS_LOOP_START_MS = 0L
@@ -349,7 +350,7 @@ fun MediaPlayerViewWithSubtitle(
     // correction the lyrics sheet does. timelineState is used for nothing else in this composable,
     // but it is subtracted at each read rather than up front so the parameter keeps meaning "where
     // the player is".
-    val lyricsOffsetMs by koinInject<DataStoreManager>().lyricsOffsetMs.collectAsState(0)
+    val lyricsOffsetMs by koinInject<DataStoreManager>().lyricsOffsetMs.collectAsStateWithLifecycle(0)
 
     var shouldEnterPipMode by rememberSaveable {
         mutableStateOf(false)

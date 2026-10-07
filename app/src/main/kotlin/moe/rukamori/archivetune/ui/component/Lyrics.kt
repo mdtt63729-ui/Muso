@@ -169,6 +169,7 @@ import moe.rukamori.archivetune.utils.reportException
 import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.time.Duration.Companion.seconds
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private val AppleMusicEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f)
 private val SmoothDecelerateEasing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
@@ -465,8 +466,8 @@ fun Lyrics(
         }
     val scope = rememberCoroutineScope()
 
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val lyricsEntity by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
     val lyrics = remember(lyricsEntity) { lyricsEntity?.lyrics?.trim() }
 
     val playerBackground by rememberEnumPreference(
@@ -1084,7 +1085,7 @@ fun Lyrics(
                                     val hasWordTimings = remember(item.words) { item.words?.isNotEmpty() == true }
                                     val romanizedText: String? =
                                         if (romanizationPreferences.isEnabled) {
-                                            val value by item.romanizedTextFlow.collectAsState()
+                                            val value by item.romanizedTextFlow.collectAsStateWithLifecycle()
                                             value
                                         } else {
                                             null

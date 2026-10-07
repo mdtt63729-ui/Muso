@@ -547,7 +547,7 @@ class MainActivity : ComponentActivity() {
 
                     val navController = rememberNavController()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val inSelectMode = navBackStackEntry?.savedStateHandle?.getStateFlow("inSelectMode", false)?.collectAsState()
+                    val inSelectMode = navBackStackEntry?.savedStateHandle?.getStateFlow("inSelectMode", false)?.collectAsStateWithLifecycle()
 
                     val defaultOpenTab = remember {
                         dataStore[DefaultOpenTabKey].toEnum(defaultValue = NavigationTab.HOME)
@@ -637,7 +637,7 @@ class MainActivity : ComponentActivity() {
                         dataStore.data
                             .map { it[LiquidGlassNavBarKey] ?: false }
                             .distinctUntilChanged()
-                            .collectAsState(initial = false)
+                            .collectAsStateWithLifecycle(initialValue = false)
 
                     // One-time: M3 Expressive is the default player style now (user
                     // request). Only a stored CLASSIC (the old default) migrates; after
@@ -696,7 +696,7 @@ class MainActivity : ComponentActivity() {
                     val homeScrollAtTop by navBackStackEntry
                         ?.savedStateHandle
                         ?.getStateFlow("homeScrollAtTop", true)
-                        ?.collectAsState()
+                        ?.collectAsStateWithLifecycle()
                         ?: remember { mutableStateOf(true) }
 
                     val isHomeDestination = navBackStackEntry?.destination?.hasRoute(HomeDestination::class) == true

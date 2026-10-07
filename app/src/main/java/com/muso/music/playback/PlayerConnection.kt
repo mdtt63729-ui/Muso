@@ -63,7 +63,12 @@ class PlayerConnection(
         if (!translateEnabled || lyrics == null || lyrics.lyrics == LYRICS_NOT_FOUND) return@combine lyrics
         translating.value = true
         try {
-            TranslationHelper.translate(context, lyrics)
+            // State publishing must not run network work on the connection's scope:
+            // it is MainActivity's lifecycleScope (Dispatchers.Main), so translating
+            // inline performed the HTTP request on the main thread.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                TranslationHelper.translate(context, lyrics)
+            }
         } catch (e: Exception) {
             reportException(e)
             lyrics

@@ -60,6 +60,7 @@ import com.muso.music.ui.menu.YouTubePlaylistMenu
 import com.muso.music.ui.menu.YouTubeSongMenu
 import com.muso.music.viewmodels.OnlineSearchViewModel
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun OnlineSearchResult(
@@ -68,13 +69,13 @@ fun OnlineSearchResult(
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
 
-    val searchFilter by viewModel.filter.collectAsState()
+    val searchFilter by viewModel.filter.collectAsStateWithLifecycle()
     val searchSummary = viewModel.summaryPage
     val itemsPage by remember(searchFilter) {
         derivedStateOf {

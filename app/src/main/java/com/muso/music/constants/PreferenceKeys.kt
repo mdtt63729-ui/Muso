@@ -24,12 +24,6 @@ enum class MiniPlayerStyle {
     /** Existing compact mini-player design. */
     MINIFY,
 
-    /** Premium Material 3 flat mini-player with artwork-backed surface. */
-    FLAT,
-
-    /** Material 3 Flex mini-player design. */
-    M3_FLEX,
-
     /** ArchiveTune-derived Classic Material 3 mini-player design. */
     CLASSIC,
 }

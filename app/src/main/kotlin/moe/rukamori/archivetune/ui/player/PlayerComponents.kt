@@ -169,6 +169,7 @@ import moe.rukamori.archivetune.ui.utils.highRes
 import moe.rukamori.archivetune.utils.makeTimeString
 import moe.rukamori.archivetune.utils.rememberLowDataModeActive
 import moe.rukamori.archivetune.utils.rememberPreference
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private const val PlayerBackgroundMaxBlurRadius = 64f
 private const val ExplicitBadgeInlineId = "explicitBadge"
@@ -304,7 +305,7 @@ fun PlayerTopActions(
     currentSongLiked: Boolean,
 ) {
     val haptic = LocalHapticFeedback.current
-    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
 
     when (playerDesignStyle) {
         PlayerDesignStyle.V2 -> {
@@ -945,7 +946,7 @@ fun PlayerPlaybackControls(
     currentSongLiked: Boolean,
 ) {
     val haptic = LocalHapticFeedback.current
-    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
     val view = LocalView.current
     val (enableHapticFeedback) = rememberPreference(EnableHapticFeedbackKey, true)
 
@@ -1843,7 +1844,7 @@ fun PlayerControlsContent(
     currentFormat: FormatEntity? = null,
     showCodecOnPlayer: Boolean = false,
 ) {
-    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val currentSongLiked = currentSong?.song?.liked == true
 
     val playPauseRoundness by animateDpAsState(
@@ -3094,9 +3095,9 @@ fun V9PlayerContent(
         }
     }
 
-    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
-    val repeatMode by playerConnection.repeatMode.collectAsState()
-    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
+    val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
+    val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val liked = currentSong?.song?.liked == true
     val onToggleLike = playerConnection::toggleLike
     val menuState = LocalMenuState.current
@@ -4497,9 +4498,9 @@ fun V10PlayerContent(
         }
     }
 
-    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
-    val repeatMode by playerConnection.repeatMode.collectAsState()
-    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
+    val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
+    val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val liked = currentSong?.song?.liked == true
     val onToggleLike = playerConnection::toggleLike
 

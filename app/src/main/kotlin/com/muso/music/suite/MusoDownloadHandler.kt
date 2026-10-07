@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,12 +30,8 @@ class MusoDownloadHandler(
 
     override val downloads: StateFlow<Map<String, Pair<DownloadHandler.Download?, DownloadHandler.Download?>>> =
         downloadUtil.downloads
-            .let { flow ->
-                kotlinx.coroutines.flow.flow {
-                    flow.collect { map ->
-                        emit(map.mapValues { (_, download) -> DownloadHandler.Download(state = download.state) to null })
-                    }
-                }
+            .map { map ->
+                map.mapValues { (_, download) -> DownloadHandler.Download(state = download.state) to null }
             }
             .stateIn(
                 scope = scope,

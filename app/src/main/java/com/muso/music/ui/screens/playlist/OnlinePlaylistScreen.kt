@@ -110,6 +110,7 @@ import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberPreference
 import com.muso.music.viewmodels.OnlinePlaylistViewModel
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -123,11 +124,11 @@ fun OnlinePlaylistScreen(
     val menuState = LocalMenuState.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val playlist by viewModel.playlist.collectAsState()
-    val songs by viewModel.playlistSongs.collectAsState()
+    val playlist by viewModel.playlist.collectAsStateWithLifecycle()
+    val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
 
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 

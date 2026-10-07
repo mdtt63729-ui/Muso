@@ -66,6 +66,7 @@ import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import com.muso.music.viewmodels.ArtistSongsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -79,14 +80,14 @@ fun ArtistSongsScreen(
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val (sortType, onSortTypeChange) = rememberEnumPreference(ArtistSongSortTypeKey, ArtistSongSortType.CREATE_DATE)
     val (sortDescending, onSortDescendingChange) = rememberPreference(ArtistSongSortDescendingKey, true)
 
-    val artist by viewModel.artist.collectAsState()
-    val songs by viewModel.songs.collectAsState()
+    val artist by viewModel.artist.collectAsStateWithLifecycle()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
     val songIndex: Map<String, Song> by remember(songs) {
         derivedStateOf {
             songs.associateBy { it.id }

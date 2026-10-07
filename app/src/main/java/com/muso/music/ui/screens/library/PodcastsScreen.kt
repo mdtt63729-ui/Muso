@@ -36,6 +36,7 @@ import com.muso.music.R
 import com.muso.music.constants.CONTENT_TYPE_HEADER
 import com.muso.music.ui.component.EmptyPlaceholder
 import com.muso.music.viewmodels.PodcastsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Saved podcasts (ReTune port, online): the user's subscribed podcast shows from YouTube
@@ -47,7 +48,7 @@ fun PodcastsScreen(
     topFilterContent: (@Composable () -> Unit)? = null,
     viewModel: PodcastsViewModel = hiltViewModel(),
 ) {
-    val shows by viewModel.shows.collectAsState()
+    val shows by viewModel.shows.collectAsStateWithLifecycle()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

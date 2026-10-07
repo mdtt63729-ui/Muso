@@ -39,6 +39,7 @@ import com.muso.music.ui.component.shimmer.ListItemPlaceHolder
 import com.muso.music.ui.component.shimmer.ShimmerHost
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.MoodAndGenresViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,7 +51,7 @@ fun MoodAndGenresScreen(
     val localConfiguration = LocalConfiguration.current
     val itemsPerRow = if (localConfiguration.orientation == ORIENTATION_LANDSCAPE) 3 else 2
 
-    val moodAndGenresList by viewModel.moodAndGenres.collectAsState()
+    val moodAndGenresList by viewModel.moodAndGenres.collectAsStateWithLifecycle()
 
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()

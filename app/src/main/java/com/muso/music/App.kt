@@ -69,6 +69,9 @@ class App : Application(), ImageLoaderFactory {
         // On-device crash + full log capture must be the very first thing:
         // if anything below this line crashes, it is already being logged.
         com.muso.music.utils.MusoLog.init(this)
+        // Prime the settings mirror once, here, so the synchronous preference
+        // accessors never block the main thread on DataStore I/O during the session.
+        com.muso.music.utils.primePreferences(this)
         com.muso.music.playback.RenderedCanvasVideoStore.init(this)
         moe.rukamori.archivetune.AppInstanceHolder.application = this
         // The SimpMusic player suite resolves its few injected collaborators

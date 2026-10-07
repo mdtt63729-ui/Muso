@@ -42,6 +42,7 @@ import moe.rukamori.archivetune.constants.UpdateChannel
 import moe.rukamori.archivetune.constants.UpdateChannelKey
 import moe.rukamori.archivetune.extensions.toEnum
 import kotlin.properties.ReadOnlyProperty
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = "archivetune_settings",
@@ -175,7 +176,7 @@ fun <T> rememberPreference(
             context.dataStore.data
                 .map { it[key] ?: defaultValue }
                 .distinctUntilChanged()
-        }.collectAsState(defaultValue)
+        }.collectAsStateWithLifecycle(defaultValue)
 
     return remember {
         object : MutableState<T> {
@@ -206,7 +207,7 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
             context.dataStore.data
                 .map { it[key].toEnum(defaultValue = defaultValue) }
                 .distinctUntilChanged()
-        }.collectAsState(defaultValue)
+        }.collectAsStateWithLifecycle(defaultValue)
 
     return remember {
         object : MutableState<T> {

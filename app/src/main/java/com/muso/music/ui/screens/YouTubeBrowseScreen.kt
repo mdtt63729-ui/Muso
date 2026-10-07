@@ -40,6 +40,7 @@ import com.muso.music.ui.menu.YouTubePlaylistMenu
 import com.muso.music.ui.menu.YouTubeSongMenu
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.YouTubeBrowseViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,10 +51,10 @@ fun YouTubeBrowseScreen(
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val browseResult by viewModel.result.collectAsState()
+    val browseResult by viewModel.result.collectAsStateWithLifecycle()
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -77,7 +78,7 @@ fun YouTubeBrowseScreen(
                 }
             }
 
-            items(it.items) { item ->
+            items(it.items, key = { it.id }) { item ->
                 YouTubeListItem(
                     item = item,
                     isActive = when (item) {

@@ -515,8 +515,8 @@ private fun MiniPlayerTransportControls(
 
 @Composable
 fun NewMiniPlayerContent(
-    position: Long,
-    duration: Long,
+    position: () -> Long,
+    duration: () -> Long,
     playerConnection: PlayerConnection,
     colors: MiniPlayerContentColors,
 ) {
@@ -527,10 +527,14 @@ fun NewMiniPlayerContent(
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
 
     val isLoading = playbackState == Player.STATE_BUFFERING
-    val progressProvider =
-        remember(position, duration) {
-            { if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f }
+    // Read the position lazily: the indicator invokes this provider in its draw
+    // phase, so a position tick no longer recomposes the mini-player subtree.
+    val progressProvider = remember {
+        {
+            val total = duration()
+            if (total > 0) (position().toFloat() / total).coerceIn(0f, 1f) else 0f
         }
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

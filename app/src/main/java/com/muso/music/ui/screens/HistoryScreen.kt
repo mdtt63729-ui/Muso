@@ -76,6 +76,7 @@ import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.DateAgo
 import com.muso.music.viewmodels.HistoryViewModel
 import java.time.format.DateTimeFormatter
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -89,8 +90,8 @@ fun HistoryScreen(
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     var isSearching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -124,7 +125,7 @@ fun HistoryScreen(
         BackHandler(onBack = onExitSelectionMode)
     }
 
-    val eventsMap by viewModel.events.collectAsState()
+    val eventsMap by viewModel.events.collectAsStateWithLifecycle()
     val filteredEventsMap = remember(eventsMap, query) {
         if (query.text.isEmpty()) eventsMap
         else eventsMap

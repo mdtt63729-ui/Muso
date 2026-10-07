@@ -70,6 +70,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * MUSO SUITE HOST — the bridge that feeds the REAL SimpMusic player suite
@@ -122,11 +123,11 @@ fun MusoSuiteHost(
             else -> com.maxrave.domain.manager.DataStoreManager.LYRICS_STYLE_CLASSIC
         }
     }
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val queueWindows by playerConnection.queueWindows.collectAsState()
-    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
-    val canvasUrl by playerConnection.service.videoStreamUrl.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val queueWindows by playerConnection.queueWindows.collectAsStateWithLifecycle()
+    val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
+    val canvasUrl by playerConnection.service.videoStreamUrl.collectAsStateWithLifecycle()
 
     val player = playerConnection.player
     val sharedViewModel: com.maxrave.simpmusic.viewModel.SharedViewModel = org.koin.compose.koinInject()
@@ -163,7 +164,7 @@ fun MusoSuiteHost(
     // Keeping a second 250ms polling loop here duplicated player reads and
     // state invalidations while the fullscreen player was animating.
     val timelineFlow = sharedViewModel.timeline
-    val timelineState by timelineFlow.collectAsState()
+    val timelineState by timelineFlow.collectAsStateWithLifecycle()
 
     // ---------- slider latch ----------
     var isSliding by remember { mutableStateOf(false) }
@@ -240,7 +241,7 @@ fun MusoSuiteHost(
     }
 
     // ---------- lyrics: Muso's stored lyrics parsed into the suite model ----------
-    val musoLyrics by playerConnection.currentLyrics.collectAsState()
+    val musoLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle()
     val lyricsData = remember(musoLyrics) {
         val raw = musoLyrics?.lyrics
         if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) {
@@ -623,11 +624,11 @@ fun MusoSuiteBridge(
         androidx.compose.runtime.mutableStateOf<com.maxrave.domain.mediaservice.handler.QueueData.Data?>(null)
     }
     val player = playerConnection.player
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val shuffle by playerConnection.shuffleModeEnabled.collectAsState()
-    val repeatMode by playerConnection.repeatMode.collectAsState()
-    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val shuffle by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
+    val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
+    val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val liked = currentSong?.song?.liked == true
 
     // Player style: the suite's own NowPlayingScreen picks its content style
@@ -716,9 +717,9 @@ fun MusoSuiteBridge(
         dsmBridge.lyricsOffsetMs.value = lyricsOffsetMsBridge
     }
 
-    val canvasUrlBridge by playerConnection.service.videoStreamUrl.collectAsState()
-    val queueTitleBridge by playerConnection.queueTitle.collectAsState()
-    val musoLyricsBridge by playerConnection.currentLyrics.collectAsState()
+    val canvasUrlBridge by playerConnection.service.videoStreamUrl.collectAsStateWithLifecycle()
+    val queueTitleBridge by playerConnection.queueTitle.collectAsStateWithLifecycle()
+    val musoLyricsBridge by playerConnection.currentLyrics.collectAsStateWithLifecycle()
     LaunchedEffect(mediaMetadata, canvasUrlBridge, queueTitleBridge, musoLyricsBridge, bitmapBridge) {
         val raw = musoLyricsBridge?.lyrics
         val lyricsData = if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) {
@@ -877,7 +878,9 @@ fun MusoSuiteBridge(
 
     // --- playback commands: the suite's MediaViewModels -> Muso's player ---
     LaunchedEffect(playerConnection) {
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+        // Use the effect's own scope. The previous standalone CoroutineScope was never
+        // cancelled, so queued playback commands could outlive this composable.
+        val scope = this
         mediaPlayerHandler.commandSink = { command ->
             scope.launch {
                 when (command) {

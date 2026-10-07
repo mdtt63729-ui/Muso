@@ -43,6 +43,7 @@ import com.muso.music.ui.component.SongListItem
 import com.muso.music.ui.menu.SongMenu
 import com.muso.music.viewmodels.AutoPlaylistViewModel
 import kotlin.random.Random
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Auto playlist (Liked / Offline) opened from the library mix grid — a simple song list
@@ -57,10 +58,10 @@ fun AutoPlaylistScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val songs by viewModel.songs.collectAsState()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
     val title = when (viewModel.playlist) {
         "liked" -> stringResource(R.string.liked)
         "top" -> stringResource(R.string.my_top_50)

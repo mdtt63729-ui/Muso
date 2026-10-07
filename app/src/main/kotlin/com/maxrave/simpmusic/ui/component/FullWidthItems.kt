@@ -95,6 +95,7 @@ import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
 import com.muso.music.R
 import kotlin.math.roundToInt
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * This is the song item in the playlist or other places.
@@ -131,7 +132,7 @@ fun SongFullWidthItems(
     val downloadState by songRepository
         .getSongAsFlow(songEntity?.videoId ?: track?.videoId ?: "")
         .mapNotNull { it?.downloadState }
-        .collectAsState(initial = DownloadState.STATE_NOT_DOWNLOADED)
+        .collectAsStateWithLifecycle(initialValue = DownloadState.STATE_NOT_DOWNLOADED)
     val offsetX = remember { Animatable(initialValue = 0f) }
     var heightDp by remember { mutableStateOf(0.dp) }
 

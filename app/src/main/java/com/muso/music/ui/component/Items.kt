@@ -85,6 +85,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 const val ActiveBoxAlpha = 0.6f
 
@@ -260,7 +261,7 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
+            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state)
         }
     },
@@ -268,7 +269,7 @@ fun SongListItem(
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
-    val liveDownload by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
+    val liveDownload by LocalDownloadUtil.current.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
     val downloadStatus =
         if (showDownloadProgress) {
             when (liveDownload?.state) {
@@ -331,7 +332,7 @@ fun SongGridItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
+            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state)
         }
     },
@@ -629,7 +630,7 @@ fun MediaMetadataListItem(
     modifier: Modifier = Modifier,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
-        val song by database.song(mediaMetadata.id).collectAsState(initial = null)
+        val song by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
 
         if (song?.song?.liked == true) {
             Icon.Favorite()
@@ -637,7 +638,7 @@ fun MediaMetadataListItem(
         if (song?.song?.inLibrary != null) {
             Icon.Library()
         }
-        val download by LocalDownloadUtil.current.getDownload(song?.id).collectAsState(initial = null)
+        val download by LocalDownloadUtil.current.getDownload(song?.id).collectAsStateWithLifecycle(initialValue = null)
         Icon.Download(download?.state)
     },
     isActive: Boolean = false,
@@ -670,8 +671,8 @@ fun YouTubeListItem(
     albumIndex: Int? = null,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
-        val song by database.song(item.id).collectAsState(initial = null)
-        val album by database.album(item.id).collectAsState(initial = null)
+        val song by database.song(item.id).collectAsStateWithLifecycle(initialValue = null)
+        val album by database.album(item.id).collectAsStateWithLifecycle(initialValue = null)
 
         if (item is SongItem && song?.song?.liked == true ||
             item is AlbumItem && album?.album?.bookmarkedAt != null
@@ -685,7 +686,7 @@ fun YouTubeListItem(
             Icon.Library()
         }
         if (item is SongItem) {
-            val downloads by LocalDownloadUtil.current.downloads.collectAsState()
+            val downloads by LocalDownloadUtil.current.downloads.collectAsStateWithLifecycle()
             Icon.Download(downloads[item.id]?.state)
         }
     },
@@ -722,8 +723,8 @@ fun YouTubeGridItem(
     coroutineScope: CoroutineScope? = null,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
-        val song by database.song(item.id).collectAsState(initial = null)
-        val album by database.album(item.id).collectAsState(initial = null)
+        val song by database.song(item.id).collectAsStateWithLifecycle(initialValue = null)
+        val album by database.album(item.id).collectAsStateWithLifecycle(initialValue = null)
 
         if (item is SongItem && song?.song?.liked == true ||
             item is AlbumItem && album?.album?.bookmarkedAt != null
@@ -737,7 +738,7 @@ fun YouTubeGridItem(
             Icon.Library()
         }
         if (item is SongItem) {
-            val downloads by LocalDownloadUtil.current.downloads.collectAsState()
+            val downloads by LocalDownloadUtil.current.downloads.collectAsStateWithLifecycle()
             Icon.Download(downloads[item.id]?.state)
         }
     },
@@ -831,7 +832,7 @@ fun ItemThumbnail(
 ) {
     val download by LocalDownloadUtil.current
         .getDownload(downloadId)
-        .collectAsState(initial = null)
+        .collectAsStateWithLifecycle(initialValue = null)
 
     Box(
         contentAlignment = Alignment.Center,

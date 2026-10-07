@@ -64,6 +64,7 @@ import com.muso.music.ui.menu.ArtistMenu
 import com.muso.music.utils.rememberEnumPreference
 import com.muso.music.utils.rememberPreference
 import com.muso.music.viewmodels.LibraryArtistsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -81,13 +82,13 @@ fun LibraryArtistsScreen(
     val (sortType, onSortTypeChange) = rememberEnumPreference(ArtistSortTypeKey, ArtistSortType.CREATE_DATE)
     val (sortDescending, onSortDescendingChange) = rememberPreference(ArtistSortDescendingKey, true)
 
-    val artists by viewModel.allArtists.collectAsState()
+    val artists by viewModel.allArtists.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
+    val scrollToTop = backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsStateWithLifecycle()
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {

@@ -17,7 +17,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
-val CustomThemeColorKey = stringPreferencesKey("customThemeColor")
+val CustomThemeColorKey = stringPreferencesKey("archivetuneCustomThemeColor")
 val RandomThemeOnStartupKey = booleanPreferencesKey("randomThemeOnStartup")
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
@@ -313,7 +313,7 @@ val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 val AudioOffload = booleanPreferencesKey("audioOffload")
 val CrossfadeEnabledKey = booleanPreferencesKey("crossfadeEnabled")
-val CrossfadeDurationKey = floatPreferencesKey("crossfadeDuration")
+val CrossfadeDurationKey = floatPreferencesKey("archivetuneCrossfadeDuration")
 val CrossfadeGaplessKey = booleanPreferencesKey("crossfadeGapless")
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
@@ -417,7 +417,7 @@ val PlaylistSortDescendingKey = booleanPreferencesKey("playlistSortDescending")
 val ArtistSongSortTypeKey = stringPreferencesKey("artistSongSortType")
 val ArtistSongSortDescendingKey = booleanPreferencesKey("artistSongSortDescending")
 val MixSortTypeKey = stringPreferencesKey("mixSortType")
-val MixSortDescendingKey = booleanPreferencesKey("albumSortDescending")
+val MixSortDescendingKey = booleanPreferencesKey("mixSortDescending")
 
 val SongFilterKey = stringPreferencesKey("songFilter")
 val ArtistFilterKey = stringPreferencesKey("artistFilter")
@@ -718,7 +718,7 @@ enum class LyricsAnimationStyle {
     APPLE,
 }
 
-val LyricsTextSizeKey = floatPreferencesKey("lyricsTextSize")
+val LyricsTextSizeKey = floatPreferencesKey("archivetuneLyricsTextSize")
 val LyricsLineSpacingKey = floatPreferencesKey("lyricsLineSpacing")
 val LyricsLineBlurKey = booleanPreferencesKey("lyricsLineBlur")
 val ShowLyricsPlayerControlsKey = booleanPreferencesKey("showLyricsPlayerControls")

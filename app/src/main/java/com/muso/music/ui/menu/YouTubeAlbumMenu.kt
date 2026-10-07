@@ -55,6 +55,7 @@ import com.muso.music.ui.component.GridMenuItem
 import com.muso.music.ui.component.ListDialog
 import com.muso.music.ui.component.YouTubeListItem
 import com.muso.music.utils.reportException
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun YouTubeAlbumMenu(
@@ -66,7 +67,7 @@ fun YouTubeAlbumMenu(
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val album by database.albumWithSongs(albumItem.id).collectAsState(initial = null)
+    val album by database.albumWithSongs(albumItem.id).collectAsStateWithLifecycle(initialValue = null)
 
     LaunchedEffect(Unit) {
         database.album(albumItem.id).collect { album ->

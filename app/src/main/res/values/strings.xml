@@ -235,8 +235,6 @@
     <string name="player_style_editorial">Editorial</string>
     <string name="mini_player_style">Mini player style</string>
     <string name="mini_player_style_minify">Minify</string>
-    <string name="mini_player_style_flat">Flat</string>
-    <string name="mini_player_style_m3_flex">M3 Flex</string>
     <string name="mini_player_style_classic">Classic</string>
     <string name="wavy">Wavy</string>
     <string name="audio_quality_low_66">Low - 66 kbps</string>

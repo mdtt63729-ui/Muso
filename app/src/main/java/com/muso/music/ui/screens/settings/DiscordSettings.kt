@@ -69,6 +69,7 @@ import com.muso.music.ui.utils.backToMain
 import com.muso.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +79,7 @@ fun DiscordSettings(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    val song by playerConnection.currentSong.collectAsState(null)
+    val song by playerConnection.currentSong.collectAsStateWithLifecycle(null)
 
     val coroutineScope = rememberCoroutineScope()
 

@@ -96,6 +96,7 @@ import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.utils.reportException
 import moe.rukamori.archivetune.utils.serializeSpeedDialPins
 import moe.rukamori.archivetune.utils.toggleSpeedDialPin
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MutableCollectionMutableState")
@@ -109,7 +110,7 @@ fun YouTubeAlbumMenu(
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val album by database.albumWithSongs(albumItem.id).collectAsState(initial = null)
+    val album by database.albumWithSongs(albumItem.id).collectAsStateWithLifecycle(initialValue = null)
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -257,7 +258,7 @@ fun YouTubeAlbumMenu(
                 )
             }
 
-            items(notAddedList) { song ->
+            items(notAddedList, key = { it.videoId }) { song ->
                 SongListItem(song = song)
             }
         }

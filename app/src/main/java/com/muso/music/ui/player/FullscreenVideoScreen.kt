@@ -53,6 +53,7 @@ import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
 import com.maxrave.common.Config
 import androidx.media3.datasource.cache.SimpleCache
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * FULLSCREEN VIDEO (Round 174 rewrite).
@@ -82,9 +83,9 @@ fun FullscreenVideoScreen(navController: NavController) {
     val context = LocalContext.current
     val canvasCache: SimpleCache = koinInject(named(Config.CANVAS_CACHE))
     val playerConnection = LocalPlayerConnection.current
-    val videoUrl = playerConnection?.service?.videoStreamUrl?.collectAsState()?.value
-    val mediaMetadata = playerConnection?.mediaMetadata?.collectAsState()?.value
-    val isPlaying = playerConnection?.isPlaying?.collectAsState()?.value
+    val videoUrl = playerConnection?.service?.videoStreamUrl?.collectAsStateWithLifecycle()?.value
+    val mediaMetadata = playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()?.value
+    val isPlaying = playerConnection?.isPlaying?.collectAsStateWithLifecycle()?.value
 
     var overlayVisible by remember { mutableStateOf(true) }
     BackHandler { navController.popBackStack() }

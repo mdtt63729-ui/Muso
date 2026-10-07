@@ -51,6 +51,7 @@ import com.muso.music.ui.component.GridMenuItem
 import com.muso.music.ui.component.ListDialog
 import com.muso.music.ui.component.MediaMetadataListItem
 import java.time.LocalDateTime
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun MediaMetadataMenu(
@@ -62,9 +63,9 @@ fun MediaMetadataMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
+    val librarySong by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
 
-    val download by LocalDownloadUtil.current.getDownload(mediaMetadata.id).collectAsState(initial = null)
+    val download by LocalDownloadUtil.current.getDownload(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
 
     val artists = remember(mediaMetadata.artists) {
         mediaMetadata.artists.filter { it.id != null }
@@ -95,7 +96,7 @@ fun MediaMetadataMenu(
         ListDialog(
             onDismiss = { showSelectArtistDialog = false }
         ) {
-            items(artists) { artist ->
+            items(artists, key = { it.id }) { artist ->
                 Box(
                     contentAlignment = Alignment.CenterStart,
                     modifier = Modifier
@@ -126,7 +127,7 @@ fun MediaMetadataMenu(
         mediaMetadata = mediaMetadata,
         badges = {},
         trailingContent = {
-            val song by database.song(mediaMetadata.id).collectAsState(initial = null)
+            val song by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
 
             IconButton(
                 onClick = {

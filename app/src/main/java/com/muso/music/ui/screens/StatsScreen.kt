@@ -46,6 +46,7 @@ import com.muso.music.ui.menu.ArtistMenu
 import com.muso.music.ui.menu.SongMenu
 import com.muso.music.ui.utils.backToMain
 import com.muso.music.viewmodels.StatsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -56,13 +57,13 @@ fun StatsScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val statPeriod by viewModel.statPeriod.collectAsState()
-    val mostPlayedSongs by viewModel.mostPlayedSongs.collectAsState()
-    val mostPlayedArtists by viewModel.mostPlayedArtists.collectAsState()
-    val mostPlayedAlbums by viewModel.mostPlayedAlbums.collectAsState()
+    val statPeriod by viewModel.statPeriod.collectAsStateWithLifecycle()
+    val mostPlayedSongs by viewModel.mostPlayedSongs.collectAsStateWithLifecycle()
+    val mostPlayedArtists by viewModel.mostPlayedArtists.collectAsStateWithLifecycle()
+    val mostPlayedAlbums by viewModel.mostPlayedAlbums.collectAsStateWithLifecycle()
 
     val coroutineScope = rememberCoroutineScope()
 
