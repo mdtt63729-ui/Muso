@@ -701,7 +701,7 @@ class MainActivity : ComponentActivity() {
 
                     val isHomeDestination = navBackStackEntry?.destination?.hasRoute(HomeDestination::class) == true
                     val isScrolledToTop = if (isHomeDestination) {
-                        homeScrollAtTop.value
+                        homeScrollAtTop
                     } else {
                         searchBarScrollBehavior.state.contentOffset >= -1f
                     }

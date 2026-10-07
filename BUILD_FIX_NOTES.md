@@ -1,13 +1,22 @@
-# Build Fix Notes — 2026-10-02
+# Muso v0.5.218 — Foss Release Build Fix
 
-GitHub Actions build reached `:app:compileFossReleaseKotlin` and failed only because both DataStore.kt files imported a non-existent `androidx.datastore.core.data` symbol.
+The GitHub Actions log for `assembleFossRelease` failed during `:app:compileFossReleaseKotlin`.
+The fixes in this version address every compiler diagnostic reported in that log:
 
-Fix:
-- Removed the invalid `import androidx.datastore.core.data` from `app/src/main/java/com/muso/music/utils/DataStore.kt`.
-- Removed the invalid `import androidx.datastore.core.data` from `app/src/main/kotlin/moe/rukamori/archivetune/utils/DataStore.kt`.
+- MainActivity: fixed delegated Boolean being accessed with `.value`.
+- Muso MusicService: replaced unavailable Media3 `MediaMetadata.isPodcast` access with the podcast media type.
+- Muso MusicService: made endless-queue de-duplication set mutable where later code calls `add`.
+- ArchiveTune MusicService: made infinite-queue de-duplication set mutable where later code calls `add`.
+- MusoNavbarHost: restored missing `Modifier.size` import.
+- LyricsFontUtils: replaced Java `IntStream.forEach` non-local return with a Kotlin loop.
+- LyricsView: restored missing Compose state/animation and coroutine-delay imports used by fullscreen lyrics animation.
+- ModalBottomSheet: restored `CompositionLocalProvider` import.
+- MiniPlayer: uses `timelineState.loading` instead of an undefined `loading` variable.
+- NowPlayingContentState: restored the Compose state delegate import for `State<Float>`.
+- ATPlayerStyles: restored the `Color.compositeOver` extension import.
 
-`DataStore.data` is accessed as the DataStore interface property, so no import for a separate `data` symbol is required.
+The codec preference unification and codec capsule changes from the previous project version are retained.
 
-No other source changes were made in this patch.
-
-Build verification: GitHub Actions must run `./gradlew assembleFossRelease --stacktrace`. Local environment does not have the Gradle 9.5.1 distribution/network required for a full build.
+Full Gradle compilation could not be rerun in this environment because Gradle 9.5.1 is not cached and
+network access to `services.gradle.org` is unavailable. The source was patched directly against the exact
+compiler diagnostics from the supplied GitHub Actions log.

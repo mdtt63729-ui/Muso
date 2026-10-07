@@ -28,7 +28,7 @@ internal fun TextStyle.forLyricsText(text: String): TextStyle {
 }
 
 internal fun String.requiresScriptSafeLyricsFont(): Boolean {
-    codePoints().forEach { codePoint ->
+    for (codePoint in codePoints().toArray()) {
         val script = UnicodeScript.of(codePoint)
         when (script) {
             UnicodeScript.COMMON,

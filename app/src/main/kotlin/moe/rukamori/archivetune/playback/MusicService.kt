@@ -4327,7 +4327,7 @@ class MusicService :
             try {
                 val hideExplicit = dataStore.get(HideExplicitKey, false)
                 val hideVideo = dataStore.get(HideVideoKey, false)
-                val known = buildSet {
+                val known = mutableSetOf<String>().apply {
                     for (index in 0 until player.mediaItemCount) add(player.getMediaItemAt(index).mediaId)
                     addAll(autoAddedMediaIds)
                 }

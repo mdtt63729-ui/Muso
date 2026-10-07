@@ -644,7 +644,7 @@ fun MiniPlayer(
                     // inset itself to keep clear of them.
                     CapsuleProgress(
                         sliderValue = sliderValue,
-                        loading = loading,
+                        loading = timelineState.loading,
                         trackHeight = if (showScrubber) 4.dp else 2.dp,
                         thumbSize = 0.dp,
                         textColor = textColor,

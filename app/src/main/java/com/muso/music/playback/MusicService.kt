@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
@@ -910,14 +911,14 @@ class MusicService : MediaLibraryService(),
 
     /** True continuation-backed endless queue. */
     private fun maybeExtendEndlessQueue(force: Boolean = false) {
-        if (!endlessQueueEnabled || player.currentMetadata?.isPodcast == true) return
+        if (!endlessQueueEnabled || player.currentMetadata?.mediaType == MEDIA_TYPE_PODCAST_EPISODE) return
         val remaining = player.mediaItemCount - player.currentMediaItemIndex
         if (!force && remaining > ENDLESS_QUEUE_LOW_WATERMARK) return
         if (endlessQueueJob?.isActive == true) return
         endlessQueueJob = scope.launch(SilentHandler) {
             try {
                 val hideExplicit = dataStore.get(HideExplicitKey, false)
-                val known = buildSet {
+                val known = mutableSetOf<String>().apply {
                     for (index in 0 until player.mediaItemCount) add(player.getMediaItemAt(index).mediaId)
                     addAll(endlessQueueAppendedIds)
                 }
