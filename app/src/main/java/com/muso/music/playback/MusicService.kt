@@ -911,7 +911,12 @@ class MusicService : MediaLibraryService(),
 
     /** True continuation-backed endless queue. */
     private fun maybeExtendEndlessQueue(force: Boolean = false) {
-        if (!endlessQueueEnabled || player.currentMetadata?.mediaType == MEDIA_TYPE_PODCAST_EPISODE) return
+        // `player.currentMetadata` is Muso's own model (which has no mediaType); the
+        // media3 MediaMetadata carried on the current MediaItem is the one that holds
+        // the media type, and that is where podcast episodes are flagged.
+        if (!endlessQueueEnabled ||
+            player.currentMediaItem?.mediaMetadata?.mediaType == MEDIA_TYPE_PODCAST_EPISODE
+        ) return
         val remaining = player.mediaItemCount - player.currentMediaItemIndex
         if (!force && remaining > ENDLESS_QUEUE_LOW_WATERMARK) return
         if (endlessQueueJob?.isActive == true) return

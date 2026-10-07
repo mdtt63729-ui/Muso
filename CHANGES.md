@@ -1,3 +1,10 @@
+## Muso 0.5.219 — fix the remaining compile error from the CI log
+- `MusicService.kt` line 914: `player.currentMetadata?.mediaType` read a `mediaType`
+  field off Muso's own `MediaMetadata` model, which has no such field ("Unresolved
+  reference 'mediaType' on receiver of type 'MediaMetadata'"). The media type lives on
+  the media3 `MediaMetadata` carried by the current `MediaItem`, so it now reads
+  `player.currentMediaItem?.mediaMetadata?.mediaType`.
+
 ## Muso 0.5.217 — fix the two compile errors from the CI log
 - `HomeViewModel.kt`: inside the cold-start loader the destructured locals
   `quickPicks` / `forgottenFavorites` / `keepListening` shadowed the class's
