@@ -40,6 +40,7 @@ import moe.rukamori.archivetune.extensions.currentMetadata
 import moe.rukamori.archivetune.extensions.getCurrentQueueIndex
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.models.MediaMetadata
+import androidx.media3.exoplayer.ExoPlayer
 import moe.rukamori.archivetune.playback.MusicService.MusicBinder
 import moe.rukamori.archivetune.playback.queues.Queue
 import moe.rukamori.archivetune.canvas.CanvasPlaybackRequest
@@ -57,19 +58,32 @@ internal enum class CanvasArtworkRefetchResult {
 class PlayerConnection private constructor(
     context: Context,
     val player: Player,
-    val localPlayer: Player,
+    localPlayerOrNull: ExoPlayer?,
     val database: MusicDatabase,
     scope: CoroutineScope,
-    /**
-     * Null when this connection wraps a player that ArchiveTune's own service does not own -
-     * the Muso bridge below. Every service-only operation (queue control, Together, canvas)
-     * is inert in that case.
-     */
-    private val service: MusicService?,
+    serviceOrNull: MusicService?,
     val mediaMetadata: MutableStateFlow<MediaMetadata?>,
     waitingForNetworkConnectionFlow: StateFlow<Boolean>,
     queueRestoreCompletedFlow: StateFlow<Boolean>,
 ) : Player.Listener {
+
+    /**
+     * ArchiveTune's service and its local player. Both are present on the service-backed
+     * constructor and absent on the Muso bridge, which wraps an external player.
+     *
+     * They stay NON-NULL typed even though the bridge has neither: the ArchiveTune UI reads
+     * `connection.service...` and `connection.localPlayer...` in ~40 places that are only
+     * ever reached with a real service, and a nullable type here broke every one of them.
+     * Nothing on the bridge path reads either field - the Enhanced lyrics renderer needs
+     * only [player], [mediaMetadata] and [playbackParameters] - so the guard below is a
+     * trap for a future caller reaching for a service the bridge does not have, not a path
+     * any current code takes.
+     */
+    val service: MusicService
+        get() = serviceOrNull ?: error("This PlayerConnection wraps an external player and has no MusicService")
+
+    val localPlayer: ExoPlayer
+        get() = localPlayerOrNull ?: error("This PlayerConnection wraps an external player and has no local ExoPlayer")
 
     /** ArchiveTune's own playback stack. */
     constructor(
@@ -80,10 +94,10 @@ class PlayerConnection private constructor(
     ) : this(
         context = context,
         player = binder.service.player,
-        localPlayer = binder.service.localPlayer,
+        localPlayerOrNull = binder.service.localPlayer,
         database = database,
         scope = scope,
-        service = binder.service,
+        serviceOrNull = binder.service,
         mediaMetadata = binder.service.currentMediaMetadata,
         waitingForNetworkConnectionFlow = binder.service.waitingForNetworkConnection,
         queueRestoreCompletedFlow = binder.service.queueRestoreCompleted,
@@ -104,10 +118,12 @@ class PlayerConnection private constructor(
     ) : this(
         context = context,
         player = player,
-        localPlayer = player,
+        // Muso's player is itself an ExoPlayer, so when it is one the bridge gets a working
+        // local player too; only a non-ExoPlayer Player leaves it absent.
+        localPlayerOrNull = player as? ExoPlayer,
         database = database,
         scope = scope,
-        service = null,
+        serviceOrNull = null,
         mediaMetadata = mediaMetadata,
         waitingForNetworkConnectionFlow = MutableStateFlow(false),
         queueRestoreCompletedFlow = MutableStateFlow(true),
@@ -148,7 +164,7 @@ class PlayerConnection private constructor(
     val waitingForNetworkConnection = waitingForNetworkConnectionFlow
     val queueRestoreCompleted = queueRestoreCompletedFlow
 
-    internal val canvasNetworkAllowed: StateFlow<Boolean> = service
+    internal val canvasNetworkAllowed: StateFlow<Boolean> = serviceOrNull
         ?.canvasPlaybackUseCase
         ?.policy
         ?.map { it.networkAllowed }
@@ -167,7 +183,7 @@ class PlayerConnection private constructor(
         playbackState.value = player.playbackState
         _isPlaying.value = player.isPlaying
         playbackParameters.value = player.playbackParameters
-        queueTitle.value = service?.queueTitle
+        queueTitle.value = serviceOrNull?.queueTitle
         queueWindows.value = player.getQueueWindows()
         currentWindowIndex.value = player.getCurrentQueueIndex()
         currentMediaItemIndex.value = player.currentMediaItemIndex
@@ -281,35 +297,35 @@ class PlayerConnection private constructor(
         }
 
     fun playQueue(queue: Queue) {
-        service?.playQueue(queue)
+        serviceOrNull?.playQueue(queue)
     }
 
     fun startRadioSeamlessly() {
-        service?.startRadioSeamlessly()
+        serviceOrNull?.startRadioSeamlessly()
     }
 
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
     fun playNext(items: List<MediaItem>) {
-        service?.playNext(items)
+        serviceOrNull?.playNext(items)
     }
 
     fun moveQueueItemToNext(mediaItemIndex: Int) {
-        service?.moveQueueItemToNext(mediaItemIndex)
+        serviceOrNull?.moveQueueItemToNext(mediaItemIndex)
     }
 
     fun addToQueue(item: MediaItem) = addToQueue(listOf(item))
 
     fun addToQueue(items: List<MediaItem>) {
-        service?.addToQueue(items)
+        serviceOrNull?.addToQueue(items)
     }
 
     fun playFromVoiceSearch(query: String) {
-        service?.playFromVoiceSearch(query)
+        serviceOrNull?.playFromVoiceSearch(query)
     }
 
     fun toggleLike() {
-        service?.toggleLike()
+        serviceOrNull?.toggleLike()
     }
 
     internal suspend fun refetchCanvasArtwork(
@@ -322,7 +338,7 @@ class PlayerConnection private constructor(
         return try {
             val country = Locale.getDefault().country
             val storefront = if (country.length == 2) country.lowercase(Locale.ROOT) else "us"
-            val refreshed = service?.canvasPlaybackUseCase?.refresh(
+            val refreshed = serviceOrNull?.canvasPlaybackUseCase?.refresh(
                 CanvasPlaybackRequest(
                     mediaId = metadata.id,
                     title = metadata.title,
@@ -331,7 +347,7 @@ class PlayerConnection private constructor(
                     requireVertical = requireVertical,
                 ),
             )
-            if (!refreshed) return CanvasArtworkRefetchResult.Failure
+            if (refreshed != true) return CanvasArtworkRefetchResult.Failure
 
             CanvasArtworkRefetchResult.Success
         } catch (error: CancellationException) {
@@ -351,9 +367,9 @@ class PlayerConnection private constructor(
     }
 
     fun seekToNext() {
-        val state = service?.togetherSessionState?.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
+        val state = serviceOrNull?.togetherSessionState?.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
         if (state?.role is moe.rukamori.archivetune.together.TogetherRole.Guest) {
-            service?.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipNext)
+            serviceOrNull?.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipNext)
             return
         }
         player.seekToNext()
@@ -362,9 +378,9 @@ class PlayerConnection private constructor(
     }
 
     fun seekToPrevious() {
-        val state = service?.togetherSessionState?.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
+        val state = serviceOrNull?.togetherSessionState?.value as? moe.rukamori.archivetune.together.TogetherSessionState.Joined
         if (state?.role is moe.rukamori.archivetune.together.TogetherRole.Guest) {
-            service?.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipPrevious)
+            serviceOrNull?.requestTogetherControl(moe.rukamori.archivetune.together.ControlAction.SkipPrevious)
             return
         }
         player.seekToPrevious()
@@ -399,7 +415,7 @@ class PlayerConnection private constructor(
         reason: Int,
     ) {
         queueWindows.value = player.getQueueWindows()
-        queueTitle.value = service?.queueTitle
+        queueTitle.value = serviceOrNull?.queueTitle
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()

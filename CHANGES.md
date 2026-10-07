@@ -1,3 +1,20 @@
+## Muso 0.5.242 — fix the CI break from the 0.5.240 bridge
+- 0.5.240 made PlayerConnection.service a PRIVATE, NULLABLE MusicService?. The ArchiveTune UI
+  reads `connection.service...` in 42 places and `connection.localPlayer...` in 2 more, so CI
+  failed with 88 errors (45 "cannot access - it is private", 42 "only safe calls on a nullable
+  receiver", plus one `setShuffleOrder` unresolved on 'Player' and one Boolean? check).
+- Fix: the constructor now takes nullable backing params (serviceOrNull, localPlayerOrNull) and
+  the class exposes NON-NULL `service: MusicService` and `localPlayer: ExoPlayer` getters that
+  guard with error(...). Every external call site is therefore untouched, and the bridge - which
+  has neither - is safe because its own init and queue methods go through the nullable params.
+  Nothing on the bridge path reads either field (the Enhanced renderer needs only player,
+  mediaMetadata and playbackParameters).
+- localPlayer had to stay ExoPlayer-typed, not Player: PlayerMenu reads localPlayer.audioSessionId
+  and Queue calls localPlayer.setShuffleOrder, both ExoPlayer-only API.
+- refetchCanvasArtwork's `if (!refreshed)` became `if (refreshed != true)` - refresh() returns
+  Boolean? through the safe call now.
+- Import: androidx.media3.exoplayer.ExoPlayer.
+
 ## Muso 0.5.241 — Liquid Glass lag + fullscreen lyrics closing itself
 - Liquid Glass lag, part 1: MainActivity applied Modifier.layerBackdrop(glassBackdrop) to
   the whole NavHost unconditionally, so the entire app content recorded itself into a
