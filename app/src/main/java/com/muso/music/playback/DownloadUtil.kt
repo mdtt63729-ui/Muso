@@ -457,9 +457,8 @@ class DownloadUtil @Inject constructor(
         if (next.state != Download.STATE_DOWNLOADING) return true
         val oldPercent = previous.percentDownloaded
         val newPercent = next.percentDownloaded
-        if (oldPercent == androidx.media3.common.C.PERCENTAGE_UNSET ||
-            newPercent == androidx.media3.common.C.PERCENTAGE_UNSET
-        ) {
+        val unset = androidx.media3.common.C.PERCENTAGE_UNSET.toFloat()
+        if (oldPercent == unset || newPercent == unset) {
             return true
         }
         return oldPercent.toInt() != newPercent.toInt()

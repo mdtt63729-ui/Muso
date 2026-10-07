@@ -258,7 +258,7 @@ fun YouTubeAlbumMenu(
                 )
             }
 
-            items(notAddedList, key = { it.videoId }) { song ->
+            items(notAddedList, key = { it.id }) { song ->
                 SongListItem(song = song)
             }
         }

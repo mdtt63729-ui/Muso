@@ -1,3 +1,19 @@
+## Muso 0.5.235 — fix the six CI compile errors from the stable-state keys
+- CI failed at :app:compileFossReleaseKotlin with six errors, all from the list keys added
+  in 0.5.232/0.5.233. Fixed:
+  * DownloadUtil: C.PERCENTAGE_UNSET is an Int but percentDownloaded is a Float, so the
+    comparison was invalid; it now compares against C.PERCENTAGE_UNSET.toFloat().
+  * MediaMetadataMenu / PlayerMenu / YouTubeSongMenu: MediaMetadata.Artist.id is nullable,
+    so "key = { it.id }" did not satisfy the non-null key; now "key = { it.id ?: it.name }"
+    (the lists are pre-filtered to non-null ids, so the id always wins).
+  * ArchiveTune YouTubeAlbumMenu: the element is archivetune Song (: LocalItem), which has
+    id, not videoId; key is now { it.id }.
+  * ArchiveTune YouTubePlaylistMenu: the element is archivetune models.MediaMetadata,
+    which has id: String; key is now { it.id }.
+- The same run confirms the rest compiles: it reached :app:compileFossReleaseKotlin, so
+  resource processing and KSP passed, and no error came from the Phase 5/8/9/11 work or
+  the PlayerSettings LazyColumn pilot.
+
 ## Muso 0.5.234 — Phase 9 lazy rendering: pilot on PlayerSettings
 - PlayerSettings now uses a LazyColumn instead of Column(verticalScroll): the top/bottom
   padding moved into contentPadding (the behaviour-preserving form), and each of its four
