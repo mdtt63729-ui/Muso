@@ -330,6 +330,18 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @OptIn(ExperimentalMaterial3Api::class)
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        // Full UI log: every finger-up, wherever it lands. MotionIndication was the intended hook,
+        // but MaterialTheme provides its own ripple as LocalIndication and that one wins, so it
+        // never ran and no press was ever logged (confirmed from the user's ui_log.txt, which had
+        // LIFECYCLE and SCREEN lines but not a single PRESS). A touch at the Activity level cannot
+        // be missed, and it also covers buttons that pass indication = null.
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_UP) {
+            runCatching { com.muso.music.utils.MusoLog.touch(ev.x, ev.y) }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

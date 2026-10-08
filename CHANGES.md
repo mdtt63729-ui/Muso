@@ -1,3 +1,60 @@
+## Muso 0.5.259 — one root cause behind the dead playlist and the layout that shifts on restore
+- TWO reports, ONE cause. The player sheet's collapsedBound is built from the window insets
+  (bottomInset + navigation bar), so it CHANGES when the app goes to the background and returns.
+  The Animatable holding the sheet's position is keyed on the anchor and the dismissed/expanded
+  bounds but NOT on collapsedBound, so it keeps its OLD value. The sheet is then no longer exactly
+  at collapsedBound, and two things follow:
+    (1) isCollapsed and isDismissed are both false, so progress is neither 0 nor 1 - and the mini
+        player's fade and the navbar's slide land somewhere else. Report: "components do not stay
+        in their place when I minimise the app and come back."
+    (2) the sheet composes its EXPANDED layer - a fillMaxSize() box with a pointerInput and an alpha
+        near zero. Invisible, over the whole screen, eating every tap. Report: "no button in the
+        playlist works and the songs do not play."
+  The file's own comment already named this: "the collapsed touch catcher sitting misplaced over
+  screen content eating taps".
+- Why 0.5.244 was fine: before 0.5.249 the host had LaunchedEffect(playerBottomSheetState)
+  { snapTo(dismissedBound) }, and the state object is re-created on a bounds change, so that
+  re-anchored the sheet on every inset change and masked this. It was removed in 0.5.249 because it
+  also forced a restored FULLSCREEN player down to MINI, which the PRD forbids. Removing it fixed
+  the PRD bug and exposed this one.
+- Fix: re-anchor to the bound the sheet is actually sitting at - a collapsed sheet follows the new
+  collapsedBound, an expanded sheet follows the new expandedBound. This also satisfies the PRD: a
+  fullscreen player now stays fullscreen across a lifecycle change.
+- progress returned 1f (the EXPANDED end) when expandedBound == collapsedBound. Backwards: with no
+  room to expand the sheet is collapsed, which is 0f. Fixed to 0f.
+- The expanded layer now also requires progress > 0.01f, so an in-between value can never compose
+  an invisible full-screen layer over the app.
+- Docs: added docs/PLAYLIST_DEAD_AND_RESUME_SHIFT.md.
+
+## Muso 0.5.258 — two bugs the user's log zip exposed
+- The UI trace works (LIFECYCLE and SCREEN lines are in ui_log.txt) but logged ZERO presses.
+  Cause: the press hook was in MotionIndication, on the assumption it is the app-wide
+  LocalIndication. It is not - Theme.kt's own comment records that MaterialTheme provides
+  material3.ripple() as LocalIndication, and the theme's provider sits INSIDE MainActivity's, so
+  it wins and MotionIndication never sees an interaction. Fixed with a hook that cannot be beaten:
+  MainActivity.dispatchTouchEvent logs every finger-up with coordinates + current screen. It is
+  above every Compose mechanism, so it also covers buttons that pass indication = null.
+- The zip held ~100 .pending-* files. appendToDownloads matched RELATIVE_PATH against
+  "Download/Muso", but MediaStore stores it with a TRAILING SLASH ("Download/Muso/"), so the query
+  never matched and every append inserted a NEW file. Now matches on the file name alone.
+- jank_stack.txt was absent, as expected: the MainThreadWatchdog that writes it is in 0.5.257 and
+  the phone was running 0.5.256.
+- Docs: added docs/UI_TRACE_FIXES_FROM_THE_LOG.md.
+
+## Muso 0.5.257 — the logs prove 0.5.256 is live, and a watchdog to name the freeze
+- The uploaded app_log.txt/app_log_1.txt read "App start 0.5.256 (263) ... publicDir=false".
+  publicDir=false is written by nothing except the new code, so the phone IS running 0.5.256 and
+  every change from 0.5.247 onwards is live on it.
+- The jank logs show the app is NOT generally slow: 100-120 fps in the steady state. The felt
+  problem is a few enormous freezes - 1385ms at startup and 17725ms (17.7 SECONDS) at 11:25:03.
+  That is a cause, not a cost, so it is findable.
+- FrameJankMonitor could only ever report the duration: its Choreographer callback runs ON the
+  main thread, so sampling the main thread from inside it returns the monitor's own stack.
+- Added MainThreadWatchdog: its own thread, reads the main thread's stack every 500ms, and when
+  the same top frames repeat for ~2s it writes the stack to Downloads/Muso/jank_stack.txt (visible
+  in any file manager). That line names the blocking call.
+- Docs: added docs/JANK_EVIDENCE_AND_STACK_WATCHDOG.md.
+
 ## Muso 0.5.256 — the log folder was hidden, not missing; now visible + one tap away
 - The release page screenshot proved the build SUCCEEDED (Muso v0.5.254, versionCode 261, "built
   automatically from the latest source") - so my earlier "the builds are failing" conclusion was

@@ -92,6 +92,8 @@ object MusoLog {
         startLogcat(dir)
         // Round 178: whole-app jank needs measuring before it can be fixed.
         FrameJankMonitor.install()
+        // Round 179: and the STALL needs naming, not just measuring.
+        MainThreadWatchdog.install()
 
         // Drain the UI trace into Downloads/Muso/ui_log.txt every few seconds. A daemon thread,
         // not a coroutine: this is set up in Application.onCreate and must outlive any scope.
@@ -128,6 +130,18 @@ object MusoLog {
     fun ui(event: String) {
         android.util.Log.i(UI_TAG, event + "  screen=" + currentScreen)
         uiLines.add(stamp() + "  " + event + "  screen=" + currentScreen)
+    }
+
+    /**
+     * Every finger-up, wherever it lands. MotionIndication was the intended hook, but
+     * MaterialTheme provides its own ripple as LocalIndication and that one wins, so
+     * MotionIndication never ran and no press was ever logged. A touch at the Activity level
+     * cannot be missed, and it covers buttons that pass indication = null too.
+     */
+    fun touch(x: Float, y: Float) {
+        val where = x.toInt().toString() + "," + y.toInt()
+        android.util.Log.i(UI_TAG, "TOUCH " + where + "  screen=" + currentScreen)
+        uiLines.add(stamp() + "  TOUCH  " + where + "  screen=" + currentScreen)
     }
 
     private fun stamp(): String =
@@ -244,12 +258,15 @@ object MusoLog {
                 android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY,
             )
             // Find this app's existing entry (we own what we insert).
+            // Match on the file NAME only. MediaStore stores RELATIVE_PATH with a trailing
+            // slash ("Download/Muso/"), so matching it against "Download/Muso" never found the
+            // existing entry - and every append inserted a NEW file instead. The user's log zip
+            // had ~100 of them.
             val found = resolver.query(
                 collection,
                 arrayOf(android.provider.MediaStore.MediaColumns._ID),
-                "${android.provider.MediaStore.MediaColumns.RELATIVE_PATH}=? AND " +
-                    "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME}=?",
-                arrayOf("${Environment.DIRECTORY_DOWNLOADS}/Muso", fileName),
+                "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME}=?",
+                arrayOf(fileName),
                 null,
             )?.use { c -> if (c.moveToFirst()) c.getLong(0) else null }
             val uri =
@@ -419,6 +436,59 @@ object MusoLog {
 // navigation = the transitions; 30 fps with everything smooth = the device
 // is rendering in power-save).
 // ---------------------------------------------------------------------------
+/**
+ * Round 179: the jank monitor says HOW LONG a stall was; it cannot say WHAT caused it, because a
+ * Choreographer callback runs on the main thread itself - sampling the main thread from there
+ * returns the monitor's own stack.
+ *
+ * This watchdog runs on its own thread and reads the main thread's stack every 500 ms. When the
+ * same top frames repeat for ~2 s, the main thread is stuck, and the stack it prints is the one
+ * that names the blocking call. Written to Downloads/Muso/jank_stack.txt, which is visible in any
+ * file manager.
+ */
+object MainThreadWatchdog {
+    @Volatile private var started = false
+
+    fun install() {
+        if (started) return
+        started = true
+        runCatching {
+            Thread {
+                var lastTop = ""
+                var repeats = 0
+                while (true) {
+                    runCatching { Thread.sleep(500L) }
+                    val stack = runCatching {
+                        android.os.Looper.getMainLooper().thread.stackTrace
+                    }.getOrNull() ?: continue
+                    val top = stack.take(8).joinToString("|") { it.toString() }
+                    if (top == lastTop) {
+                        repeats++
+                        if (repeats == 4) {
+                            repeats = 0
+                            val stamp = java.text.SimpleDateFormat(
+                                "yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US,
+                            ).format(java.util.Date())
+                            val body = stack.take(24).joinToString("\n    ") { it.toString() }
+                            val report =
+                                "\n[STUCK ~2s at " + stamp + "  screen=" + MusoLog.currentScreen + "]\n    " +
+                                    body + "\n"
+                            Thread { runCatching { MusoLog.appendPublic("jank_stack.txt", report) } }.start()
+                        }
+                    } else {
+                        lastTop = top
+                        repeats = 0
+                    }
+                }
+            }.apply {
+                isDaemon = true
+                name = "muso-main-watch"
+                start()
+            }
+        }
+    }
+}
+
 object FrameJankMonitor {
     @Volatile private var started = false
 

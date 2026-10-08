@@ -100,7 +100,10 @@ fun BottomSheet(
             BackHandler(onBack = state::collapseSoft)
         }
 
-        if (!state.isCollapsed) {
+        // `progress > 0.01f` as well as the anchor test: an in-between value (see the re-anchor
+        // note in rememberBottomSheetState) would otherwise compose this `fillMaxSize()` layer at
+        // alpha ~0, invisible, over the whole screen - and it would eat every tap.
+        if (!state.isCollapsed && state.progress > 0.01f) {
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
@@ -208,13 +211,12 @@ class BottomSheetState(
     }
 
     val progress by derivedStateOf {
-        // Guarded: with no expanded room (expandedBound == collapsedBound, which happens for a
-        // frame while a restore is still measuring) this was 0/0 - NaN. Everything positioned
-        // from `progress` (the navbar's slide, the mini player's fade) then took a NaN offset,
-        // which is one of the ways the layout lands in the wrong place on the first frame after
-        // the app returns to the foreground.
+        // No expanded room (expandedBound == collapsedBound) makes this 0/0. The guard used to
+        // return 1f, the EXPANDED end - which is backwards: with no room to expand the sheet IS
+        // collapsed, and 1f faded the mini player out and slid the navbar away for that frame.
+        // Collapsed is 0f, and that is what the mini player and the navbar must read.
         val span = animatable.upperBound!! - collapsedBound
-        if (span.value <= 0f) 1f else 1f - (animatable.upperBound!! - animatable.value) / span
+        if (span.value <= 0f) 0f else 1f - (animatable.upperBound!! - animatable.value) / span
     }
 
     fun collapse(animationSpec: AnimationSpec<Dp>) {
@@ -428,6 +430,38 @@ fun rememberBottomSheetState(
             ) {
                 animatable.snapTo(collapsedBound)
             }
+        }
+    }
+
+    // THE bug behind "components move when the app is minimised and brought back", and behind
+    // "no button in the playlist works".
+    //
+    // `collapsedBound` and `expandedBound` are built from the window insets - bottomInset plus the
+    // navigation bar - so they CHANGE when the app goes to the background and returns. The
+    // Animatable above is keyed on the anchor and on the dismissed/expanded bounds, but NOT on
+    // collapsedBound, so when the collapsed bound moves the Animatable keeps its OLD value. The
+    // sheet is then no longer exactly at collapsedBound, and two things follow from that single
+    // fact:
+    //
+    //   1. `isCollapsed` and `isDismissed` are both false, so `progress` is neither 0 nor 1 and
+    //      everything positioned from it - the mini player's fade, the navbar's slide - lands
+    //      somewhere else. That is the layout that shifts on minimise/restore.
+    //   2. Worse, the sheet then composes its EXPANDED layer, which is a `fillMaxSize()` box with
+    //      a pointerInput and an alpha near zero. It is invisible, and it lies over the whole
+    //      screen, so it consumes every tap: buttons do nothing and songs do not play.
+    //
+    // Before 0.5.249 a `LaunchedEffect(playerBottomSheetState) { snapTo(dismissedBound) }` in the
+    // host masked this by snapping the sheet back whenever the state was re-created (which a
+    // bounds change does). It was removed because it also forced a restored FULLSCREEN player down
+    // to MINI, which the PRD forbids. Re-anchoring to the bound the sheet is actually sitting at
+    // fixes both: a collapsed sheet follows the new collapsed bound, an expanded sheet follows the
+    // new expanded bound, and nothing else moves.
+    LaunchedEffect(collapsedBound, expandedBound) {
+        when (previousAnchor) {
+            collapsedAnchor ->
+                if (animatable.value != collapsedBound) animatable.snapTo(collapsedBound)
+            expandedAnchor ->
+                if (animatable.value != expandedBound) animatable.snapTo(expandedBound)
         }
     }
 
