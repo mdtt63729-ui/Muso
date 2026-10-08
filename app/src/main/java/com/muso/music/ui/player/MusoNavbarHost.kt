@@ -233,6 +233,7 @@ fun BoxScope.MusoNavbarHost(
                 showMixForYouTab = false,
                 onOpenNowPlaying = { playerBottomSheetState.expandSoft() },
                 reloadDestinationIfNeeded = { onReloadTab() },
+                playerConnection = playerConnection,
             )
         } else if (glassOn) {
             // Flat style with glass on: the standalone pill (rendered with the

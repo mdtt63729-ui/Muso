@@ -151,6 +151,9 @@ fun LiquidGlassAppBottomNavigationBar(
     // The bar's integrated glass mini player can be turned off (the standalone
     // pill rides above the bar instead) without touching anything else.
     showMiniPlayer: Boolean = true,
+    // The live Muso player. Without it the integrated pill is gated on the SimpMusic bridge
+    // alone, which can stay empty, and Minify + Liquid Glass then draws no mini player at all.
+    playerConnection: com.muso.music.playback.PlayerConnection? = null,
 ) {
     // Performance mode: Liquid Glass no longer performs graphics-layer pixel readbacks.
     // The previous 5x5 bitmap sampling loop forced GPU->CPU synchronization every second,
@@ -173,10 +176,15 @@ fun LiquidGlassAppBottomNavigationBar(
     //
     // Fixing the copy in App.kt did nothing here, because with liquid glass on it is THIS file
     // that draws the mini player.
+    // The live player is the reliable source: the bridge above can be empty (or permanently
+    // stale after a process restore) while a track is playing. Either source showing a track
+    // is enough to draw the pill.
+    val liveMediaState = playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()
     val isShowMiniPlayer by remember {
         derivedStateOf {
             val item = nowPlayingData?.mediaItem
-            showMiniPlayer && item != null && item != GenericMediaItem.EMPTY
+            showMiniPlayer &&
+                (liveMediaState?.value != null || (item != null && item != GenericMediaItem.EMPTY))
         }
     }
 
@@ -391,6 +399,8 @@ fun LiquidGlassAppBottomNavigationBar(
                     .layoutId("miniPlayer")
                     .then(if (isExpanded) Modifier.height(56.dp) else Modifier.height(48.dp)),
                 backdrop = backdrop,
+                // So the pill reads the real player, not the bridge that may be empty.
+                playerConnection = playerConnection,
                 onClick = onOpenNowPlaying,
                 onClose = {
                     viewModel.stopPlayer()

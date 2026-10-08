@@ -39,6 +39,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -56,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -77,6 +80,8 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.data.model.lyrics.RomanizationLanguage
 import com.maxrave.domain.repository.LyricsRomanizerRepository
 import com.maxrave.simpmusic.expect.ui.isLyricsBlurSupported
+import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
+import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.domain.data.model.metadata.Line
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
@@ -463,7 +468,12 @@ fun LyricsView(
         com.muso.music.constants.LyricsAnimationStyle.ENHANCED,
     )
     if (musoLyricsAnimationStyle == com.muso.music.constants.LyricsAnimationStyle.ENHANCED) {
-        com.muso.music.ui.component.MusoEnhancedLyrics(modifier = modifier)
+        // The lyrics this app already fetched are handed to the renderer: ArchiveTune's own
+        // pipeline reads its own (empty) lyrics table, which only ever produced the loader.
+        com.muso.music.ui.component.MusoEnhancedLyrics(
+            lyricsData = lyricsData,
+            modifier = modifier,
+        )
         return
     }
 
@@ -513,6 +523,12 @@ fun LyricsView(
     val effectiveEchoLyricsStyle =
         when {
             !wordByWordEnabled -> com.muso.music.constants.LyricsAnimationStyle.NONE
+            // The picker's own NONE has to reach here. It used to fall through to ENHANCED, so
+            // choosing None still ran the Echo word renderer - an animated line under a setting
+            // that says "no animation". That is why None was the laggiest of the three: it was
+            // the only one doing the most work, for the one style that must do none.
+            echoLyricsStyle == com.muso.music.constants.LyricsAnimationStyle.NONE ->
+                com.muso.music.constants.LyricsAnimationStyle.NONE
             // IMMERSIVE is drawn by the Apple-Music sheet below, not by the Echo word renderer.
             echoLyricsStyle == com.muso.music.constants.LyricsAnimationStyle.IMMERSIVE ->
                 com.muso.music.constants.LyricsAnimationStyle.NONE
@@ -620,7 +636,29 @@ fun LyricsView(
                 thresholdMs = 1000L,
             )
         }
-    LaunchedEffect(renderCurrentLineIndex, lyricsData.lyrics.syncType, appleStyle) {
+    // The listener has taken the list off the line that is singing. While this holds, the
+    // player's own auto-scroll stands down - it must not yank the list back to the line the
+    // listener deliberately scrolled away from - and the resume button is shown in its place.
+    // It clears the moment the sung line is on screen again, whether the button or the
+    // listener's own scrolling put it there, and the auto-scroll then takes over again.
+    val isAwayFromCurrentLine by remember {
+        derivedStateOf {
+            val visible = listState.layoutInfo.visibleItemsInfo
+            visible.isNotEmpty() && visible.none { it.index == renderCurrentLineIndex }
+        }
+    }
+    var userScrolledAway by remember { mutableStateOf(false) }
+    LaunchedEffect(isDragging, isAwayFromCurrentLine) {
+        // Only a drag ARMS it: the auto-scroll itself takes the line off screen for a moment,
+        // and that is not the listener asking to go anywhere.
+        if (isDragging) userScrolledAway = true
+        if (!isAwayFromCurrentLine) userScrolledAway = false
+    }
+
+    LaunchedEffect(renderCurrentLineIndex, lyricsData.lyrics.syncType, appleStyle, userScrolledAway, isDragging) {
+        // Scrolled away by hand: leave the list exactly where the listener put it. Clearing
+        // userScrolledAway re-runs this effect, which is how the auto-scroll resumes.
+        if (userScrolledAway || isDragging) return@LaunchedEffect
         if (renderCurrentLineIndex > -1 &&
             (lyricsData.lyrics.syncType == "LINE_SYNCED" || lyricsData.lyrics.syncType == "RICH_SYNCED" || useEstimatedSync)
         ) {
@@ -948,6 +986,36 @@ fun LyricsView(
                     } else {
                         footer()
                     }
+                }
+            }
+        }
+
+        // Shown exactly while the listener is off the sung line, so it disappears on its own
+        // the moment the line is back - by the button or by hand - and the auto-scroll resumes.
+        if (userScrolledAway && renderCurrentLineIndex > -1) {
+            val resumeScope = rememberCoroutineScope()
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                FilledTonalIconButton(
+                    onClick = {
+                        resumeScope.launch {
+                            // The same call the player's own auto-scroll makes, so the line lands
+                            // where the animation and the blur both expect it.
+                            if (appleStyle) {
+                                listState.animateScrollAndAnchorItemTop(renderCurrentLineIndex, -exposedRowPx)
+                            } else {
+                                listState.animateScrollAndCentralizeItem(renderCurrentLineIndex)
+                            }
+                        }
+                    },
+                    modifier = Modifier.padding(bottom = 28.dp),
+                ) {
+                    Icon(
+                        imageVector = SimpIcons.KeyboardArrowDown,
+                        contentDescription = null,
+                    )
                 }
             }
         }
@@ -1700,7 +1768,17 @@ fun FullscreenLyricsSheet(
     // the page can only close when something actually asks it to.
     val visibility = remember { MutableTransitionState(false).apply { targetState = true } }
 
-    fun requestClose() { visibility.targetState = false }
+    // The gesture that opens this page can land on the page's own header, which is
+    // tappable-to-dismiss, so the page used to shut the instant it opened - in every style
+    // that draws that header (immersive draws a different one). The header tap, the back
+    // press and the dialog's own dismiss all route through here, so one guard covers every
+    // close path: a close request that arrives while the page is still opening is ignored.
+    val openedAt = remember { android.os.SystemClock.uptimeMillis() }
+
+    fun requestClose() {
+        if (android.os.SystemClock.uptimeMillis() - openedAt < 400L) return
+        visibility.targetState = false
+    }
 
     LaunchedEffect(visibility.currentState, visibility.isIdle) {
         if (visibility.isIdle && !visibility.currentState) {

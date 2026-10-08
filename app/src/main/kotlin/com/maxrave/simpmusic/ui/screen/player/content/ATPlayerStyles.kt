@@ -1343,7 +1343,7 @@ fun NowPlayingContentImmersiveExtended(
     val renderedBackdrop = Color.Black.copy(alpha = 0.52f).compositeOver(renderedArtwork)
     val isLightRenderedBackdrop = renderedBackdrop.luminance() > 0.52f
     val foreground = if (isLightRenderedBackdrop) Color.Black else Color.White
-    val secondaryForeground = foreground.copy(alpha = 0.72f)
+    val secondaryForeground = foreground
     val adaptiveScheme = MaterialTheme.colorScheme.copy(
         background = renderedBackdrop,
         surface = renderedBackdrop,
@@ -1671,7 +1671,9 @@ fun NowPlayingContentMaterialExtended(
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(dominantColor.toArgb(), hsv)
         hsv[1] = hsv[1].coerceAtMost(0.12f)
-        hsv[2] = 0.96f
+        // 1f, not 0.96f: the foreground must be TRUE white. At 0.96 it was ~#F5F5F5, and the
+        // labels drawn on top of it at 72-78% alpha read as three-quarters white.
+        hsv[2] = 1f
         Color(android.graphics.Color.HSVToColor(hsv))
     }
 
@@ -1796,7 +1798,7 @@ fun NowPlayingContentMaterialExtended(
                 Text(
                     text = state.screenData.artistName,
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = dynamicTextColor.copy(alpha = 0.72f),
+                    color = dynamicTextColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
@@ -1854,14 +1856,14 @@ fun NowPlayingContentMaterialExtended(
                 ),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = dynamicTextColor.copy(alpha = 0.78f),
+                color = dynamicTextColor,
                 modifier = Modifier.align(Alignment.CenterStart),
             )
             Text(
                 text = makeTimeString(state.timelineState.total),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = dynamicTextColor.copy(alpha = 0.78f),
+                color = dynamicTextColor,
                 modifier = Modifier.align(Alignment.CenterEnd),
             )
         }

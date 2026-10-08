@@ -1,3 +1,51 @@
+## Muso 0.5.246 — lyrics resume: scrolling by hand suspends the auto-scroll
+- Refines 0.5.245's resume button to the behaviour asked for: while the listener has scrolled off
+  the sung line the player's own auto-scroll STANDS DOWN (it no longer yanks the list back) and
+  the resume button shows; the moment the sung line is on screen again - by the button or by hand
+  - the button goes and the auto-scroll resumes.
+- One flag does all of it: userScrolledAway, armed only by a DRAG (isDragging), cleared when the
+  sung line is visible again. Keying on isDragging is what keeps the player's own scroll - which
+  also takes the line off screen for a moment - from arming it, so the button no longer needs the
+  600ms debounce 0.5.245 used.
+- The auto-scroll LaunchedEffect takes userScrolledAway and isDragging as keys and returns early
+  on them; clearing the flag re-runs it, which is how the auto-scroll resumes - no second path.
+- Docs: added docs/FIX_RESUME_SUSPENDS_AUTOSCROLL.md.
+
+## Muso 0.5.245 — lyrics: the None style, per-style behaviour, resume button
+- None was the laggiest style, and the picker seemed not to work, for one reason:
+  effectiveEchoLyricsStyle had no branch for the picker's own NONE, so a stored None fell through
+  to ENHANCED and still ran the Echo word renderer - an animated line under a "no animation"
+  setting. Two of the three settings produced the same renderer, which is why every style looked
+  alike. Added `echoLyricsStyle == NONE -> NONE`.
+- The three settings now reach three renderers: Enhanced -> ArchiveTune's LyricsEnhanced sheet,
+  Immersive -> the Apple-Music sheet, None -> the suite's static lines with no per-frame loop.
+- EchoLyricsLine is consequently reached by no setting; left in place, unused.
+- New: a resume button. When the sung line is not among the visible items, a button appears at
+  the bottom of the lyrics area and returns to the current line, using the same scroll call the
+  player's own auto-scroll uses. It waits 600ms before showing so the player's own scroll cannot
+  flash it.
+- Docs: added docs/FIX_LYRICS_STYLES_AND_RESUME.md.
+
+## Muso 0.5.244 — Enhanced lyrics, fullscreen lyrics, Minify+Liquid Glass, text colour
+- Enhanced lyrics showed only the loader: the renderer was fed by ArchiveTune's
+  LyricsRenderViewModel, whose PrepareLyricsUseCase reads ArchiveTune's OWN (empty here) lyrics
+  table, so it could only ever emit Loading. MusoEnhancedLyrics now maps the lyrics the suite
+  already fetched into PreparedLyrics directly, and takes textSizeSp from the app's own lyrics
+  size setting.
+- The fullscreen lyrics page closed the instant it opened in every style but immersive: the
+  page's header (artwork + title/artist) is tappable-to-dismiss and sits where the button that
+  opens the page sits, so the opening gesture could land on it. FullscreenLyricsSheet.requestClose
+  now ignores a close request that arrives while the page is still opening; every close path
+  routes through it.
+- Minify + Liquid Glass drew no mini player: LiquidGlassAppBottomNavigationBar gated its
+  integrated pill on the SimpMusic bridge's nowPlayingState, which can stay empty. It now also
+  accepts the live PlayerConnection, shows the pill when either source has a track, and passes
+  the connection into MiniPlayer so the pill reads the real queue.
+- Title/artist/time text was never true white: dynamicTextColor used hsv[2]=0.96f and every label
+  on it was dimmed again to 72-78% alpha. Now hsv[2]=1f and the labels are full colour, plus
+  secondaryForeground is no longer alpha'd.
+- Docs: added docs/FIX_ENHANCED_LYRICS_FULLSCREEN_GLASS_WHITE.md.
+
 ## Muso 0.5.243 — fix the 15 "Unresolved reference 'serviceOrNull'" errors
 - 0.5.242 declared serviceOrNull / localPlayerOrNull as PLAIN primary-constructor parameters
   and read them from the service / localPlayer getters. Kotlin only allows a plain
