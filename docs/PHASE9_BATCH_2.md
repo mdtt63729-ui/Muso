@@ -40,3 +40,17 @@ screens parse clean and are brace/paren balanced, carry the `LazyColumn` import,
 Note: the bodies inside the new `item {}` blocks keep their original 8-space indent rather than
 being re-indented to 12. That is cosmetic only — re-indenting by hand is exactly the kind of edit
 that silently changes meaning.
+
+---
+
+## 0.5.254 — the two errors from the 0.5.253 build
+
+Nine errors, two causes:
+
+- `MusoSuiteBridge.kt:190` — `parseLrcToSuiteLines`. It lived in the part of `MusoSuiteHost.kt`
+  that was **not** extracted in 0.5.250: my "is it still used?" check was a crude `awk` that
+  missed it, and the compiler then reported a cascade of type-inference errors on top. The
+  function is self-contained — stdlib calls plus the suite's `Line` model, nothing else from the
+  deleted file — so it is appended verbatim from 0.5.246.
+- `ModalBottomSheet.kt:954` — a second read of `immersiveQueue` that 0.5.247's removal missed. It
+  is now `provides false`, which is what removing the seven player styles means.

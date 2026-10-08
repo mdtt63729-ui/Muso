@@ -1,3 +1,13 @@
+## Muso 0.5.254 — the two compile errors from the 0.5.253 build
+- MusoSuiteBridge.kt:190 called parseLrcToSuiteLines, which lived in the part of MusoSuiteHost.kt
+  I did NOT extract in 0.5.250 (my "is it used?" check was a crude awk that missed it, and the
+  compiler then reported a cascade of type-inference errors from the unresolved call). The
+  function is self-contained - stdlib calls plus the suite's Line model, nothing else from the
+  deleted file - so it is appended to MusoSuiteBridge.kt verbatim from 0.5.246.
+- ModalBottomSheet.kt:954 still read `immersiveQueue` in a CompositionLocalProvider. 0.5.247
+  removed the declaration and the queueForeground use but missed this second use; it is now
+  `provides false`, matching the removal of the seven player styles.
+
 ## Muso 0.5.253 — log folder needs no permission; full UI trace
 - The "Muso" log folder now lives at /storage/emulated/0/Android/data/com.muso.music/files/Muso
   - the app's OWN external directory. No permission of any kind is needed to write there, and the

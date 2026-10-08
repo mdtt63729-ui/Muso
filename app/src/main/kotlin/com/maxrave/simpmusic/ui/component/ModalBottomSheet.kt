@@ -951,7 +951,7 @@ fun QueueBottomSheet(
         shape = RectangleShape,
     ) {
         MaterialTheme(colorScheme = queueScheme) {
-            CompositionLocalProvider(LocalForceDarkText provides immersiveQueue) {
+            CompositionLocalProvider(LocalForceDarkText provides false) {
         Card(
             modifier =
                 Modifier

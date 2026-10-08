@@ -465,3 +465,91 @@ private fun hqYtThumb(url: String?): String? {
     return "https://i.ytimg.com/vi/$id/maxresdefault.jpg"
 }
 
+private fun parseLrcToSuiteLines(data: String): Triple<List<Line>, Boolean, Boolean>? {
+    val stamp = Regex("""\[(\d{1,3}):(\d{1,2}(?:[.,]\d{1,3})?)]""")
+    // Enhanced-LRC word timing tags: <mm:ss.xxx> before every word. When
+    // present they are KEPT (normalized to the strict <mm:ss.xxx> shape the
+    // suite's rich-sync parser expects): the suite renders word-by-word from
+    // them - RichSyncLyricsLineItem's flare and the ten Echo styles alike.
+    // Lines without any tags keep them stripped, so nothing regresses to the
+    // visible "<03:19.606>" garbage.
+    val wordTag = Regex("""<(\d{1,3}):(\d{1,2}(?:[.,]\d{1,3})?)>""")
+    val timed = mutableListOf<Pair<Long, String>>()
+    var anyWordTimings = false
+    for (rawLine in data.lineSequence()) {
+        val stamps = stamp.findAll(rawLine).toList()
+        if (stamps.isEmpty()) continue
+        var text = rawLine.substring(stamps.last().range.last + 1).trim()
+        if (wordTag.containsMatchIn(text)) {
+            anyWordTimings = true
+            // Normalize every tag to <mm:ss.xxx> (2-digit minutes, 3-digit
+            // milliseconds) - parseRichSyncWords only accepts that shape.
+            text = wordTag.replace(text) { m ->
+                val minutes = m.groupValues[1].toInt()
+                val secParts = m.groupValues[2].split('.', ',', limit = 2)
+                val seconds = secParts[0].toInt()
+                val fraction = if (secParts.size > 1) secParts[1] else "0"
+                val ms = when (fraction.length) {
+                    1 -> fraction + "00"
+                    2 -> fraction + "0"
+                    else -> fraction.take(3)
+                }
+                "<%02d:%02d.%s>".format(minutes, seconds, ms)
+            }
+        }
+        for (m in stamps) {
+            val minutes = m.groupValues[1].toLong()
+            val seconds = m.groupValues[2].replace(',', '.').toDouble()
+            timed.add(minutes * 60_000L + (seconds * 1000).toLong() to text)
+        }
+    }
+    if (timed.isNotEmpty()) {
+        timed.sortBy { it.first }
+        // Rich lines: the line must become current the moment its FIRST WORD
+        // starts. Some sources stamp the line later than the first word, which
+        // made the whole line (and its letter-by-letter fill) appear 1-3 words
+        // late (user report) - take the earlier of the two.
+        val firstWordTag = Regex("""<(\d{2}):(\d{2})\.(\d{3})>""")
+        val lines = timed.mapIndexed { i, (start, text) ->
+            val effectiveStart =
+                if (anyWordTimings) {
+                    firstWordTag.find(text)?.let { m ->
+                        m.groupValues[1].toLong() * 60_000L +
+                            m.groupValues[2].toLong() * 1000L +
+                            m.groupValues[3].toLong()
+                    }?.takeIf { it < start } ?: start
+                } else {
+                    start
+                }
+            val end = (timed.getOrNull(i + 1)?.first ?: (start + 5_000L)).coerceAtLeast(effectiveStart + 1L)
+            Line(
+                startTimeMs = effectiveStart.toString(),
+                endTimeMs = end.toString(),
+                syllables = null,
+                words = text.ifBlank { "♪" },
+            )
+        }
+        return Triple(lines, true, anyWordTimings)
+    }
+    // No timestamps: plain lyrics - every non-empty line becomes a word line.
+    val words = data.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+    if (words.isEmpty()) return null
+    return Triple(
+        words.map { word ->
+            Line(startTimeMs = "0", endTimeMs = "0", syllables = null, words = word)
+        },
+        false,
+        false,
+    )
+}
+
+
+// =====================================================================================
+// MUSO SUITE BRIDGE — feeds the SimpMusic SharedViewModel shim with live player state.
+//
+// The suite's glass navigation bar renders its own MiniPlayer from
+// SharedViewModel.nowPlayingState / controllerState / timeline and sends its
+// transport events through SharedViewModel.onUIEvent — this bridge is the
+// single place that keeps those fed from (and wired back into) Muso's
+// PlayerConnection. Host it once, next to the navigation bar.
+// =====================================================================================
