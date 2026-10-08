@@ -27,8 +27,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.common.collect.ImmutableList
@@ -116,19 +120,39 @@ fun MusoEnhancedLyrics(
     }
 
     val bridgeScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
-    // Built once per player. The database is only touched for LOCAL media ids, which the
-    // streaming path never produces; a failure here degrades to "no Enhanced renderer"
-    // rather than taking the player down.
+    // Built once per player. ArchiveTune's database is OPTIONAL here: this app does not expose
+    // it, and the renderer never reads it. Passing null instead of letting a failure null the
+    // whole connection is what stops the sheet from coming up empty.
     val archiveTuneConnection = remember(playerConnection) {
         runCatching {
             ArchiveTunePlayerConnection(
                 context = context,
                 player = playerConnection.player,
                 mediaMetadata = archiveTuneMetadata,
-                database = KitRuntimeAccess.database(),
+                database = runCatching { KitRuntimeAccess.database() }.getOrNull(),
                 scope = bridgeScope,
             )
         }.getOrNull()
+    }
+
+    if (archiveTuneConnection == null) {
+        // The ArchiveTune connection could not be built at all. Rather than an empty sheet,
+        // show the words plainly - the style is still Enhanced, and the lyrics are the point.
+        val lines = lyricsData?.lyrics?.lines.orEmpty()
+        androidx.compose.foundation.lazy.LazyColumn(modifier = modifier.fillMaxSize()) {
+            items(lines.size) { index ->
+                androidx.compose.material3.Text(
+                    text = lines[index].words,
+                    color = textColor ?: Color.White,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier =
+                        androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                )
+            }
+        }
+        return
     }
 
     CompositionLocalProvider(

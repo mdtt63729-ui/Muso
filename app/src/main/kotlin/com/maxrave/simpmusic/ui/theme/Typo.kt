@@ -1,7 +1,5 @@
 package com.maxrave.simpmusic.ui.theme
 
-import com.muso.music.R
-
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -13,14 +11,14 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.Font
-
-
+import org.jetbrains.compose.resources.Font
+import simpmusic.composeapp.generated.resources.Res
+import simpmusic.composeapp.generated.resources.poppins_medium
 
 @Composable
 fun fontFamily(): FontFamily =
     FontFamily(
-        Font(R.font.poppins_medium, FontWeight.Normal, FontStyle.Normal),
+        Font(Res.font.poppins_medium, FontWeight.Normal, FontStyle.Normal),
     )
 
 /**

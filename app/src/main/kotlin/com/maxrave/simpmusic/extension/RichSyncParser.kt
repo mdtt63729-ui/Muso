@@ -8,8 +8,6 @@ import com.maxrave.domain.extension.decodeHtmlEntities
 data class WordTiming(
     val text: String,
     val startTimeMs: Long,
-    /** Optional explicit end. When absent, the next word/line boundary is used. */
-    val endTimeMs: Long? = null,
 )
 
 /**
@@ -39,8 +37,11 @@ fun parseRichSyncWords(
 ): ParsedRichSyncLine? {
     // Handle edge cases
     if (words.isBlank()) {
+        println("[parseRichSyncWords] Input is blank")
         return null
     }
+
+    println("[parseRichSyncWords] Input preview: ${words.take(100)}")
 
     // Strategy: Find all timestamps first, then extract text between them
     // Regex to match timestamp only: <MM:SS.mm> or <MM:SS.mmm>
@@ -77,20 +78,17 @@ fun parseRichSyncWords(
 
         // Only add if there's actual text (not just whitespace or empty)
         if (textBetween.isNotBlank()) {
-            wordTimings.add(
-                WordTiming(
-                    text = decodeHtmlEntities(textBetween),
-                    startTimeMs = timeMs,
-                    endTimeMs = null,
-                ),
-            )
+            wordTimings.add(WordTiming(text = decodeHtmlEntities(textBetween), startTimeMs = timeMs))
         }
     }
 
     // If no valid words were parsed, return null (fallback to LINE_SYNCED)
     if (wordTimings.isEmpty()) {
+        println("[parseRichSyncWords] No words matched the regex")
         return null
     }
+
+    println("[parseRichSyncWords] Successfully parsed ${wordTimings.size} words")
 
     // Parse line timing
     val lineStart = lineStartTimeMs.toLongOrNull() ?: 0L

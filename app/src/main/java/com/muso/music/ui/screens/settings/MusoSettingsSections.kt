@@ -475,14 +475,6 @@ fun PreferenceGroupScope.musoPlayerStyleRows() {
                     PlayerStyle.CLASSIC -> stringResource(R.string.player_style_classic_v2)
                     PlayerStyle.EXPRESSIVE -> stringResource(R.string.player_style_m3_expressive)
                     PlayerStyle.IMMERSIVE -> stringResource(R.string.player_style_immersive_nightly)
-                    // Round 174: the ArchiveTune player design styles.
-                    PlayerStyle.MODERN -> stringResource(R.string.player_style_modern)
-                    PlayerStyle.MINIMAL -> stringResource(R.string.player_style_minimal)
-                    PlayerStyle.CINEMATIC -> stringResource(R.string.player_style_cinematic)
-                    PlayerStyle.LITTLE -> stringResource(R.string.player_style_little)
-                    PlayerStyle.IMMERSIVE_EXTENDED -> stringResource(R.string.player_style_immersive_extended)
-                    PlayerStyle.MATERIAL_EXTENDED -> stringResource(R.string.player_style_material_extended)
-                    PlayerStyle.EDITORIAL -> stringResource(R.string.player_style_editorial)
                 }
             },
         )

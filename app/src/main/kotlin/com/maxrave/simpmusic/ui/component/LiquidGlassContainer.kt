@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,7 +95,7 @@ fun Modifier.liquidGlass(
         isDark = isDark,
         backdrop = backdrop,
         layer = null,
-        luminanceAnimation = 0.5f,
+        luminance = { 0.5f },
         shape = shape,
         interaction = if (interactive) interaction else null,
         highlight = highlight,
@@ -104,7 +105,7 @@ fun Modifier.liquidGlass(
 /**
  * Overload of [liquidGlass] for surfaces that sample their own background luminance
  * (e.g. the MiniPlayer and the bottom bar capsule): the caller owns the [layer] the
- * glass records into and drives [luminanceAnimation], so the glass keeps adapting to
+ * glass records into and drives [luminance], so the glass keeps adapting to
  * the content behind it — unlike the [liquidGlass] above, which uses a fixed
  * mid-luminance.
  *
@@ -115,32 +116,21 @@ fun Modifier.liquidGlass(
 @Composable
 fun Modifier.liquidGlass(
     backdrop: PlatformBackdrop,
-    layer: GraphicsLayer?,
-    luminanceAnimation: Float,
+    layer: GraphicsLayer,
+    luminance: State<Float>,
     shape: Shape = CircleShape,
     interactive: Boolean = true,
     blurScale: Float = 1f,
     minScrim: Float = 0.12f,
     maxScrim: Float = 0.5f,
 ): Modifier {
-    // This overload is used by the MiniPlayer and other surfaces that need the
-    // sampled-luminance version of the glass effect. It MUST obey the same
-    // global setting as the simpler overload above. Previously this path
-    // bypassed LocalLiquidGlassEnabled, which meant Liquid Glass could remain
-    // visible even when the user disabled it in Settings.
-    if (!LocalLiquidGlassEnabled.current) {
-        return this
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f))
-    }
-
     val isDark = LocalIsDarkTheme.current
     val interaction = rememberGlassInteraction()
     return this.drawInteractiveGlass(
         isDark = isDark,
         backdrop = backdrop,
-        layer = null,
-        luminanceAnimation = luminanceAnimation,
+        layer = layer,
+        luminance = { luminance.value },
         shape = shape,
         interaction = if (interactive) interaction else null,
         // MiniPlayer (the only caller of this layer + luminance overload) is a wide surface, so the
@@ -253,8 +243,8 @@ fun rememberGlassInteraction(): GlassInteraction {
  * [interaction]: the surface scales up a touch, the refraction/blur deepen and a
  * radial glow follows the pointer. Pass `interaction = null` for a static surface.
  *
- * [luminanceAnimation] keeps the brightness/contrast curve of the original
- * wrapper (the bottom navigation bar animates it; static surfaces pass `0.5f`).
+ * [luminance] is read during drawing, so adapting the tint does not recompose the surface.
+ * [layer] is only needed for surfaces that sample their background.
  *
  * [blurScale] multiplies the luminance-driven blur radius and [minScrim]/[maxScrim]
  * are the ends of the darkening ramp. The defaults are the values this surface has
@@ -266,7 +256,7 @@ fun Modifier.drawInteractiveGlass(
     isDark: Boolean,
     backdrop: PlatformBackdrop,
     layer: GraphicsLayer?,
-    luminanceAnimation: Float,
+    luminance: () -> Float,
     shape: Shape,
     interaction: GlassInteraction?,
     pressedScale: Float = 1.12f,
@@ -286,46 +276,39 @@ fun Modifier.drawInteractiveGlass(
             // a uniform rim all the way round.
             highlight = { highlight },
             effects = {
-                val l = (luminanceAnimation * 2f - 1f).let { sign(it) * it * it }
+                val l = (luminance() * 2f - 1f).let { sign(it) * it * it }
                 val press = interaction?.pressProgress ?: 0f
+                vibrancy()
                 colorControls(
                     // Neutral brightness/contrast: the old curve brightened + washed the glass out
                     // to white on bright backgrounds ("đục trắng"). Darkening is done in onDrawSurface.
                     brightness = 0.05f,
                     contrast = 1f,
-                    saturation = 1.15f,
+                    saturation = 1.5f,
                 )
-                // Keep the glass visually soft while reducing the shader's blur radius.
-                // Backdrop blur is one of the most expensive parts of this surface, and the
-                // navbar/mini-player can coexist with several other glass surfaces on screen.
                 blur(
-                    // Trimmed from 5-8dp to 4-6dp, and the press term is gone: blur radius
-                    // is the most expensive part of this shader, and tying it to the press
-                    // progress re-specified the effect on every frame of a press for a
-                    // change nobody can see. The pill still reads as frosted.
                     (
                         if (l > 0f) {
-                            lerp(4f.dp.toPx(), 6f.dp.toPx(), l)
+                            lerp(8f.dp.toPx(), 16f.dp.toPx(), l)
                         } else {
-                            lerp(4f.dp.toPx(), 2.5f.dp.toPx(), -l)
+                            lerp(8f.dp.toPx(), 2f.dp.toPx(), -l)
                         }
-                    ) * 0.8f * blurScale,
+                    ) * blurScale + 2f.dp.toPx() * press,
                 )
                 // refractionHeight stays below the stadium inradius (minDimension / 2) so the
                 // top and bottom refraction never meet at the medial axis — that meeting point on
                 // a wide pill is what produced the dark horizontal seam. depthEffect is off to
                 // match the crisp Kyant demo look and avoid the radial discontinuity at the centre.
+                lens(size.minDimension / 4f + 2f.dp.toPx() * press, size.minDimension / 2f, false)
             },
             onDrawBackdrop = { drawBackdrop ->
                 drawBackdrop()
-                // Intentionally no GPU->CPU readback/recording here. Glass surfaces use the
-                // shared backdrop directly; recording every frame was the main source of jank.
-
+                layer?.record { drawBackdrop() }
             },
             onDrawSurface = {
                 // Stay "đục đen": darken more as the background brightens so the glass never washes
                 // out to white (shared by the bottom bar capsule, search FAB and detail-screen pills).
-                val darken = lerp(minScrim, maxScrim, ((luminanceAnimation - 0.3f) / 0.5f).coerceIn(0f, 1f))
+                val darken = lerp(minScrim, maxScrim, ((luminance() - 0.3f) / 0.5f).coerceIn(0f, 1f))
                 drawRect((if (isDark) Color.Black else Color.White).copy(alpha = darken))
                 val press = interaction?.pressProgress ?: 0f
                 if (press > 0f) {

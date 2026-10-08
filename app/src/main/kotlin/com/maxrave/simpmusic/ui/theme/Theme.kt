@@ -35,7 +35,7 @@ data class AppColors(
     val overlayHeavy: Color,
 )
 
-val DarkAppColors =
+private val DarkAppColors =
     AppColors(
         favorite = favoriteColor,
         lyricActive = lyricActiveColor,
@@ -46,9 +46,7 @@ val DarkAppColors =
     )
 
 // Overlays stay dark in both themes: they cover artwork, where content is always light.
-// (Public: Muso's MainActivity provides these alongside LocalIsDarkTheme for the
-// hosted suite components, since the suite AppTheme never wraps them.)
-val LightAppColors =
+private val LightAppColors =
     DarkAppColors.copy(
         shimmerBackground = shimmerBackgroundLight,
         shimmerLine = shimmerLineLight,
@@ -62,10 +60,11 @@ val LocalIsDarkTheme = staticCompositionLocalOf { true }
 /**
  * Whether liquid-glass surfaces may actually draw glass.
  *
- * Provided by [AppTheme] from the user's setting. The default is false so a surface never
- * becomes glass unless the user explicitly enables Liquid Glass in Settings.
+ * Provided by [AppTheme] from the user's setting; the default is true so previews and anything
+ * composed outside [AppTheme] keep today's look. The setting row is Android-only, so Desktop always
+ * provides true — its capsule player and detail-screen buttons are glass by design, with no switch.
  */
-val LocalLiquidGlassEnabled = staticCompositionLocalOf { false }
+val LocalLiquidGlassEnabled = staticCompositionLocalOf { true }
 
 /**
  * The dark scheme to use for immersive screens while the app itself is on the light theme.
@@ -122,7 +121,7 @@ fun AppTheme(
     themeMode: String = DataStoreManager.THEME_MODE_DARK,
     themeColorSource: String = DataStoreManager.THEME_COLOR_DEFAULT,
     customThemeColor: Color? = null,
-    liquidGlassEnabled: Boolean = false,
+    liquidGlassEnabled: Boolean = true,
     content:
         @Composable()
         () -> Unit,

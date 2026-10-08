@@ -66,7 +66,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
@@ -82,6 +81,7 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.kyant.backdrop.highlight.Highlight
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.toggleMiniPlayer
@@ -91,6 +91,7 @@ import com.maxrave.simpmusic.expect.ui.layerBackdrop
 import com.maxrave.simpmusic.expect.ui.rememberBackdrop
 import com.maxrave.simpmusic.extension.KeepScreenOn
 import com.maxrave.simpmusic.extension.formatDuration
+import com.maxrave.simpmusic.extension.lengthLabel
 import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.hsvToColor
 import com.maxrave.simpmusic.getPlatform
@@ -102,6 +103,7 @@ import com.maxrave.simpmusic.ui.icon.MoreVert
 import com.maxrave.simpmusic.ui.icon.PictureInPictureAlt
 import com.maxrave.simpmusic.ui.icon.QueueMusic
 import com.maxrave.simpmusic.ui.icon.Share
+import com.maxrave.simpmusic.ui.icon.AvTimer
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.VolumeOff
 import com.maxrave.simpmusic.ui.icon.VolumeUp
@@ -117,6 +119,7 @@ import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingTrackInfoRow
 import com.maxrave.simpmusic.ui.screen.player.content.SpotifyPlaybackControls
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AppleMusicPlaybackControls
 import com.maxrave.simpmusic.ui.screen.player.content.applemusic.rememberAppleMusicTypography
+import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
 import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
@@ -124,8 +127,11 @@ import com.maxrave.simpmusic.viewModel.SharedViewModel
 import com.maxrave.simpmusic.viewModel.UIEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.stringResource
-import com.muso.music.R
+import org.jetbrains.compose.resources.stringResource
+import simpmusic.composeapp.generated.resources.Res
+import simpmusic.composeapp.generated.resources.crossfading
+import simpmusic.composeapp.generated.resources.share_lyrics
+import simpmusic.composeapp.generated.resources.unavailable
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -302,10 +308,11 @@ fun FullscreenLyricsContent(
                 label = "sliderCrossfadeColor",
             )
             Box(modifier = Modifier.fillMaxSize()) {
-                // Animated gradient background
+                // Animated gradient background. The glass source whenever glass is on: the Desktop
+                // chrome draws from it, and so does the lyrics timing button on both platforms.
                 AnimatedLyricsGradientBackground(
                     color = color,
-                    modifier = if (isDesktop) Modifier.layerBackdrop(backdrop) else Modifier,
+                    modifier = if (LocalLiquidGlassEnabled.current) Modifier.layerBackdrop(backdrop) else Modifier,
                 )
 
                 // ── Foreground content column ─────────────────────────────────────
@@ -355,20 +362,14 @@ fun FullscreenLyricsContent(
                             modifier =
                                 Modifier
                                     .size(45.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onDismiss() },
+                                    .clip(RoundedCornerShape(8.dp)),
                         )
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // Song Info Column - tapping the title/artist block returns
-                        // to the fullscreen player (reference behaviour); the old
-                        // artist-page navigation here is what blanked the screen.
+                        // Song Info Column
                         Column(
-                            modifier =
-                                Modifier.weight(1f).clickable {
-                                    onDismiss()
-                                },
+                            modifier = Modifier.weight(1f),
                         ) {
                             // Song Name
                             Text(
@@ -386,12 +387,27 @@ fun FullscreenLyricsContent(
 
                             Spacer(modifier = Modifier.height(2.dp))
 
-                            // Artist Name with Explicit Badge - same back-to-player tap.
+                            // Artist Name with Explicit Badge
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier =
                                     Modifier.clickable {
-                                        onDismiss()
+                                        coroutineScope.launch {
+                                            val song = sharedViewModel.nowPlayingState.value?.songEntity
+                                            (
+                                                song?.artistId?.firstOrNull()?.takeIf { it.isNotEmpty() }
+                                                    ?: screenDataState.songInfoData?.authorId
+                                            )?.let { channelId ->
+                                                // The host animates its own exit: the sheet hides
+                                                // before it leaves composition, the Popup just closes.
+                                                onDismiss()
+                                                navController.navigate(
+                                                    ArtistDestination(
+                                                        channelId = channelId,
+                                                    ),
+                                                )
+                                            }
+                                        }
                                     },
                             ) {
                                 if (screenDataState.isExplicit) {
@@ -436,7 +452,7 @@ fun FullscreenLyricsContent(
                             ) {
                                 Icon(
                                     imageVector = SimpIcons.Share,
-                                    contentDescription = stringResource(R.string.simp_share_lyrics),
+                                    contentDescription = stringResource(Res.string.share_lyrics),
                                     tint = Color.White,
                                 )
                             }
@@ -477,9 +493,9 @@ fun FullscreenLyricsContent(
                     ) {
                         FullscreenLyricsList(
                             lyricsData = screenDataState.lyricsData,
-                            lyricsUnavailable = screenDataState.lyricsUnavailable,
                             sharedViewModel = sharedViewModel,
                             color = color,
+                            backdrop = backdrop,
                         )
                     }
 
@@ -610,7 +626,7 @@ fun FullscreenLyricsContent(
                                         .padding(horizontal = 40.dp),
                                 ) {
                                     Text(
-                                        text = formatDuration(timelineState.current),
+                                        text = if (timelineState.isLive) "" else formatDuration(timelineState.current),
                                         style = typo().bodyMedium,
                                         modifier = Modifier.weight(1f),
                                         textAlign = TextAlign.Left,
@@ -621,14 +637,14 @@ fun FullscreenLyricsContent(
                                         visible = timelineState.isCrossfading,
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.simp_crossfading),
+                                            text = stringResource(Res.string.crossfading),
                                             style = typo().bodyMedium,
                                             modifier = Modifier.weight(1f),
                                             textAlign = TextAlign.Center,
                                         )
                                     }
                                     Text(
-                                        text = formatDuration(timelineState.total),
+                                        text = timelineState.lengthLabel(),
                                         style = typo().bodyMedium,
                                         modifier = Modifier.weight(1f),
                                         textAlign = TextAlign.Right,
@@ -738,6 +754,11 @@ fun FullscreenLyricsContent(
         QueueBottomSheet(
             onDismiss = {
                 showQueueBottomSheet = false
+            },
+            navController = navController,
+            onNavigateToOtherScreen = {
+                showQueueBottomSheet = false
+                onDismiss()
             },
         )
     }
@@ -937,9 +958,9 @@ private fun FullscreenLyricsLandscape(
             ) {
                 FullscreenLyricsList(
                     lyricsData = state.screenData.lyricsData,
-                    lyricsUnavailable = state.screenData.lyricsUnavailable,
                     sharedViewModel = sharedViewModel,
                     color = color,
+                    backdrop = backdrop,
                 )
             }
         }
@@ -1087,52 +1108,67 @@ private fun FullscreenLyricsDesktopChrome(
     }
 }
 
-// The lyrics themselves, or the loading indicator while the fetch runs, or the "unavailable"
-// line once it has concluded without lyrics. The portrait and landscape layouts show exactly
-// the same thing, only boxed differently.
+// The lyrics themselves, or the "unavailable" line when the track has none. The portrait and
+// landscape layouts show exactly the same thing, only boxed differently.
 @Composable
 private fun FullscreenLyricsList(
     lyricsData: NowPlayingScreenData.LyricsData?,
-    lyricsUnavailable: Boolean,
     sharedViewModel: SharedViewModel,
     color: Color,
+    backdrop: PlatformBackdrop,
 ) {
-    Crossfade(
-        targetState = lyricsData != null,
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        if (it) {
-            lyricsData?.let { lyrics ->
-                LyricsView(
-                    lyricsData = lyrics,
-                    timeLine = sharedViewModel.timeline,
-                    onLineClick = { f ->
-                        sharedViewModel.onUIEvent(UIEvent.UpdateProgress(f))
-                    },
+    val lyricsOffsetMs by sharedViewModel.getLyricsOffsetMs().collectAsStateWithLifecycle(0)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Crossfade(
+            targetState = lyricsData != null,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (it) {
+                lyricsData?.let { lyrics ->
+                    LyricsView(
+                        lyricsData = lyrics,
+                        timeLine = sharedViewModel.timeline,
+                        onLineClick = { f ->
+                            sharedViewModel.onUIEvent(UIEvent.UpdateProgress(f))
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        showScrollShadows = true,
+                        backgroundColor = color,
+                    )
+                }
+            } else {
+                Box(
                     modifier = Modifier.fillMaxSize(),
-                    showScrollShadows = true,
-                    backgroundColor = color,
-                )
-            }
-        } else {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (lyricsUnavailable) {
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(
-                        text = stringResource(R.string.simp_unavailable),
+                        text = stringResource(Res.string.unavailable),
                         style = typo().bodyMedium,
                         color = Color.White,
                         textAlign = TextAlign.Center,
                     )
-                } else {
-                    // Round 188 (user request): the fetch is still running, so the
-                    // Round 195 (user request): the PLAYLIST screen's loading
-                    // indicator is the one used while the lyrics load - the old
-                    // spinner (and the earlier lyrics loading animation) are gone.
-                    CenterLoadingBox(modifier = Modifier.fillMaxSize())
                 }
+            }
+        }
+        // Here rather than in either layout, so portrait, landscape and Desktop all get it. Bottom-end,
+        // over the dimmest lines. Glass, like the rest of this page's floating chrome.
+        if (lyricsData.hasTiming()) {
+            LyricsOffsetFloatingControl(
+                offsetMs = lyricsOffsetMs,
+                onOffsetChange = { sharedViewModel.setLyricsOffsetMs(it) },
+                backdrop = backdrop,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 12.dp),
+            ) { onClick ->
+                LiquidGlassIconButton(
+                    backdrop = backdrop,
+                    imageVector = SimpIcons.AvTimer,
+                    // A round button's rim, as on the Apple Music player's Desktop dismiss button.
+                    highlight = Highlight(width = 1.dp),
+                    onClick = onClick,
+                )
             }
         }
     }
@@ -1219,37 +1255,31 @@ internal fun AnimatedLyricsGradientBackground(
         }
     }
 
-    // Round 173 perf: the animated values are now read ONLY inside the draw
-    // phase (drawBehind), so this composable no longer recomposes - and no
-    // longer rebuilds a five-stop Brush - sixty times a second. That
-    // recomposition was the main cause of the lyrics section lagging.
     Box(
         modifier =
             modifier
                 .fillMaxSize()
-                .drawBehind {
-                    drawRect(
-                        Brush.linearGradient(
-                            colors =
-                                listOf(
-                                    startColor.value,
-                                    midColor1.value,
-                                    midColor2.value,
-                                    endColor.value.copy(alpha = 0.9f),
-                                    endColor.value,
-                                ),
-                            start =
-                                Offset(
-                                    x = gradientOffsetX + (cos(gradientAngle * PI.toFloat() / 180f) * 800f),
-                                    y = gradientOffsetY + (sin(gradientAngle * PI.toFloat() / 180f) * 800f),
-                                ),
-                            end =
-                                Offset(
-                                    x = gradientOffsetX + 2500f + (cos((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
-                                    y = gradientOffsetY + 2500f + (sin((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
-                                ),
-                        ),
-                    )
-                },
+                .background(
+                    Brush.linearGradient(
+                        colors =
+                            listOf(
+                                startColor.value,
+                                midColor1.value,
+                                midColor2.value,
+                                endColor.value.copy(alpha = 0.9f),
+                                endColor.value,
+                            ),
+                        start =
+                            Offset(
+                                x = gradientOffsetX + (cos(gradientAngle * PI.toFloat() / 180f) * 800f),
+                                y = gradientOffsetY + (sin(gradientAngle * PI.toFloat() / 180f) * 800f),
+                            ),
+                        end =
+                            Offset(
+                                x = gradientOffsetX + 2500f + (cos((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
+                                y = gradientOffsetY + 2500f + (sin((gradientAngle + 180f) * PI.toFloat() / 180f) * 800f),
+                            ),
+                    ),
+                ),
     )
 }

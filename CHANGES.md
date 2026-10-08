@@ -1,3 +1,44 @@
+## Muso 0.5.248 — Classic NowPlaying player replaced from the supplied zip
+- Applied SimpMusic-Classic-NowPlaying_1.zip as a straight replacement (user chose "full
+  replace"): 121 of its 134 files copied into app/src/main/kotlin/com/maxrave/simpmusic/ (12 of
+  them new), overwriting the app's versions. 84 files were already identical.
+- The 11 KMP plumbing files were NOT copied: the zip ships `expect` DECLARATIONS (it is a
+  commonMain source set) and this app is a plain Android module holding the implementations.
+  Copying an expect declaration outside a common source set does not compile. All their function
+  signatures were compared and match, so the app's own satisfy the copied code.
+- One addition was needed: the zip's CastButton.kt declares CastReceiver, CastReceivers and
+  rememberCastReceivers, and the zip's new AppleMusicOutputSheet.kt uses rememberCastReceivers.
+  The app's CastButton.kt now declares all three with a no-op implementation, matching its
+  existing isPlatformCastAvailable() = false stance (Muso has no Cast).
+- Consequence, as chosen: this replaces files that carried earlier fixes - LyricsView (resume
+  button, None style, Enhanced hook), FullscreenLyricsContent (fullscreen close guard),
+  NowPlayingContentState (true-white text), LiquidGlassContainer (blur reductions) and
+  NowPlayingScreen (three-style cleanup). Those fixes are not in the zip.
+- The zip is itself a three-style build and references none of the seven styles this app removed.
+- Docs: added docs/CLASSIC_NOWPLAYING_REPLACE.md.
+
+## Muso 0.5.247 — three player styles, the picker finally wired, Enhanced blank sheet
+- THE BIG ONE: the player-style picker had never reached the player. The PlayerStyle ->
+  nowPlayingStyle mapping lived ONLY inside MusoSuiteHost, a composable with no caller anywhere,
+  so the preference was written by Settings and never read - every style rendered the same one.
+  Moved into Player.kt (the live host, which already read the setting and did nothing with it).
+- Seven styles removed; three kept: CLASSIC ("Classic V2" -> Spotify), EXPRESSIVE ("M3
+  Expressive") and IMMERSIVE ("Immersive Nightly" -> Apple Music). Removed MODERN, MINIMAL,
+  CINEMATIC, LITTLE, IMMERSIVE_EXTENDED, MATERIAL_EXTENDED, EDITORIAL from the enum, the settings
+  labels, the live when, the NOW_PLAYING_STYLE_* constants and strings.xml. A stored removed style
+  falls back safely (String?.toEnum catches IllegalArgumentException).
+- DELETED: ATPlayerStyles.kt (2,379 lines - all seven designs and their helpers) and
+  MusoSuiteHost.kt (dead, and the only holder of the mapping).
+- Enhanced lyrics came up completely blank: KitRuntimeAccess.database() threw inside the bridge's
+  runCatching, nulling the whole connection, so LyricsEnhanced bailed on its first line and the
+  sheet rendered nothing - no lyrics, not even the loader. The bridge's database is now OPTIONAL
+  (the renderer never reads it), and MusoEnhancedLyrics renders the words plainly if the
+  connection still cannot be built.
+- NOT fixed this round: the info / add-to-playlist / queue / fullscreen-lyrics buttons dropping
+  the player to the mini player, and the three-dot menu doing nothing. Both point at the nested
+  sheets; a logcat of one tap is needed.
+- Docs: added docs/REMOVE_PLAYER_STYLES_AND_ENHANCED_FIX.md.
+
 ## Muso 0.5.246 — lyrics resume: scrolling by hand suspends the auto-scroll
 - Refines 0.5.245's resume button to the behaviour asked for: while the listener has scrolled off
   the sung line the player's own auto-scroll STANDS DOWN (it no longer yanks the list back) and

@@ -26,6 +26,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -62,7 +63,13 @@ class PlayerConnection private constructor(
     // property initializers and init blocks, and these two are read from the `service` /
     // `localPlayer` getters below, so they have to be fields.
     private val localPlayerOrNull: ExoPlayer?,
-    val database: MusicDatabase,
+    /**
+     * ArchiveTune's own database. Present on the service-backed constructor; the Muso bridge
+     * passes null, because this app does not expose that database and the Enhanced renderer
+     * never reads it. Kept NON-NULL typed for the ~0 external callers that name it, with a
+     * guard, so a future caller cannot silently get a null.
+     */
+    private val databaseOrNull: MusicDatabase?,
     scope: CoroutineScope,
     private val serviceOrNull: MusicService?,
     val mediaMetadata: MutableStateFlow<MediaMetadata?>,
@@ -85,6 +92,9 @@ class PlayerConnection private constructor(
     val service: MusicService
         get() = serviceOrNull ?: error("This PlayerConnection wraps an external player and has no MusicService")
 
+    val database: MusicDatabase
+        get() = databaseOrNull ?: error("This PlayerConnection wraps an external player and has no ArchiveTune database")
+
     val localPlayer: ExoPlayer
         get() = localPlayerOrNull ?: error("This PlayerConnection wraps an external player and has no local ExoPlayer")
 
@@ -98,7 +108,7 @@ class PlayerConnection private constructor(
         context = context,
         player = binder.service.player,
         localPlayerOrNull = binder.service.localPlayer,
-        database = database,
+        databaseOrNull = database,
         scope = scope,
         serviceOrNull = binder.service,
         mediaMetadata = binder.service.currentMediaMetadata,
@@ -116,7 +126,7 @@ class PlayerConnection private constructor(
         context: Context,
         player: Player,
         mediaMetadata: MutableStateFlow<MediaMetadata?>,
-        database: MusicDatabase,
+        database: MusicDatabase?,
         scope: CoroutineScope,
     ) : this(
         context = context,
@@ -124,7 +134,7 @@ class PlayerConnection private constructor(
         // Muso's player is itself an ExoPlayer, so when it is one the bridge gets a working
         // local player too; only a non-ExoPlayer Player leaves it absent.
         localPlayerOrNull = player as? ExoPlayer,
-        database = database,
+        databaseOrNull = database,
         scope = scope,
         serviceOrNull = null,
         mediaMetadata = mediaMetadata,
@@ -136,17 +146,18 @@ class PlayerConnection private constructor(
     private val _isPlaying = MutableStateFlow(player.isPlaying)
     val isPlaying = _isPlaying.asStateFlow()
     val playbackParameters = MutableStateFlow(player.playbackParameters)
+    // No database (the bridge) means no rows to read, not a crash: the flows simply emit null.
     val currentSong =
         mediaMetadata.flatMapLatest {
-            database.song(it?.id)
+            if (databaseOrNull == null) flowOf(null) else databaseOrNull.song(it?.id)
         }
     val currentLyrics =
         mediaMetadata.flatMapLatest { mediaMetadata ->
-            database.lyrics(mediaMetadata?.id)
+            if (databaseOrNull == null) flowOf(null) else databaseOrNull.lyrics(mediaMetadata?.id)
         }
     val currentFormat =
         mediaMetadata.flatMapLatest { mediaMetadata ->
-            database.format(mediaMetadata?.id)
+            if (databaseOrNull == null) flowOf(null) else databaseOrNull.format(mediaMetadata?.id)
         }
 
     val queueTitle = MutableStateFlow<String?>(null)
@@ -203,7 +214,7 @@ class PlayerConnection private constructor(
                     .collectLatest { metadata ->
                         val mediaId = metadata?.id ?: return@collectLatest
                         if (mediaId.isLocalMediaId()) {
-                            val storedFormat = database.format(mediaId).first()
+                            val storedFormat = databaseOrNull?.format(mediaId)?.first()
                             if (storedFormat != null && storedFormat.bitrate == 0 && storedFormat.sampleRate == null) {
                                 val result =
                                     extractLocalAudioProperties(context, mediaId)
@@ -215,7 +226,7 @@ class PlayerConnection private constructor(
                                     } else {
                                         result.first
                                     }
-                                database.updateLocalAudioMetadata(mediaId, finalBitrate, result.second)
+                                databaseOrNull?.updateLocalAudioMetadata(mediaId, finalBitrate, result.second)
                             }
                         }
                     }

@@ -1,40 +1,43 @@
 package com.maxrave.simpmusic.extension
 
-import com.muso.music.R
-
 import androidx.compose.runtime.Composable
 import com.maxrave.common.SponsorBlockType
 import com.maxrave.domain.data.model.browse.artist.ArtistBrowse
+import com.maxrave.domain.data.model.streams.TimeLine
 import com.maxrave.domain.extension.now
 import com.maxrave.domain.utils.FilterState
 import com.maxrave.domain.utils.toTrack
+import kotlin.math.roundToLong
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.viewModel.ArtistScreenData
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.periodUntil
 import kotlinx.datetime.toInstant
-import androidx.annotation.StringRes
-import androidx.compose.ui.res.stringResource
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import simpmusic.composeapp.generated.resources.Res
+import simpmusic.composeapp.generated.resources.custom_order
+import simpmusic.composeapp.generated.resources.day_s_ago
+import simpmusic.composeapp.generated.resources.filler
+import simpmusic.composeapp.generated.resources.hour_s_ago
+import simpmusic.composeapp.generated.resources.interaction
+import simpmusic.composeapp.generated.resources.intro
+import simpmusic.composeapp.generated.resources.month_s_ago
+import simpmusic.composeapp.generated.resources.music_off_topic
+import simpmusic.composeapp.generated.resources.live_badge
+import simpmusic.composeapp.generated.resources.na_na
+import simpmusic.composeapp.generated.resources.newer_first
+import simpmusic.composeapp.generated.resources.older_first
+import simpmusic.composeapp.generated.resources.outro
+import simpmusic.composeapp.generated.resources.poi_highlight
+import simpmusic.composeapp.generated.resources.preview
+import simpmusic.composeapp.generated.resources.recently
+import simpmusic.composeapp.generated.resources.self_promotion
+import simpmusic.composeapp.generated.resources.sponsor
+import simpmusic.composeapp.generated.resources.title
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -61,10 +64,21 @@ fun <T> Iterable<T>.indexMap(): Map<T, Int> {
     return map
 }
 
-infix fun <E> Collection<E>.symmetricDifference(other: Collection<E>): Set<E> {
-    val left = this subtract other
-    val right = other subtract this
-    return left union right
+/**
+ * Whether a release from an artist's discography page is worth announcing. An unseen id is not
+ * enough on its own, because YouTube re-keys old releases and pages them in and out, so only
+ * releases dated this year count — plus last year's during January, so one that came out in
+ * the last days of December is not lost.
+ */
+fun isNewRelease(
+    browseId: String,
+    year: String,
+    known: Set<String>,
+    today: LocalDate = now().date,
+): Boolean {
+    if (browseId in known) return false
+    val released = year.toIntOrNull() ?: return false
+    return released == today.year || (today.month == Month.JANUARY && released == today.year - 1)
 }
 
 @OptIn(ExperimentalTime::class)
@@ -85,16 +99,27 @@ fun LocalDateTime.formatTimeAgo(): String {
     val hoursDiff = (nowInstant - thisInstant).inWholeHours
 
     return when {
-        monthsDiff >= 1 -> stringResource(R.string.simp_month_s_ago, monthsDiff)
-        daysDiff >= 1 -> stringResource(R.string.simp_day_s_ago, daysDiff)
-        hoursDiff >= 2 -> stringResource(R.string.simp_hour_s_ago, hoursDiff)
-        else -> stringResource(R.string.simp_recently)
+        monthsDiff >= 1 -> stringResource(Res.string.month_s_ago, monthsDiff)
+        daysDiff >= 1 -> stringResource(Res.string.day_s_ago, daysDiff)
+        hoursDiff >= 2 -> stringResource(Res.string.hour_s_ago, hoursDiff)
+        else -> stringResource(Res.string.recently)
     }
 }
 
+/**
+ * The elapsed-time label under a seek bar sitting at [progress] (0..1) of the track. Blank for a live
+ * broadcast: where playback sits in the broadcast's seek window means nothing to a listener.
+ */
+@Composable
+fun TimeLine.elapsedLabel(progress: Float): String = if (isLive) "" else formatDuration((total * progress).roundToLong())
+
+/** The track's length under a seek bar, or LIVE for a live broadcast, which has none. */
+@Composable
+fun TimeLine.lengthLabel(): String = if (isLive) stringResource(Res.string.live_badge) else formatDuration(total)
+
 @Composable
 fun formatDuration(duration: Long): String {
-    if (duration < 0L) return stringResource(R.string.simp_na_na)
+    if (duration < 0L) return stringResource(Res.string.na_na)
     val minutes: Long = TimeUnit.MINUTES.convert(duration, TimeUnit.MILLISECONDS)
     val seconds: Long = (
         TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS) -
@@ -170,8 +195,8 @@ fun ArtistBrowse.toArtistScreenData(): ArtistScreenData =
         playCount = this.views,
         isChannel = this.songs == null,
         channelId = this.channelId,
-        radioParam = this.radioId?.videoId,
-        shuffleParam = this.shuffleId?.videoId,
+        radioParam = this.radioId,
+        shuffleParam = this.shuffleId,
         description = this.description,
         listSongParam = this.songs?.browseId,
         popularSongs = this.songs?.results?.map { it.toTrack() } ?: emptyList(),
@@ -238,12 +263,12 @@ fun String.isTwoLetterCode(): Boolean {
     return regex.matches(this)
 }
 
-fun FilterState.displayNameRes(): Int =
+fun FilterState.displayNameRes(): StringResource =
     when (this) {
-        FilterState.NewerFirst -> R.string.simp_newer_first
-        FilterState.OlderFirst -> R.string.simp_older_first
-        FilterState.Title -> R.string.simp_title
-        FilterState.CustomOrder -> R.string.simp_custom_order
+        FilterState.NewerFirst -> Res.string.newer_first
+        FilterState.OlderFirst -> Res.string.older_first
+        FilterState.Title -> Res.string.title
+        FilterState.CustomOrder -> Res.string.custom_order
     }
 
 @Composable
@@ -253,15 +278,15 @@ fun String?.ifNullOrEmpty(defaultValue: @Composable () -> String): String = if (
 fun SponsorBlockType.displayString(): String = stringResource(displayRes())
 
 /** The resource behind [displayString], for callers outside composition (the skip toast). */
-fun SponsorBlockType.displayRes(): Int =
+fun SponsorBlockType.displayRes(): StringResource =
     when (this) {
-        SponsorBlockType.FILLER -> R.string.simp_filler
-        SponsorBlockType.INTERACTION -> R.string.simp_interaction
-        SponsorBlockType.INTRO -> R.string.simp_intro
-        SponsorBlockType.MUSIC_OFF_TOPIC -> R.string.simp_music_off_topic
-        SponsorBlockType.OUTRO -> R.string.simp_outro
-        SponsorBlockType.POI_HIGHLIGHT -> R.string.simp_poi_highlight
-        SponsorBlockType.PREVIEW -> R.string.simp_preview
-        SponsorBlockType.SELF_PROMOTION -> R.string.simp_self_promotion
-        SponsorBlockType.SPONSOR -> R.string.simp_sponsor
+        SponsorBlockType.FILLER -> Res.string.filler
+        SponsorBlockType.INTERACTION -> Res.string.interaction
+        SponsorBlockType.INTRO -> Res.string.intro
+        SponsorBlockType.MUSIC_OFF_TOPIC -> Res.string.music_off_topic
+        SponsorBlockType.OUTRO -> Res.string.outro
+        SponsorBlockType.POI_HIGHLIGHT -> Res.string.poi_highlight
+        SponsorBlockType.PREVIEW -> Res.string.preview
+        SponsorBlockType.SELF_PROMOTION -> Res.string.self_promotion
+        SponsorBlockType.SPONSOR -> Res.string.sponsor
     }

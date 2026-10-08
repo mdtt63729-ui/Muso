@@ -1,17 +1,11 @@
 package com.maxrave.simpmusic.ui.screen.player.content.applemusic
 
-import com.muso.music.R
-
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,11 +46,14 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
 import com.maxrave.simpmusic.expect.ui.isLyricsBlurSupported
 import com.maxrave.simpmusic.ui.component.AppleMusicLyricPaddingX
+import com.maxrave.simpmusic.ui.component.LyricsOffsetFloatingControl
 import com.maxrave.simpmusic.ui.component.LyricsView
+import com.maxrave.simpmusic.ui.component.hasTiming
 import com.maxrave.simpmusic.ui.component.lyrics.ShareLyricsSheet
 import com.maxrave.simpmusic.ui.component.lyrics.toShareLyricsLines
 import com.maxrave.simpmusic.ui.icon.OpenInFull
 import com.maxrave.simpmusic.ui.icon.Share
+import com.maxrave.simpmusic.ui.icon.AvTimer
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.ThumbsUpDown
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
@@ -66,19 +63,19 @@ import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingScreenData
 import com.maxrave.simpmusic.viewModel.UIEvent
 import kotlinx.coroutines.delay
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-
-
-
-
-
-
-
-
-
-
-
+import simpmusic.composeapp.generated.resources.Res
+import simpmusic.composeapp.generated.resources.ai_translated
+import simpmusic.composeapp.generated.resources.line_synced
+import simpmusic.composeapp.generated.resources.lyrics_provider_betterlyrics
+import simpmusic.composeapp.generated.resources.lyrics_provider_lrc
+import simpmusic.composeapp.generated.resources.lyrics_provider_simpmusic
+import simpmusic.composeapp.generated.resources.lyrics_provider_youtube
+import simpmusic.composeapp.generated.resources.offline_mode
+import simpmusic.composeapp.generated.resources.rich_synced
+import simpmusic.composeapp.generated.resources.spotify_lyrics_provider
+import simpmusic.composeapp.generated.resources.unsynced
 
 /**
  * The LYRICS body: compact header, the app's own [LyricsView] — the SAME renderer the other
@@ -96,6 +93,8 @@ internal fun AppleMusicLyricsView(
     activePillContainer: Color,
     activePillContent: Color,
     deviceVolumeController: DeviceVolumeController?,
+    outputName: String?,
+    onOpenOutput: () -> Unit,
     modifier: Modifier = Modifier,
     dataStoreManager: DataStoreManager = koinInject(),
 ) {
@@ -126,25 +125,6 @@ internal fun AppleMusicLyricsView(
         }
     }
 
-    // Round 195 (user request): in the immersive style the lyrics page gives the
-    // whole screen to the lyrics once you stop touching it - the compact header,
-    // the provider caption and the floating buttons all slide away, so it becomes
-    // the fullscreen lyrics UI BY ITSELF. Touching the page brings the chrome
-    // back. The fullscreen button in this tab enters the same state instead of
-    // jumping to the shared (classic) fullscreen lyrics sheet, which is not what
-    // this style is supposed to do.
-    var lyricsFullscreen by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(lyricsFullscreen, interactionTick, viewState) {
-        if (!lyricsFullscreen) {
-            delay(IMMERSIVE_LYRICS_AUTO_FULLSCREEN_MS)
-            lyricsFullscreen = true
-        }
-    }
-    // Leaving the lyrics tab resets it, so re-entering starts with the chrome.
-    LaunchedEffect(viewState) {
-        if (viewState != AppleMusicView.LYRICS) lyricsFullscreen = false
-    }
-
     // Scrolling the lyrics counts as reaching for the player, exactly like tapping does — and the
     // scroll happens inside LyricsView's own LazyColumn, which owns a list state this file cannot
     // see. A nested-scroll connection catches it on the way past without reaching in.
@@ -157,7 +137,6 @@ internal fun AppleMusicLyricsView(
                 ): Offset {
                     if (available.y != 0f) {
                         showCluster = true
-                        lyricsFullscreen = false
                         interactionTick++
                     }
                     // Zero: this only observes. Consuming any of it would fight the list's scroll.
@@ -166,38 +145,7 @@ internal fun AppleMusicLyricsView(
             }
         }
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .pointerInput(onSelectView) {
-                    // A pull-down anywhere the lyric list itself cannot consume the
-                    // gesture (the header, the gaps, the list's top edge) returns to
-                    // the PLAYER view, exactly like the reference app. Without this,
-                    // that drag fell through to the player sheet's own detector and
-                    // collapsed the whole player to the mini bar.
-                    var pullDown = 0f
-                    var switched = false
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { change, dragAmount ->
-                            change.consume()
-                            if (dragAmount > 0f) pullDown += dragAmount else pullDown = 0f
-                            if (!switched && pullDown > 72.dp.toPx()) {
-                                switched = true
-                                onSelectView(AppleMusicView.MAIN)
-                            }
-                        },
-                        onDragEnd = {
-                            pullDown = 0f
-                            switched = false
-                        },
-                        onDragCancel = {
-                            pullDown = 0f
-                            switched = false
-                        },
-                    )
-                },
-    ) {
+    Column(modifier = modifier.fillMaxSize()) {
         // statusBars + 20dp, not a bare status-bar offset: the grabber that
         // NowPlayingContentAppleMusic draws above the view Crossfade floats over this column, and
         // without the extra room the header's title slides underneath it.
@@ -207,20 +155,7 @@ internal fun AppleMusicLyricsView(
                     with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() } + 20.dp,
                 ),
         )
-        androidx.compose.animation.AnimatedVisibility(
-            visible = !lyricsFullscreen,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            AppleMusicCompactHeader(
-                state = state,
-                actions = actions,
-                typography = typography,
-                // Tapping the thumbnail or song name returns to the player, like the
-                // reference app (the old path led to a blank screen).
-                onBackToPlayer = { onSelectView(AppleMusicView.MAIN) },
-            )
-        }
+        AppleMusicCompactHeader(state = state, actions = actions, typography = typography)
 
         Box(
             modifier =
@@ -235,7 +170,6 @@ internal fun AppleMusicLyricsView(
                         interactionSource = remember { MutableInteractionSource() },
                     ) {
                         showCluster = !showCluster
-                        lyricsFullscreen = false
                         interactionTick++
                     },
         ) {
@@ -271,18 +205,13 @@ internal fun AppleMusicLyricsView(
                         // it has a row to itself; here it would sit inline with the provider
                         // caption, which is already the quietest thing on the page — a filled pill
                         // next to it shouts. Two right-anchored lines read as one footnote block.
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = !lyricsFullscreen,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                        ) {
                         Column(
                             horizontalAlignment = Alignment.End,
                             modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
                         ) {
                             if (lyricsData.translatedLyrics?.second == LyricsProvider.AI) {
                                 Text(
-                                    text = stringResource(R.string.simp_ai_translated),
+                                    text = stringResource(Res.string.ai_translated),
                                     style = typography.footer,
                                     textAlign = TextAlign.End,
                                     modifier = Modifier.fillMaxWidth(),
@@ -312,13 +241,12 @@ internal fun AppleMusicLyricsView(
                                 )
                             }
                         }
-                        }
                     },
                 )
                 // Bottom-end, inside the list's own bottom fade so they sit over the dimmest
                 // lyrics rather than over a bright active line.
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = showCluster && !lyricsFullscreen,
+                    visible = showCluster,
                     enter = fadeIn(),
                     exit = fadeOut(),
                     modifier = Modifier.align(Alignment.BottomEnd),
@@ -326,7 +254,21 @@ internal fun AppleMusicLyricsView(
                     Column(
                         modifier = Modifier.padding(end = 20.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
+                        // End: the timing bar opens to the left of its button and widens this
+                        // column, which must not drag the buttons below it off the edge.
+                        horizontalAlignment = Alignment.End,
                     ) {
+                        if (lyricsData.hasTiming()) {
+                            LyricsOffsetFloatingControl(
+                                offsetMs = state.lyricsOffsetMs.toInt(),
+                                onOffsetChange = actions.onLyricsOffsetChange,
+                                backdrop = null,
+                                // Adjusting counts as touching the page, or the cluster hides mid-tap.
+                                onInteraction = { interactionTick++ },
+                            ) { onClick ->
+                                AppleMusicFloatingCircleButton(icon = SimpIcons.AvTimer, onClick = onClick)
+                            }
+                        }
                         // Only when the lyrics (or the translation) actually came from SimpMusic
                         // Lyrics — the sole provider that accepts a vote. Classic and M3E have
                         // always gated theirs; this one did not, so it invited a rating on
@@ -335,16 +277,7 @@ internal fun AppleMusicLyricsView(
                             AppleMusicFloatingCircleButton(icon = SimpIcons.ThumbsUpDown, onClick = { actions.onShowVoteDialog() })
                         }
                         AppleMusicFloatingCircleButton(icon = SimpIcons.Share, onClick = { showShareSheet = true })
-                        // Round 195 (user request): this style's fullscreen lyrics are
-                        // its OWN - the page goes fullscreen here, it does not hand over
-                        // to the shared classic lyrics sheet.
-                        AppleMusicFloatingCircleButton(
-                            icon = SimpIcons.OpenInFull,
-                            onClick = {
-                                lyricsFullscreen = true
-                                showCluster = false
-                            },
-                        )
+                        AppleMusicFloatingCircleButton(icon = SimpIcons.OpenInFull, onClick = { actions.onShowFullscreenLyrics() })
                     }
                 }
             }
@@ -364,45 +297,33 @@ internal fun AppleMusicLyricsView(
             )
         }
 
-        // The old expand/shrink transition remeasured the lyric LazyColumn on every animation
-        // frame. With word/letter-synced lyrics that creates a layout/render fight. Keep the dock
-        // in its own animated layer so fullscreen lyrics can reveal themselves without reflowing
-        // the entire lyric list on every frame.
-        Box(Modifier.fillMaxWidth()) {
-            val dockVisible = showCluster && !lyricsFullscreen
-            androidx.compose.animation.AnimatedVisibility(
-                visible = dockVisible,
-                enter = androidx.compose.animation.slideInVertically(
-                    animationSpec = tween(180, easing = FastOutSlowInEasing),
-                    initialOffsetY = { it / 2 },
-                ) + fadeIn(tween(140)),
-                exit = androidx.compose.animation.slideOutVertically(
-                    animationSpec = tween(150, easing = FastOutSlowInEasing),
-                    targetOffsetY = { it / 2 },
-                ) + fadeOut(tween(100)),
-            ) {
-                AppleMusicBottomCluster(
-                    state = state,
-                    actions = actions,
-                    typography = typography,
-                    viewState = viewState,
-                    onSelectView = onSelectView,
-                    activePillContainer = activePillContainer,
-                    activePillContent = activePillContent,
-                    deviceVolumeController = deviceVolumeController,
-                )
-            }
+        // expand/shrink, not just fade: the Box above holds weight(1f), so removing the cluster
+        // from the layout is what lets the lyrics grow into the freed space — a fade alone would
+        // leave an empty band where the transport used to be.
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showCluster,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            AppleMusicBottomCluster(
+                state = state,
+                actions = actions,
+                typography = typography,
+                viewState = viewState,
+                onSelectView = onSelectView,
+                activePillContainer = activePillContainer,
+                activePillContent = activePillContent,
+                deviceVolumeController = deviceVolumeController,
+                outputName = outputName,
+                onOpenOutput = onOpenOutput,
+            )
         }
-
     }
 }
 
 // Long enough to read a line or two and reach for a control, short enough that the page clears
 // itself while you are just listening.
 private const val CLUSTER_AUTO_HIDE_MS = 8_000L
-
-/** Idle time before the immersive lyrics page gives itself the whole screen. */
-private const val IMMERSIVE_LYRICS_AUTO_FULLSCREEN_MS = 3_000L
 
 @Composable
 private fun AppleMusicFloatingCircleButton(
@@ -428,9 +349,9 @@ private fun AppleMusicFloatingCircleButton(
 private fun appleMusicLyricsSyncText(lyricsData: NowPlayingScreenData.LyricsData): String {
     val syncTypeText =
         when (lyricsData.lyrics.syncType) {
-            "LINE_SYNCED" -> stringResource(R.string.simp_line_synced)
-            "RICH_SYNCED" -> stringResource(R.string.simp_rich_synced)
-            else -> stringResource(R.string.simp_unsynced)
+            "LINE_SYNCED" -> stringResource(Res.string.line_synced)
+            "RICH_SYNCED" -> stringResource(Res.string.rich_synced)
+            else -> stringResource(Res.string.unsynced)
         }
     return syncTypeText
 }
@@ -439,11 +360,11 @@ private fun appleMusicLyricsSyncText(lyricsData: NowPlayingScreenData.LyricsData
 @Composable
 private fun appleMusicLyricsProviderText(lyricsData: NowPlayingScreenData.LyricsData): String =
     when (lyricsData.lyricsProvider) {
-        LyricsProvider.SIMPMUSIC -> stringResource(R.string.simp_lyrics_provider_simpmusic)
-        LyricsProvider.LRCLIB -> stringResource(R.string.simp_lyrics_provider_lrc)
-        LyricsProvider.YOUTUBE -> stringResource(R.string.simp_lyrics_provider_youtube)
-        LyricsProvider.SPOTIFY -> stringResource(R.string.simp_spotify_lyrics_provider)
-        LyricsProvider.OFFLINE -> stringResource(R.string.simp_offline_mode)
-        LyricsProvider.BETTER_LYRICS -> stringResource(R.string.simp_lyrics_provider_betterlyrics)
+        LyricsProvider.SIMPMUSIC -> stringResource(Res.string.lyrics_provider_simpmusic)
+        LyricsProvider.LRCLIB -> stringResource(Res.string.lyrics_provider_lrc)
+        LyricsProvider.YOUTUBE -> stringResource(Res.string.lyrics_provider_youtube)
+        LyricsProvider.SPOTIFY -> stringResource(Res.string.spotify_lyrics_provider)
+        LyricsProvider.OFFLINE -> stringResource(Res.string.offline_mode)
+        LyricsProvider.BETTER_LYRICS -> stringResource(Res.string.lyrics_provider_betterlyrics)
         LyricsProvider.AI -> ""
     }

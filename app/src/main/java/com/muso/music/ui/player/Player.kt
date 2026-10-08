@@ -182,6 +182,20 @@ fun BottomSheetPlayer(
         },
     ) {
         val playerStyle by rememberEnumPreference(PlayerStyleKey, PlayerStyle.EXPRESSIVE)
+        // Feed Muso's player-style preference into the suite's nowPlayingStyle. This mapping
+        // lived ONLY in MusoSuiteHost, which has no caller anywhere - so the preference was
+        // written and never read, and every style rendered the same one. Three styles remain,
+        // so the mapping is three lines.
+        val styleBridge: com.maxrave.domain.manager.DataStoreManager = org.koin.compose.koinInject()
+        LaunchedEffect(playerStyle) {
+            styleBridge.nowPlayingStyle.value =
+                when (playerStyle) {
+                    PlayerStyle.EXPRESSIVE -> com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE
+                    PlayerStyle.IMMERSIVE -> com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_APPLE_MUSIC
+                    // CLASSIC, shown as "Classic V2".
+                    else -> com.maxrave.domain.manager.DataStoreManager.NOW_PLAYING_STYLE_SPOTIFY
+                }
+        }
 
         // === Real audio codec detection (Echo Music port): the player's currently
         // selected audio track, observed through onTracksChanged. Nothing is faked

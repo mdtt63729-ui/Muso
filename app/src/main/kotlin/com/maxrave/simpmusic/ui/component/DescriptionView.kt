@@ -33,8 +33,10 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.ui.theme.typo
-import androidx.compose.ui.res.stringResource
-import com.muso.music.R
+import org.jetbrains.compose.resources.stringResource
+import simpmusic.composeapp.generated.resources.Res
+import simpmusic.composeapp.generated.resources.less
+import simpmusic.composeapp.generated.resources.more
 import kotlin.math.roundToInt
 
 @Composable
@@ -177,7 +179,7 @@ fun DescriptionView(
         Spacer(modifier = Modifier.height(8.dp))
         androidx.compose.animation.AnimatedVisibility(!shouldHideExpandButton) {
             Text(
-                text = if (expanded) stringResource(R.string.simp_less) else stringResource(R.string.simp_more),
+                text = if (expanded) stringResource(Res.string.less) else stringResource(Res.string.more),
                 color = Color.LightGray,
                 modifier =
                     Modifier.clickable {
