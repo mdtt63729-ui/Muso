@@ -79,15 +79,11 @@ import com.maxrave.simpmusic.ui.component.AddToPlaylistModalBottomSheet
 import com.maxrave.simpmusic.ui.component.FullscreenLyricsContent
 import com.maxrave.simpmusic.ui.component.FullscreenLyricsSheet
 import com.maxrave.simpmusic.ui.component.InfoPlayerBottomSheet
-import com.maxrave.domain.data.model.browse.album.Track
-import com.maxrave.domain.utils.toSongEntity
 import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
 import com.maxrave.simpmusic.ui.component.QueueBottomSheet
-import com.maxrave.simpmusic.ui.component.QueuePosition
 import com.maxrave.simpmusic.ui.component.VoteLyricsDialog
 import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 import com.maxrave.simpmusic.ui.icon.SimpIcons
-import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.player.FullscreenDestination
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
@@ -96,8 +92,8 @@ import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentM3Express
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentSpotify
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
 import com.maxrave.simpmusic.ui.screen.player.content.PlayerBackdropColor
-import com.maxrave.simpmusic.ui.screen.player.content.fullscreenCanvas
-import com.maxrave.simpmusic.ui.screen.player.content.toAudioQualityLabel
+import com.maxrave.simpmusic.ui.screen.player.content.toAudioCodecLabel
+import com.maxrave.simpmusic.ui.screen.player.content.toAudioContainerLabel
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetUIEvent
 import com.maxrave.simpmusic.viewModel.NowPlayingBottomSheetViewModel
@@ -189,7 +185,7 @@ fun NowPlayingScreenContent(
     val lyricsOffsetMs by sharedViewModel.getLyricsOffsetMs().collectAsStateWithLifecycle(0)
     val likeStatus by sharedViewModel.likeStatus.collectAsStateWithLifecycle()
     val castState by sharedViewModel.castState.collectAsStateWithLifecycle()
-    // Apple Music style's quality line under the progress bar — see NowPlayingContentState.toAudioQualityLabel.
+    // Apple Music style's progress-bar codec badge — see NowPlayingContentState.toAudioCodecLabel.
     val formatState by sharedViewModel.format.collectAsStateWithLifecycle(initialValue = null)
 
     val shouldShowVideo by sharedViewModel.getVideo.collectAsStateWithLifecycle()
@@ -214,6 +210,41 @@ fun NowPlayingScreenContent(
     // ⚠️ Use track.videoId (already prefix-stripped at MediaServiceHandlerImpl.kt:386).
     // Do NOT use mediaItem.mediaId — it carries the "Video" prefix for video items.
     val nowPlayingVideoId: String? = nowPlayingState?.track?.videoId
+
+    // ---------- real codec/bitrate feed for the player capsule ----------
+    // sharedViewModel.format is what the codec capsule under the slider (and
+    // the player menu's format sheet) read, but nothing LIVE ever emitted into
+    // it: the only feed lived inside the dead MusoSuiteHost composable, so
+    // the capsule never rendered. Feed it HERE, from the muso FormatEntity of
+    // the track actually playing. REAL values only: until the stream resolves
+    // there is no row and the capsule stays hidden, and the takeIf on videoId
+    // at the label build below keeps the previous song's replayed format from
+    // ever showing as this song's codec.
+    val formatDb = com.muso.music.LocalDatabase.current
+    LaunchedEffect(nowPlayingVideoId) {
+        val id = nowPlayingVideoId ?: return@LaunchedEffect
+        formatDb.format(id).collect { f ->
+            sharedViewModel.format.emit(
+                f?.let {
+                    com.maxrave.domain.data.entities.NewFormatEntity(
+                        videoId = it.id,
+                        itag = it.itag,
+                        mimeType = it.mimeType,
+                        codecs = it.codecs,
+                        bitrate = it.bitrate,
+                        sampleRate = it.sampleRate,
+                        contentLength = it.contentLength,
+                        loudnessDb = it.loudnessDb?.toFloat(),
+                        lengthSeconds = null,
+                        playbackTrackingVideostatsPlaybackUrl = null,
+                        playbackTrackingAtrUrl = null,
+                        playbackTrackingVideostatsWatchtimeUrl = null,
+                        cpn = null,
+                    )
+                }
+            )
+        }
+    }
     // currentOrderIndex() is a plain getter over the player, NOT Compose state, so it is read
     // inside this remember block — whose keys (the queue, and the track now playing) are exactly
     // the two things that can move the player's position. nowPlayingState is published FROM the
@@ -388,9 +419,6 @@ fun NowPlayingScreenContent(
     var showQueueBottomSheet by rememberSaveable {
         mutableStateOf(false)
     }
-    // A queue row's ⋯ in the Apple Music style, whose queue is a tab of this screen rather than a
-    // sheet: its position and the track that was there. The other styles' queue sheet hosts its own.
-    var queueMoreFor by remember { mutableStateOf<Pair<Int, Track>?>(null) }
 
     var showInfoBottomSheet by rememberSaveable {
         mutableStateOf(false)
@@ -405,6 +433,21 @@ fun NowPlayingScreenContent(
         mutableStateOf(false)
     }
 
+    // Round 177: these flags are rememberSaveable, so a process death with
+    // any of them open restored a dark fullscreen sheet over the app at the
+    // next launch (the "blank fullscreen player at app open"). A fresh
+    // process always starts with every one of them closed; only a
+    // within-process recreation (rotation) may restore them.
+    if (!NowPlayingSheetsBootReset.done) {
+        NowPlayingSheetsBootReset.done = true
+        showSheet = false
+        showFullscreenLyrics = false
+        showQueueBottomSheet = false
+        showInfoBottomSheet = false
+        showVoteDialog = false
+        showAddToPlaylistDirectly = false
+    }
+
     var shouldShowToolbar by remember {
         mutableStateOf(false)
     }
@@ -412,9 +455,14 @@ fun NowPlayingScreenContent(
     // Palette state
     val paletteState = rememberPaletteState()
 
+    // Round 188: start from the palette seed already stored for THIS track (if any) so
+    // reopening the player from the mini player doesn't visibly re-derive colors - the
+    // M3-Expressive scheme snaps to the artwork palette from the first frame instead of
+    // sweeping from the black fallback (the "all colors change" report).
     val startColor =
         remember {
-            Animatable(Color.Black)
+            val knownSeed = sharedViewModel.playerPaletteSeed.value
+            Animatable(knownSeed?.takeIf { it.first == nowPlayingVideoId }?.second ?: Color.Black)
         }
     val endColor =
         remember {
@@ -430,8 +478,7 @@ fun NowPlayingScreenContent(
 
     LaunchedEffect(screenDataState) {
         Logger.d(TAG, "ScreenDataState: $screenDataState")
-        // Only a canvas that fills the page replaces it; animated artwork sits at its top.
-        showHideMiddleLayout = screenDataState.fullscreenCanvas() == null
+        showHideMiddleLayout = screenDataState.canvasData == null
     }
 
     // Palette generation lives in its own NEVER-restarting effect. Keyed on screenDataState it
@@ -453,8 +500,12 @@ fun NowPlayingScreenContent(
         snapshotFlow { paletteState.palette }
             .distinctUntilChanged()
             .collectLatest {
-                spotShadowColor = it.getColorFromPalette()
-                startColor.animateTo(it.getColorFromPalette())
+                val seed = it.getColorFromPalette()
+                spotShadowColor = seed
+                nowPlayingVideoId?.let { vid ->
+                    sharedViewModel.playerPaletteSeed.value = vid to seed
+                }
+                startColor.animateTo(seed)
                 // Lands on the same backdrop colour the fade and the area below the gradient
                 // use, so the palette ramp resolves into the surface instead of a black patch.
                 endColor.animateTo(PlayerBackdropColor)
@@ -471,6 +522,25 @@ fun NowPlayingScreenContent(
     var sliderValue by rememberSaveable {
         mutableFloatStateOf(0f)
     }
+
+    // Round 187 (user report: changing the player slider style mid-song froze
+    // the song at whatever position it had reached). Switching the style
+    // REPLACES the slider composable, and the squiggly renderers (Wavy /
+    // Circular) emit a stray onValueChange while composing in - which armed
+    // the drag latch below, while no onValueChangeFinished ever followed. The
+    // latch then stayed true forever, so the timeline stopped following
+    // playback from that moment on. A style switch voids any half-open drag
+    // by definition, so the latch is dropped here the moment the style
+    // changes. (The same-value guard in onSliderChange covers the stray
+    // emission on every other recomposition of the slider.)
+    val playerSliderStyleNow by com.muso.music.utils.rememberEnumPreference(
+        key = com.muso.music.constants.SliderStyleKey,
+        defaultValue = com.muso.music.constants.SliderStyle.Standard,
+    )
+    LaunchedEffect(playerSliderStyleNow) {
+        isSliding = false
+    }
+
     LaunchedEffect(key1 = timelineState, key2 = isSliding) {
         if (!isSliding) {
             sliderValue =
@@ -533,7 +603,7 @@ fun NowPlayingScreenContent(
         }.distinctUntilChangedBy {
             it.canvasData?.url
         }.collectLatest {
-            if (it.fullscreenCanvas() != null && mainScrollState.value == 0) {
+            if (it.canvasData != null && mainScrollState.value == 0) {
                 showHideJob = false
             } else {
                 showHideJob = true
@@ -543,7 +613,7 @@ fun NowPlayingScreenContent(
     }
 
     LaunchedEffect(key1 = showHideControlLayout) {
-        if (showHideControlLayout && screenDataState.fullscreenCanvas() != null && mainScrollState.value == 0) {
+        if (showHideControlLayout && screenDataState.canvasData != null && mainScrollState.value == 0) {
             showHideJob = false
         }
     }
@@ -552,10 +622,10 @@ fun NowPlayingScreenContent(
         snapshotFlow { mainScrollState.value }
             .distinctUntilChanged()
             .collect {
-                if (it > 0 && !showHideControlLayout && screenDataState.fullscreenCanvas() != null) {
+                if (it > 0 && !showHideControlLayout && screenDataState.canvasData != null) {
                     showHideJob = true
                     showHideControlLayout = true
-                } else if (showHideControlLayout && it == 0 && screenDataState.fullscreenCanvas() != null) {
+                } else if (showHideControlLayout && it == 0 && screenDataState.canvasData != null) {
                     showHideJob = false
                 }
             }
@@ -607,8 +677,17 @@ fun NowPlayingScreenContent(
     if (screenDataState.lyricsData != null && controllerState.isPlaying) {
         KeepScreenOn()
     }
+    // The Show codec on player setting (Appearance), read here so every
+    // player style renders the badge from one source of truth.
+    val (showCodecOnPlayer) = com.muso.music.utils.rememberPreference(
+        key = com.muso.music.constants.ShowCodecOnPlayerKey,
+        defaultValue = false,
+    )
     val state =
         NowPlayingContentState(
+            showCodecBadge = showCodecOnPlayer,
+            audioCodecLoading = showCodecOnPlayer && nowPlayingVideoId != null &&
+                formatState?.videoId != nowPlayingVideoId,
             screenData = screenDataState,
             controllerState = controllerState,
             timelineState = timelineState,
@@ -635,8 +714,23 @@ fun NowPlayingScreenContent(
             mainScrollState = mainScrollState,
             isExpanded = isExpanded,
             dismissIcon = dismissIcon,
-            audioQualityLabel = formatState.toAudioQualityLabel(),
-            lyricsOffsetMs = lyricsOffsetMs.toLong(),
+            // codecs, NOT mimeType. StreamRepositoryImpl splits YouTube's
+            // `audio/webm; codecs="opus"` with a regex and stores the two halves in SEPARATE
+            // columns: mimeType keeps "audio/webm", codecs keeps "opus". Asking mimeType for the
+            // codec therefore never matched anything and the badge never rendered, on any track.
+            // REAL quality + bitrate from the resolved stream's FormatEntity —
+            // e.g. "Medium • 129 kbps". The itag decides the quality family
+            // (Low/Medium/Opus/AAC, the same numbers the Audio Quality setting
+            // picks); the codec name is only the fallback. Null when unknown,
+            // so nothing fakes.
+            audioCodecLabel = formatState
+                ?.takeIf { f -> f.videoId == nowPlayingVideoId }
+                ?.let { f ->
+                    val container = f.mimeType.toAudioContainerLabel()
+                    val codec = f.codecs.toAudioCodecLabel()
+                    val kbps = f.bitrate?.takeIf { it > 0 }?.let { b -> "${b / 1000} kbps" }
+                    listOfNotNull(container, codec, kbps).takeIf { it.isNotEmpty() }?.joinToString(" • ")
+                },
             videoAspectRatio = rememberVideoAspectRatio(MAIN_PLAYER) ?: 16f / 9,
         )
     val actions =
@@ -647,8 +741,14 @@ fun NowPlayingScreenContent(
             },
             onArtworkBitmap = { sharedViewModel.setBitmap(it) },
             onSliderChange = { newValue ->
-                isSliding = true
-                sliderValue = newValue
+                // A freshly composed slider (the squiggly renderers fire one
+                // as they come up) repeating the current value is NOT a drag.
+                // Without this guard the latch armed with no finish callback
+                // to clear it, freezing the progress at that point.
+                if (newValue != sliderValue) {
+                    isSliding = true
+                    sliderValue = newValue
+                }
             },
             onSliderChangeFinished = {
                 isSliding = false
@@ -674,10 +774,6 @@ fun NowPlayingScreenContent(
                     )
                 }
             },
-            onOpenListenTogether = {
-                onDismiss()
-                navController.navigate(ListenTogetherDestination)
-            },
             onAddToYouTubeLiked = { sharedViewModel.addToYouTubeLiked() },
             onShowMoreSheet = { showSheet = true },
             onShowQueue = { showQueueBottomSheet = true },
@@ -685,7 +781,6 @@ fun NowPlayingScreenContent(
             onShowAddToPlaylist = { showAddToPlaylistDirectly = true },
             onShowFullscreenLyrics = { showFullscreenLyrics = true },
             onShowVoteDialog = { showVoteDialog = true },
-            onLyricsOffsetChange = { sharedViewModel.setLyricsOffsetMs(it) },
             onEnterFullscreenVideo = {
                 onDismiss()
                 navController.navigate(FullscreenDestination)
@@ -700,7 +795,6 @@ fun NowPlayingScreenContent(
             onRemoveQueueItem = { index ->
                 mediaPlayerHandler.removeMediaItem(index)
             },
-            onQueueItemMore = { index, track -> queueMoreFor = index to track },
         )
 
     // Below `state`/`actions`: the landscape lyrics layout renders the current style's own track row
@@ -714,7 +808,7 @@ fun NowPlayingScreenContent(
             val windowSize = LocalWindowInfo.current.containerSize
             val density = LocalDensity.current
             // DesktopApp makes the window transparent and clips its content to 12dp corners exactly
-            // when it draws the custom title bar (both macOS-only). A Popup is a layer of its own
+            // when it draws the custom title bar (both gated on !isVM). A Popup is a layer of its own
             // that clip never reaches, so the page rounds itself. getScreenSizeInfo() subtracts that
             // same bar, which makes the height difference the one signal commonMain can read.
             val windowIsRounded = windowSize.height > getScreenSizeInfo().hPX
@@ -813,21 +907,6 @@ fun NowPlayingScreenContent(
             onDismiss = {
                 showQueueBottomSheet = false
             },
-            navController = navController,
-            onNavigateToOtherScreen = {
-                showQueueBottomSheet = false
-                onDismiss()
-            },
-        )
-    }
-
-    queueMoreFor?.let { (index, track) ->
-        NowPlayingBottomSheet(
-            onDismiss = { queueMoreFor = null },
-            navController = navController,
-            song = track.toSongEntity(),
-            queuePosition = QueuePosition(index, track.videoId),
-            onNavigateToOtherScreen = { onDismiss() },
         )
     }
 
@@ -910,10 +989,16 @@ fun NowPlayingScreenContent(
                 actions = actions,
             )
 
+
         else ->
             NowPlayingContentSpotify(
                 state = state,
                 actions = actions,
             )
     }
+}
+
+// Round 177: process-lifetime latch - see the flag reset in NowPlayingScreen.
+private object NowPlayingSheetsBootReset {
+    var done = false
 }

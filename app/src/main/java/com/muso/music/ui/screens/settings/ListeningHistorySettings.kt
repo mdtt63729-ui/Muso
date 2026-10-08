@@ -1,5 +1,6 @@
 package com.muso.music.ui.screens.settings
 
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,8 +10,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -86,38 +85,50 @@ fun ListeningHistorySettings(
         )
     }
 
-    val scrollState = rememberScrollState()
-
-    Column(
-        Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(scrollState),
+    // Phase 9: LazyColumn, not Column + verticalScroll - only the rows on screen are composed
+    // and measured. Same content, same order, same insets; the leading spacers are their own
+    // item so they are not re-measured with the first row.
+    LazyColumn(
+        modifier =
+            Modifier.windowInsetsPadding(
+                LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+            ),
     ) {
-        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
-        Spacer(Modifier.height(64.dp))
+        item {
+            Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+            Spacer(Modifier.height(64.dp))
+        }
 
-        PreferenceGroupTitle(
-            title = stringResource(R.string.listening_history),
-        )
+        item {
+            PreferenceGroupTitle(
+                title = stringResource(R.string.listening_history),
+            )
+        }
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.pause_listen_history)) },
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.history)) },
-            checked = !pauseListenHistory,
-            onCheckedChange = { onPauseListenHistoryChange(!it) },
-        )
+        item {
+            SwitchPreference(
+                title = { Text(stringResource(R.string.pause_listen_history)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.history)) },
+                checked = !pauseListenHistory,
+                onCheckedChange = { onPauseListenHistoryChange(!it) },
+            )
+        }
 
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_listen_history)) },
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.delete_history)) },
-            onClick = { showClearListenHistoryDialog = true },
-        )
+        item {
+            PreferenceEntry(
+                title = { Text(stringResource(R.string.clear_listen_history)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.delete_history)) },
+                onClick = { showClearListenHistoryDialog = true },
+            )
+        }
 
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.stats)) },
-            icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.trending_up)) },
-            onClick = { navController.navigate("stats") },
-        )
+        item {
+            PreferenceEntry(
+                title = { Text(stringResource(R.string.stats)) },
+                icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.trending_up)) },
+                onClick = { navController.navigate("stats") },
+            )
+        }
     }
 
     TopAppBar(

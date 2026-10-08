@@ -58,6 +58,7 @@ import com.maxrave.domain.mediaservice.handler.QueueData
 import com.maxrave.domain.mediaservice.handler.RepeatState
 import com.maxrave.simpmusic.expect.ui.DeviceVolumeController
 import com.maxrave.simpmusic.ui.component.DraggableItem
+import com.maxrave.simpmusic.ui.component.QueueItemBottomSheet
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.rememberDragDropState
 import com.maxrave.simpmusic.ui.icon.Info
@@ -72,18 +73,15 @@ import com.maxrave.simpmusic.viewModel.UIEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.continue_playing
-import simpmusic.composeapp.generated.resources.endless_queue
-import simpmusic.composeapp.generated.resources.now_playing
+import com.muso.music.R
 
 /**
  * The QUEUE body: compact header, [Info][PlaylistAdd][Shuffle][Repeat] pills, a "Continue
  * Playing" section (with the endless-queue switch) and the upcoming tracks — the OLD queue
  * sheet's own [SongFullWidthItems] rows with its long-press-drag reorder and its per-item ⋯
- * sheet (the full song sheet plus move up/down/to play next and delete), matching
+ * sheet ([QueueItemBottomSheet]: move up/down/delete), matching
  * [com.maxrave.simpmusic.ui.component.QueueBottomSheet] exactly.
  * Ends in the same fixed bottom cluster as MAIN/LYRICS.
  */
@@ -97,8 +95,6 @@ internal fun AppleMusicQueueView(
     activePillContainer: Color,
     activePillContent: Color,
     deviceVolumeController: DeviceVolumeController?,
-    outputName: String?,
-    onOpenOutput: () -> Unit,
     modifier: Modifier = Modifier,
     dataStoreManager: DataStoreManager = koinInject(),
     musicServiceHandler: MediaPlayerHandler = koinInject(),
@@ -152,7 +148,12 @@ internal fun AppleMusicQueueView(
                     with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() } + 20.dp,
                 ),
         )
-        AppleMusicCompactHeader(state = state, actions = actions, typography = typography)
+        AppleMusicCompactHeader(
+            state = state,
+            actions = actions,
+            typography = typography,
+            onBackToPlayer = { onSelectView(AppleMusicView.MAIN) },
+        )
         AppleMusicQueuePillsRow(
             state = state,
             actions = actions,
@@ -206,6 +207,17 @@ internal fun AppleMusicQueueView(
                 .collect { if (it && loadMoreState == QueueData.StateSource.STATE_INITIALIZED) musicServiceHandler.loadMore() }
         }
         var overscrollJob by remember { mutableStateOf<Job?>(null) }
+
+        // Same per-item sheet the old queue sheet opens from a row's ⋯ (move up/down/delete).
+        var queueItemSheetIndex by remember { mutableStateOf(-1) }
+        var queueItemSheetVideoId by remember { mutableStateOf<String?>(null) }
+        if (queueItemSheetIndex >= 0) {
+            QueueItemBottomSheet(
+                onDismiss = { queueItemSheetIndex = -1 },
+                index = queueItemSheetIndex,
+                videoId = queueItemSheetVideoId,
+            )
+        }
 
         Box(
             modifier =
@@ -273,7 +285,7 @@ internal fun AppleMusicQueueView(
                     ) { _ ->
                         // Owner's call: the OLD queue sheet's row component, verbatim — no bespoke
                         // row. Long-press-drag reorders (list-level gesture above); ⋯ opens the
-                        // full song sheet with the queue's own rows, hosted by the player screen.
+                        // same per-item sheet the queue sheet uses.
                         SongFullWidthItems(
                             track = track,
                             isPlaying = false,
@@ -282,7 +294,8 @@ internal fun AppleMusicQueueView(
                                 if (videoId == track.videoId) actions.onSeekToQueueIndex(queueIndex)
                             },
                             onMoreClickListener = {
-                                actions.onQueueItemMore(queueIndex, track)
+                                queueItemSheetVideoId = track.videoId
+                                queueItemSheetIndex = queueIndex
                             },
                         )
                     }
@@ -299,8 +312,6 @@ internal fun AppleMusicQueueView(
             activePillContainer = activePillContainer,
             activePillContent = activePillContent,
             deviceVolumeController = deviceVolumeController,
-            outputName = outputName,
-            onOpenOutput = onOpenOutput,
         )
     }
 }
@@ -409,7 +420,7 @@ private fun AppleMusicContinuePlayingHeader(
             // printing an empty one.
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.now_playing),
+                    text = stringResource(R.string.simp_now_playing),
                     style = typography.queueSectionSubtitle,
                 )
                 val source = state.screenData.playlistName
@@ -425,7 +436,7 @@ private fun AppleMusicContinuePlayingHeader(
             // The switch needs its own label, exactly like the queue sheet's — unlabelled it
             // reads as a mystery toggle.
             Text(
-                text = stringResource(Res.string.endless_queue),
+                text = stringResource(R.string.simp_endless_queue),
                 style = typography.queueSectionSubtitle,
                 modifier = Modifier.padding(end = 8.dp),
             )

@@ -1,5 +1,7 @@
 package com.maxrave.simpmusic.ui.component.lyrics
 
+import com.muso.music.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,21 +64,21 @@ import com.maxrave.simpmusic.ui.screen.player.content.applemusic.appleMusicVerti
 import kotlinx.coroutines.launch
 import multiplatform.network.cmptoast.ToastGravity
 import multiplatform.network.cmptoast.showToast
-import org.jetbrains.compose.resources.stringResource
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.share_lyrics
-import simpmusic.composeapp.generated.resources.share_lyrics_background
-import simpmusic.composeapp.generated.resources.share_lyrics_continue
-import simpmusic.composeapp.generated.resources.share_lyrics_max_reached
-import simpmusic.composeapp.generated.resources.share_lyrics_permission_denied
-import simpmusic.composeapp.generated.resources.share_lyrics_save
-import simpmusic.composeapp.generated.resources.share_lyrics_save_failed
-import simpmusic.composeapp.generated.resources.share_lyrics_saved
-import simpmusic.composeapp.generated.resources.share_lyrics_saved_desktop
-import simpmusic.composeapp.generated.resources.share_lyrics_select_title
-import simpmusic.composeapp.generated.resources.share_lyrics_selected_count
-import simpmusic.composeapp.generated.resources.share_lyrics_share_action
-import simpmusic.composeapp.generated.resources.share_lyrics_share_failed
+import androidx.compose.ui.res.stringResource
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import kotlin.random.Random
 
 /**
@@ -124,15 +126,15 @@ fun ShareLyricsSheet(
     // is what those surfaces are actually filled with — never the raw seed.
     val onFilled = seedColor.shareTintOn(content)
 
-    val limitMessage = stringResource(Res.string.share_lyrics_max_reached, MAX_SHARE_LYRIC_LINES)
+    val limitMessage = stringResource(R.string.simp_share_lyrics_max_reached, MAX_SHARE_LYRIC_LINES)
     val savedMessage =
         stringResource(
-            if (getPlatform() == Platform.Desktop) Res.string.share_lyrics_saved_desktop else Res.string.share_lyrics_saved,
+            if (getPlatform() == Platform.Desktop) R.string.simp_share_lyrics_saved_desktop else R.string.simp_share_lyrics_saved,
         )
-    val saveFailedMessage = stringResource(Res.string.share_lyrics_save_failed)
-    val shareFailedMessage = stringResource(Res.string.share_lyrics_share_failed)
-    val permissionDeniedMessage = stringResource(Res.string.share_lyrics_permission_denied)
-    val chooserTitle = stringResource(Res.string.share_lyrics)
+    val saveFailedMessage = stringResource(R.string.simp_share_lyrics_save_failed)
+    val shareFailedMessage = stringResource(R.string.simp_share_lyrics_share_failed)
+    val permissionDeniedMessage = stringResource(R.string.simp_share_lyrics_permission_denied)
+    val chooserTitle = stringResource(R.string.simp_share_lyrics)
 
     val fileName =
         remember(songTitle) {
@@ -179,12 +181,12 @@ fun ShareLyricsSheet(
                 ShareLyricsSheetHeader(
                     title =
                         if (showPreview) {
-                            stringResource(Res.string.share_lyrics)
+                            stringResource(R.string.simp_share_lyrics)
                         } else {
-                            stringResource(Res.string.share_lyrics_select_title)
+                            stringResource(R.string.simp_share_lyrics_select_title)
                         },
                     subtitle =
-                        if (showPreview) null else stringResource(Res.string.share_lyrics_selected_count, selection.count),
+                        if (showPreview) null else stringResource(R.string.simp_share_lyrics_selected_count, selection.count),
                     content = content,
                     onClose = { if (showPreview) showPreview = false else onDismiss() },
                 )
@@ -244,7 +246,7 @@ fun ShareLyricsSheet(
  * under the title as a sentence rather than as a "3 / 3" fraction, which reads like a form field.
  */
 @Composable
-internal fun ShareLyricsSheetHeader(
+private fun ShareLyricsSheetHeader(
     title: String,
     subtitle: String?,
     content: Color,
@@ -333,7 +335,7 @@ private fun ShareLyricsPicker(
         }
 
         ShareLyricsPill(
-            text = stringResource(Res.string.share_lyrics_continue),
+            text = stringResource(R.string.simp_share_lyrics_continue),
             container = content,
             label = onFilled,
             enabled = !selection.isEmpty,
@@ -427,7 +429,7 @@ private fun ShareLyricsPreview(
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ShareLyricsPill(
-                text = stringResource(Res.string.share_lyrics_save),
+                text = stringResource(R.string.simp_share_lyrics_save),
                 icon = SimpIcons.Download,
                 container = Color.Transparent,
                 label = content,
@@ -435,7 +437,7 @@ private fun ShareLyricsPreview(
                 onClick = onSave,
             )
             ShareLyricsPill(
-                text = stringResource(Res.string.share_lyrics_share_action),
+                text = stringResource(R.string.simp_share_lyrics_share_action),
                 icon = SimpIcons.Share,
                 container = content,
                 label = onFilled,
@@ -454,7 +456,7 @@ private fun ShareLyricsPreview(
  * actually is — and it lets the list keep scrolling visibly underneath it.
  */
 @Composable
-internal fun ShareLyricsPill(
+private fun ShareLyricsPill(
     text: String,
     container: Color,
     label: Color,
@@ -501,7 +503,7 @@ internal fun ShareLyricsPill(
  * so there is always something to fall back on when the artwork is grey.
  */
 @Composable
-internal fun ShareLyricsPalette(
+private fun ShareLyricsPalette(
     seedColor: Color,
     selected: Color,
     content: Color,
@@ -520,7 +522,7 @@ internal fun ShareLyricsPalette(
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = stringResource(Res.string.share_lyrics_background),
+            text = stringResource(R.string.simp_share_lyrics_background),
             color = content.copy(alpha = 0.6f),
             fontSize = 12.sp,
         )

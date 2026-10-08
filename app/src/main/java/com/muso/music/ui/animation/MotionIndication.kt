@@ -58,7 +58,13 @@ private class MotionIndicationNode(
         coroutineScope.launch {
             interactionSource.interactions.collectLatest { interaction ->
                 when (interaction) {
-                    is PressInteraction.Press -> animateTo(1f)
+                    is PressInteraction.Press -> {
+                        // Every press in the app comes through here, because this indication is
+                        // the app-wide LocalIndication. That makes it the one place a full UI log
+                        // of taps can be written from, with no call site to touch.
+                        com.muso.music.utils.MusoLog.ui("PRESS")
+                        animateTo(1f)
+                    }
                     is PressInteraction.Release,
                     is PressInteraction.Cancel,
                     -> animateTo(0f)

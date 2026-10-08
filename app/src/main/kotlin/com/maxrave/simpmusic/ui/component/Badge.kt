@@ -1,5 +1,7 @@
 package com.maxrave.simpmusic.ui.component
 
+import com.muso.music.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +23,9 @@ import androidx.compose.ui.unit.sp
 import com.maxrave.simpmusic.ui.icon.Explicit
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.theme.typo
-import org.jetbrains.compose.resources.stringResource
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.ai
+import androidx.compose.ui.res.stringResource
+
+
 
 @Composable
 fun ExplicitBadge(modifier: Modifier = Modifier) {
@@ -50,7 +52,7 @@ fun AIBadge() {
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
-            text = stringResource(Res.string.ai),
+            text = stringResource(R.string.simp_ai),
             color = { Color.Black },
             maxLines = 1,
             autoSize = TextAutoSize.StepBased(minFontSize = 6.sp),

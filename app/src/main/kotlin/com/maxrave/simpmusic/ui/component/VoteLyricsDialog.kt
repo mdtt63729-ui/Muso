@@ -1,5 +1,7 @@
 package com.maxrave.simpmusic.ui.component
 
+import com.muso.music.R
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,14 +24,14 @@ import com.maxrave.simpmusic.ui.icon.ThumbUp
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.VoteData
 import com.maxrave.simpmusic.viewModel.VoteState
-import org.jetbrains.compose.resources.stringResource
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.cancel
-import simpmusic.composeapp.generated.resources.downvote
-import simpmusic.composeapp.generated.resources.rate_lyrics
-import simpmusic.composeapp.generated.resources.rate_translated_lyrics
-import simpmusic.composeapp.generated.resources.upvote
-import simpmusic.composeapp.generated.resources.vote_for_lyrics
+import androidx.compose.ui.res.stringResource
+
+
+
+
+
+
+
 
 @Composable
 fun VoteLyricsDialog(
@@ -50,14 +52,14 @@ fun VoteLyricsDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(
-                    stringResource(Res.string.cancel),
+                    stringResource(R.string.simp_cancel),
                     style = typo().bodySmall,
                 )
             }
         },
         title = {
             Text(
-                stringResource(Res.string.vote_for_lyrics),
+                stringResource(R.string.simp_vote_for_lyrics),
                 style = typo().labelSmall,
             )
         },
@@ -68,7 +70,7 @@ fun VoteLyricsDialog(
                 // Vote for original lyrics
                 if (canVoteLyrics && lyricsVoteState != null) {
                     VoteRow(
-                        label = stringResource(Res.string.rate_lyrics),
+                        label = stringResource(R.string.simp_rate_lyrics),
                         voteState = lyricsVoteState,
                         onUpvote = { onVoteLyrics(true) },
                         onDownvote = { onVoteLyrics(false) },
@@ -78,7 +80,7 @@ fun VoteLyricsDialog(
                 // Vote for translated lyrics
                 if (canVoteTranslatedLyrics && translatedLyricsVoteState != null) {
                     VoteRow(
-                        label = stringResource(Res.string.rate_translated_lyrics),
+                        label = stringResource(R.string.simp_rate_translated_lyrics),
                         voteState = translatedLyricsVoteState,
                         onUpvote = { onVoteTranslatedLyrics(true) },
                         onDownvote = { onVoteTranslatedLyrics(false) },
@@ -153,7 +155,7 @@ private fun VoteRow(
                         ) {
                             Icon(
                                 imageVector = SimpIcons.ThumbUp,
-                                contentDescription = stringResource(Res.string.upvote),
+                                contentDescription = stringResource(R.string.simp_upvote),
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -163,7 +165,7 @@ private fun VoteRow(
                         ) {
                             Icon(
                                 imageVector = SimpIcons.ThumbDown,
-                                contentDescription = stringResource(Res.string.downvote),
+                                contentDescription = stringResource(R.string.simp_downvote),
                                 modifier = Modifier.size(20.dp),
                             )
                         }

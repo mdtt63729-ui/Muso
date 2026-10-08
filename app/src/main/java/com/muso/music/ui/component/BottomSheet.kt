@@ -208,7 +208,13 @@ class BottomSheetState(
     }
 
     val progress by derivedStateOf {
-        1f - (animatable.upperBound!! - animatable.value) / (animatable.upperBound!! - collapsedBound)
+        // Guarded: with no expanded room (expandedBound == collapsedBound, which happens for a
+        // frame while a restore is still measuring) this was 0/0 - NaN. Everything positioned
+        // from `progress` (the navbar's slide, the mini player's fade) then took a NaN offset,
+        // which is one of the ways the layout lands in the wrong place on the first frame after
+        // the app returns to the foreground.
+        val span = animatable.upperBound!! - collapsedBound
+        if (span.value <= 0f) 1f else 1f - (animatable.upperBound!! - animatable.value) / span
     }
 
     fun collapse(animationSpec: AnimationSpec<Dp>) {
@@ -362,13 +368,21 @@ fun rememberBottomSheetState(
         mutableIntStateOf(initialAnchor)
     }
 
+    // THE distinction the guards below were missing. `rememberSaveable` only restores when the
+    // SYSTEM recreated us - i.e. the user came back to the app - and in that case the player
+    // must come back exactly as they left it, expanded included. A genuine cold start has
+    // nothing stored and keeps the caller's default. Before this, both looked the same, so a
+    // restore was treated as a cold start and the fullscreen player was forced down to the
+    // mini player (PRD: "App lifecycle change must never cause FULLSCREEN -> MINI").
+    val wasRestored = remember { previousAnchor != initialAnchor }
+
     // Blank fullscreen player on cold start (user report): rememberSaveable
     // restored the sheet as EXPANDED from the previous session, so the app
     // opened straight into an empty player. Only ever restore expanded
     // within a process (rotation/config change); a fresh process always
     // starts at the mini player.
     val bootCorrected = remember { PlayerSheetBootState.corrected }
-    if (!bootCorrected && previousAnchor == expandedAnchor) {
+    if (!bootCorrected && !wasRestored && previousAnchor == expandedAnchor) {
         previousAnchor = collapsedAnchor
     }
     PlayerSheetBootState.corrected = true
@@ -405,7 +419,11 @@ fun rememberBottomSheetState(
             PlayerSheetBootState.bootGuarded = true
             withFrameNanos { }
             withFrameNanos { }
-            if (!PlayerSheetBootState.userExpanded &&
+            // `!wasRestored`: when the system brought us back because the user returned to the
+            // app, the expanded sheet is where they were, not a restore artifact. With no media
+            // to show, the host's media check dismisses the sheet instead of leaving it blank.
+            if (!wasRestored &&
+                !PlayerSheetBootState.userExpanded &&
                 animatable.value >= expandedBound - 1.dp
             ) {
                 animatable.snapTo(collapsedBound)

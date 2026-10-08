@@ -2,6 +2,7 @@ package com.muso.music.ui.screens.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -9,8 +10,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -65,16 +64,26 @@ fun BackupAndRestore(
         }
     }
 
-    val scrollState = rememberScrollState()
 
-    Column(
-        Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(scrollState)
+    // Phase 9: LazyColumn. The two preference reads below used to sit IN the list, which a lazy
+    // list cannot do - an item is composed and recycled, so a `remember` inside one is not a
+    // stable home for preference state. They are hoisted above the list, where they belong.
+    val (autoBackup, onAutoBackupChange) = rememberPreference(key = AutoBackupKey, defaultValue = false)
+    val (backupFrequency, onBackupFrequencyChange) =
+        rememberEnumPreference(key = AutoBackupFrequencyKey, defaultValue = AutoBackupFrequency.DAILY)
+
+    LazyColumn(
+        modifier =
+            Modifier.windowInsetsPadding(
+                LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+            ),
     ) {
-        Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
-        Spacer(Modifier.height(64.dp))
+        item {
+            Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
+            Spacer(Modifier.height(64.dp))
+        }
 
+        item {
         PreferenceEntry(
             title = { Text(stringResource(R.string.action_backup)) },
             icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.backup)) },
@@ -83,6 +92,9 @@ fun BackupAndRestore(
                 backupLauncher.launch("${context.getString(R.string.app_name)}_${LocalDateTime.now().format(formatter)}.backup")
             }
         )
+        }
+
+        item {
         PreferenceEntry(
             title = { Text(stringResource(R.string.action_restore)) },
             icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.restore)) },
@@ -90,14 +102,15 @@ fun BackupAndRestore(
                 restoreLauncher.launch(arrayOf("application/octet-stream"))
             }
         )
+        }
 
-        PreferenceGroupTitle(
-            title = stringResource(R.string.auto_backup)
-        )
+        item {
+            PreferenceGroupTitle(
+                title = stringResource(R.string.auto_backup)
+            )
+        }
 
-        val (autoBackup, onAutoBackupChange) = rememberPreference(key = AutoBackupKey, defaultValue = false)
-        val (backupFrequency, onBackupFrequencyChange) = rememberEnumPreference(key = AutoBackupFrequencyKey, defaultValue = AutoBackupFrequency.DAILY)
-
+        item {
         SwitchPreference(
             title = { Text(stringResource(R.string.auto_backup)) },
             description = stringResource(R.string.auto_backup_desc),
@@ -105,7 +118,9 @@ fun BackupAndRestore(
             checked = autoBackup,
             onCheckedChange = onAutoBackupChange
         )
+        }
 
+        item {
         if (autoBackup) {
             EnumListPreference(
                 title = { Text(stringResource(R.string.backup_frequency)) },
@@ -119,6 +134,7 @@ fun BackupAndRestore(
                     }
                 }
             )
+        }
         }
     }
 

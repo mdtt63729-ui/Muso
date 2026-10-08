@@ -1,21 +1,70 @@
-## Muso 0.5.248 — Classic NowPlaying player replaced from the supplied zip
-- Applied SimpMusic-Classic-NowPlaying_1.zip as a straight replacement (user chose "full
-  replace"): 121 of its 134 files copied into app/src/main/kotlin/com/maxrave/simpmusic/ (12 of
-  them new), overwriting the app's versions. 84 files were already identical.
-- The 11 KMP plumbing files were NOT copied: the zip ships `expect` DECLARATIONS (it is a
-  commonMain source set) and this app is a plain Android module holding the implementations.
-  Copying an expect declaration outside a common source set does not compile. All their function
-  signatures were compared and match, so the app's own satisfy the copied code.
-- One addition was needed: the zip's CastButton.kt declares CastReceiver, CastReceivers and
-  rememberCastReceivers, and the zip's new AppleMusicOutputSheet.kt uses rememberCastReceivers.
-  The app's CastButton.kt now declares all three with a no-op implementation, matching its
-  existing isPlatformCastAvailable() = false stance (Muso has no Cast).
-- Consequence, as chosen: this replaces files that carried earlier fixes - LyricsView (resume
-  button, None style, Enhanced hook), FullscreenLyricsContent (fullscreen close guard),
-  NowPlayingContentState (true-white text), LiquidGlassContainer (blur reductions) and
-  NowPlayingScreen (three-style cleanup). Those fixes are not in the zip.
-- The zip is itself a three-style build and references none of the seven styles this app removed.
-- Docs: added docs/CLASSIC_NOWPLAYING_REPLACE.md.
+## Muso 0.5.253 — log folder needs no permission; full UI trace
+- The "Muso" log folder now lives at /storage/emulated/0/Android/data/com.muso.music/files/Muso
+  - the app's OWN external directory. No permission of any kind is needed to write there, and the
+  system deletes the folder when the app is uninstalled. It used to prefer public
+  /storage/emulated/0/Muso when All Files Access was granted and put up a dialog offering to send
+  the user to that settings page when it was not; both are gone, and that dialog was the only
+  permission this app ever asked for. The AlertDialog and the
+  ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION intent were removed outright.
+- Trade-off, stated plainly: the folder sits under Android/data/, one level deeper than
+  /storage/emulated/0/Muso. A folder directly under the storage root AND one that survives
+  uninstall both require All Files Access - so with "no permission" this is the only option.
+- main.txt already streams the whole logcat for the run (logcat -f, no permission), so every
+  Timber/Log line and every crash is captured from the first line of Application.onCreate.
+- Added a UI trace, all landing in main.txt: every press (logged from MotionIndication, the
+  app-wide LocalIndication, so every clickable in the app passes through it - one place, no call
+  site to touch), every screen change (from the nav host), and the app lifecycle
+  (onResume/onPause/onStop/onDestroy). A press line reads as "PRESS screen=player".
+- Docs: added docs/LOG_FOLDER_NO_PERMISSION_FULL_UI_TRACE.md.
+
+## Muso 0.5.252 — Phase 9 batch 2
+- Converted AboutScreen.kt and AISettings.kt from Column + verticalScroll to LazyColumn. About
+  was a centred column - the alignment moved to LazyColumn(horizontalAlignment = ...) and each
+  child became an item {}. AISettings had one `if (aiProvider == CUSTOM_OPENAI) { ... }` around a
+  row, which became an item {}. Both lost their unused rememberScrollState/verticalScroll imports
+  and gained the LazyColumn import.
+- Four settings screens done in total (with ListeningHistorySettings.kt and BackupAndRestore.kt).
+- Why the batch stays small: the next screens are NOT flat. SpotifySettings has
+  playlists.forEach (a row per playlist) and AudioEffectsScreen has centerFreqs.forEachIndexed (a
+  row per band). A forEach inside a Column composes every row up front; inside a LazyColumn it has
+  to become items(...), which means lifting the loop out of its surrounding if/when into the
+  list's own scope. That is a restructure per screen, each only checkable by a build.
+- Docs: added docs/PHASE9_BATCH_2.md.
+
+## Muso 0.5.251 — Phase 9 batch + a real layout-jump cause
+- Layout jump: BottomSheetState.progress divided by (expandedBound - collapsedBound) with no
+  guard. For a frame while a restore is still measuring those are equal, so it was 0/0 - NaN -
+  and everything positioned from progress (the navbar slide offset, the mini player fade) took a
+  NaN offset. Guarded. The supplied recording is consistent with a bad offset for a frame or two,
+  but 2 fps stills cannot separate that from the glass bar's own integrated mini player; a 60 fps
+  capture of the single foreground moment would settle it.
+- Phase 9: converted ListeningHistorySettings.kt and BackupAndRestore.kt from Column +
+  verticalScroll to LazyColumn. The second is the reason this is not a mechanical sweep: it had
+  two rememberPreference reads IN the list, and a lazy item is composed and recycled, so those
+  had to be hoisted above the LazyColumn first. The remaining 22 screens (7 Muso-side, 15
+  kit-side) need the same per-screen care.
+- Not re-verified on a device: the info / queue / add-to-playlist / fullscreen-lyrics collapse.
+  The reasoning that 0.5.249's removed snap-to-dismissed effect already cured it still stands.
+- Phase 7 (codec), 12, 13, 14 remain device-bound.
+- Docs: added docs/PHASE9_BATCH_AND_LAYOUT_PROGRESS.md.
+
+## Muso 0.5.250 — Classic-NowPlaying zip replace reverted; build green again
+- The 0.5.248 replace failed CI with 789 errors across 26 files: Res (241), simpmusic (216),
+  stringResource (180), resources (26), AudioOutputKind (16) and 4 expect/actual "only in
+  multiplatform projects". That is the Compose Multiplatform Resources API plus expect/actual -
+  the supplied zip is a commonMain source set of a KMP project, and this app is a plain Android
+  module using R.string with no multiplatform plugin. Dropping it in would need its whole
+  resource layer ported - a rewrite, not a fix. Tree restored to 0.5.247.
+- Fixed a REAL bug the revert exposed: 0.5.247 deleted MusoSuiteHost.kt as dead code, but
+  MusoSuiteBridge - defined in the same file - was NOT dead. MusoNavbarHost calls it to feed the
+  suite's shared state and the glass bar's MiniPlayer reads that state, so MusoNavbarHost.kt:126
+  could not resolve it. The bridge and its three private helpers are now their own file,
+  MusoSuiteBridge.kt, extracted from 0.5.246 with the seven removed styles dropped from its
+  style mapping.
+- DarkAppColors/LightAppColors are public again (they were only private in the zip's Theme.kt).
+- Retained: the 0.5.249 PRD foreground-restore fix (MainActivity snap-to-dismissed removed;
+  BottomSheet.kt guards gated on wasRestored) and the 0.5.247 three-style work.
+- Docs: added docs/REVERT_CLASSIC_ZIP_AND_RESTORE_BRIDGE.md.
 
 ## Muso 0.5.247 — three player styles, the picker finally wired, Enhanced blank sheet
 - THE BIG ONE: the player-style picker had never reached the player. The PlayerStyle ->

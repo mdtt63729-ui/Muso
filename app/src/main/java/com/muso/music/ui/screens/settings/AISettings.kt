@@ -1,5 +1,6 @@
 package com.muso.music.ui.screens.settings
 
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -7,9 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -173,20 +172,27 @@ fun AISettings(
         )
     }
 
-    val scrollState = rememberScrollState()
-
-    Column(
-        Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(scrollState),
+    // Phase 9: LazyColumn, not Column + verticalScroll - only the rows on screen are composed
+    // and measured. Same content, same order, same insets.
+    LazyColumn(
+        modifier =
+            Modifier
+                .windowInsetsPadding(
+                    LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                ),
     ) {
+        item {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
+        }
 
+        item {
         PreferenceGroupTitle(
             title = stringResource(R.string.ai),
         )
+        }
 
+        item {
         EnumListPreference(
             title = { Text(stringResource(R.string.ai_provider)) },
             icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.auto_awesome)) },
@@ -200,21 +206,27 @@ fun AISettings(
                 }
             },
         )
+        }
 
+        item {
         PreferenceEntry(
             title = { Text(stringResource(R.string.ai_api_key)) },
             description = if (apiKey.isEmpty()) null else "••••••••",
             icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.key)) },
             onClick = { showApiKeyDialog = true },
         )
+        }
 
+        item {
         PreferenceEntry(
             title = { Text(stringResource(R.string.ai_custom_model)) },
             description = customModel.ifEmpty { null },
             icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.memory)) },
             onClick = { showModelDialog = true },
         )
+        }
 
+        item {
         if (aiProvider == AIProvider.CUSTOM_OPENAI) {
             PreferenceEntry(
                 title = { Text(stringResource(R.string.ai_base_url)) },
@@ -223,7 +235,9 @@ fun AISettings(
                 onClick = { showBaseUrlDialog = true },
             )
         }
+        }
 
+        item {
         ListPreference(
             title = { Text(stringResource(R.string.ai_translation_language)) },
             icon = { com.muso.music.ui.component.BlobSettingIcon(painterResource(R.drawable.speech)) },
@@ -235,7 +249,9 @@ fun AISettings(
             },
             onValueSelected = onTargetLanguageChange,
         )
+        }
 
+        item {
         SwitchPreference(
             title = { Text(stringResource(R.string.use_ai_translation)) },
             description = stringResource(R.string.use_ai_translation_desc),
@@ -244,13 +260,17 @@ fun AISettings(
             onCheckedChange = onUseAITranslationChange,
             isEnabled = apiKey.isNotEmpty(),
         )
+        }
 
+        item {
         Text(
             text = stringResource(R.string.use_ai_translation_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
         )
+        }
+
     }
 
     TopAppBar(

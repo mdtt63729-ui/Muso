@@ -112,35 +112,29 @@ import com.maxrave.domain.mediaservice.handler.RepeatState
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.MediaPlayerView
 import com.maxrave.simpmusic.expect.ui.MediaPlayerViewWithSubtitle
+import com.maxrave.simpmusic.expect.ui.PlatformCastButton
 import com.maxrave.simpmusic.expect.ui.toImageBitmap
-import com.maxrave.simpmusic.extension.elapsedLabel
 import com.maxrave.simpmusic.extension.formatDuration
-import com.maxrave.simpmusic.extension.lengthLabel
 import com.maxrave.simpmusic.extension.getColorFromPalette
 import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.isElementVisible
 import com.maxrave.simpmusic.extension.parseTimestampToMilliseconds
 import com.maxrave.simpmusic.extension.smoothScrimBrush
 import com.maxrave.simpmusic.getPlatform
-import com.maxrave.simpmusic.ui.component.LyricText
 import com.maxrave.simpmusic.ui.component.AIBadge
 import com.maxrave.simpmusic.ui.component.DescriptionView
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
 import com.maxrave.simpmusic.ui.component.HeartCheckBox
-import com.maxrave.simpmusic.ui.component.LyricsOffsetBar
 import com.maxrave.simpmusic.ui.component.LyricsView
 import com.maxrave.simpmusic.ui.component.PlayPauseButton
 import com.maxrave.simpmusic.ui.component.PlayerControlLayout
-import com.maxrave.simpmusic.ui.component.hasTiming
 import com.maxrave.simpmusic.ui.component.lyrics.ShareLyricsSheet
 import com.maxrave.simpmusic.ui.component.lyrics.toShareLyricsLines
 import com.maxrave.simpmusic.ui.component.rememberHolderPainter
 import com.maxrave.simpmusic.ui.icon.AddCircleOutline
-import com.maxrave.simpmusic.ui.icon.AvTimer
 import com.maxrave.simpmusic.ui.icon.CheckCircle
 import com.maxrave.simpmusic.ui.icon.Forward5
 import com.maxrave.simpmusic.ui.icon.Fullscreen
-import com.maxrave.simpmusic.ui.icon.Headphones
 import com.maxrave.simpmusic.ui.icon.Info
 import com.maxrave.simpmusic.ui.icon.MoreVert
 import com.maxrave.simpmusic.ui.icon.PlaylistAdd
@@ -151,41 +145,18 @@ import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.icon.Subtitles
 import com.maxrave.simpmusic.ui.icon.SubtitlesOff
 import com.maxrave.simpmusic.ui.icon.ThumbsUpDown
-import com.maxrave.simpmusic.ui.screen.player.content.applemusic.AudioOutputSheetHost
 import com.maxrave.simpmusic.ui.theme.blackMoreOverlay
 import com.maxrave.simpmusic.ui.theme.overlay
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.LyricsProvider
 import com.maxrave.simpmusic.viewModel.UIEvent
+import kotlin.math.roundToLong
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.stringResource
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.artists
-import simpmusic.composeapp.generated.resources.audio_output
-import simpmusic.composeapp.generated.resources.crossfading
-import simpmusic.composeapp.generated.resources.description
-import simpmusic.composeapp.generated.resources.like_and_dislike
-import simpmusic.composeapp.generated.resources.line_synced
-import simpmusic.composeapp.generated.resources.lyrics
-import simpmusic.composeapp.generated.resources.lyrics_offset
-import simpmusic.composeapp.generated.resources.lyrics_provider_betterlyrics
-import simpmusic.composeapp.generated.resources.lyrics_provider_lrc
-import simpmusic.composeapp.generated.resources.lyrics_provider_simpmusic
-import simpmusic.composeapp.generated.resources.lyrics_provider_youtube
-import simpmusic.composeapp.generated.resources.now_playing_upper
-import simpmusic.composeapp.generated.resources.offline_mode
-import simpmusic.composeapp.generated.resources.playing_on_device
-import simpmusic.composeapp.generated.resources.published_at
-import simpmusic.composeapp.generated.resources.rate_lyrics
-import simpmusic.composeapp.generated.resources.rich_synced
-import simpmusic.composeapp.generated.resources.share_lyrics
-import simpmusic.composeapp.generated.resources.show
-import simpmusic.composeapp.generated.resources.spotify_lyrics_provider
-import simpmusic.composeapp.generated.resources.unsynced
-import simpmusic.composeapp.generated.resources.view_count
+import androidx.compose.ui.res.stringResource
+import com.muso.music.R
 
 // stripRichSyncTimestamps() lives in NowPlayingContentState.kt (same package) so both
 // content styles share one copy.
@@ -209,8 +180,6 @@ fun NowPlayingContentSpotify(
     val isRepeatOne = state.controllerState.repeatState is RepeatState.One
 
     var showShareLyricsSheet by rememberSaveable { mutableStateOf(false) }
-    var showLyricsOffsetBar by rememberSaveable { mutableStateOf(false) }
-    var showOutputSheet by rememberSaveable { mutableStateOf(false) }
 
     // Height
     var topAppBarHeightDp by rememberSaveable {
@@ -329,7 +298,7 @@ fun NowPlayingContentSpotify(
                         Modifier
                             .height(screenInfo.hDP.dp)
                             .fillMaxWidth(),
-                    beyondViewportPageCount = 1,
+                    beyondViewportPageCount = 0,
                     userScrollEnabled = !isRepeatOne && state.artworkQueue.isNotEmpty(),
                     key = { idx ->
                         val vid = state.artworkQueue.getOrNull(idx)?.videoId.orEmpty()
@@ -338,18 +307,20 @@ fun NowPlayingContentSpotify(
                 ) { page ->
                     val pageTrack = state.artworkQueue.getOrNull(page)
                     val isCurrentArtworkPage = page == state.currentOrderIndex
-                    // A canvas that fills the page; Apple Music's animated artwork is drawn separately (Layer 3).
-                    val pageHasCanvas = isCurrentArtworkPage && state.screenData.fullscreenCanvas() != null
-                    val pageAnimatedArtwork = state.screenData.canvasData?.takeIf { isCurrentArtworkPage && it.isAnimatedArtwork() }
+                    val pageHasCanvas = isCurrentArtworkPage && state.screenData.canvasData != null
 
                     // Per-page palette state for the gradient backdrop.
                     // The bitmap is fed in by Layer 2's adjacent-thumbnail AsyncImage
                     // (onSuccess), so we use the SAME bitmap that's painted on screen —
                     // matches the outer Column's palette extraction characteristics.
                     val pagePaletteState = rememberPaletteState()
+                    // NOT re-created per track: resetting to Color.Black on every song
+                    // change is what flashed the player black (the palette only lands
+                    // after the artwork decodes). One Animatable that survives the
+                    // track change and animates to the new palette when it arrives.
                     val pageStartColor =
-                        remember(pageTrack?.videoId) {
-                            Animatable(Color.Black)
+                        remember {
+                            Animatable(Color(0xFF282828))
                         }
                     LaunchedEffect(pagePaletteState, pageTrack?.videoId) {
                         snapshotFlow { pagePaletteState.palette }
@@ -418,20 +389,14 @@ fun NowPlayingContentSpotify(
                             Crossfade(targetState = state.screenData.canvasData?.isVideo) { isVideo ->
                                 if (isVideo == true) {
                                     state.screenData.canvasData?.url?.let { url ->
+                                        // Edge-to-edge (user spec): the video covers the whole
+                                        // player screen, crop-to-fill, never letterboxed and never
+                                        // squeezed - the same treatment the Apple Music backdrop
+                                        // already had.
                                         MediaPlayerView(
                                             url = url,
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxHeight()
-                                                    .then(
-                                                        if (getPlatform() == Platform.Desktop) {
-                                                            Modifier
-                                                        } else {
-                                                            Modifier
-                                                                .wrapContentWidth(unbounded = true, align = Alignment.CenterHorizontally)
-                                                                .align(Alignment.Center)
-                                                        },
-                                                    ),
+                                            cropToBounds = true,
+                                            modifier = Modifier.fillMaxSize(),
                                         )
                                     }
                                 } else if (isVideo == false) {
@@ -535,8 +500,8 @@ fun NowPlayingContentSpotify(
                                     // retry once with `hqdefault.jpg`, which YouTube guarantees for
                                     // every video. Song artwork (googleusercontent) never matches
                                     // the replace, so this is a no-op for it.
-                                    var artworkUrl by remember(state.screenData.thumbnailURL) {
-                                        mutableStateOf(state.screenData.thumbnailURL)
+                                    var artworkUrl by remember(state.thumbnailURL) {
+                                        mutableStateOf(state.thumbnailURL)
                                     }
                                     Box(
                                         contentAlignment = Alignment.Center,
@@ -618,23 +583,14 @@ fun NowPlayingContentSpotify(
                                                 Modifier
                                                     .aspectRatio(state.videoAspectRatio)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(Color.Black),
+                                                    // Transparent: the full-bleed backdrop video
+                                                    // shows through this slot. The inline second
+                                                    // decoder is retired - it was half the
+                                                    // "lags while the video loads" and its boxed
+                                                    // shape was the "compressed, not fullscreen"
+                                                    // complaint.
+                                                    .background(Color.Transparent),
                                         ) {
-                                            Box(Modifier.fillMaxSize()) {
-                                                MediaPlayerViewWithSubtitle(
-                                                    playerName = MAIN_PLAYER,
-                                                    modifier = Modifier.align(Alignment.Center),
-                                                    shouldShowSubtitle = internalShowSubtitle,
-                                                    shouldPip = false,
-                                                    shouldScaleDownSubtitle = true,
-                                                    timelineState = state.timelineState,
-                                                    lyricsData = state.screenData.lyricsData?.lyrics,
-                                                    translatedLyricsData = state.screenData.lyricsData?.translatedLyrics?.first,
-                                                    isInPipMode = state.isInPipMode,
-                                                    mainTextStyle = typo().bodyLarge,
-                                                    translatedTextStyle = typo().bodyMedium,
-                                                )
-                                            }
                                             Box(
                                                 modifier =
                                                     Modifier
@@ -813,19 +769,6 @@ fun NowPlayingContentSpotify(
                                 }
                             }
                         }
-
-                        // ── Layer 3: Apple Music's animated artwork (current track) ──
-                        // Not a canvas: it plays the Apple Music style's way, edge to edge at the
-                        // top of the page and dissolving into a mesh of its own colours, under
-                        // controls that never hide. Covers Layers 0–2 once its still is up.
-                        if (pageAnimatedArtwork != null) {
-                            AppleMusicAnimatedArtworkPage(
-                                canvas = pageAnimatedArtwork,
-                                cover = state.screenData.bitmap,
-                                topChrome = topAppBarHeightDp.dp,
-                                pageColor = PlayerBackdropColor,
-                            )
-                        }
                     }
                 }
 
@@ -859,7 +802,7 @@ fun NowPlayingContentSpotify(
                             verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
-                                text = stringResource(Res.string.now_playing_upper),
+                                text = stringResource(R.string.simp_now_playing_upper),
                                 style = typo().bodyMedium,
                                 color = Color.White,
                             )
@@ -966,7 +909,7 @@ fun NowPlayingContentSpotify(
                                 // Canvas mode has its own subtitle overlay — never show both.
                                 val currentLyricLineText =
                                     if (!hasSyncedLyrics ||
-                                        state.screenData.fullscreenCanvas() != null ||
+                                        state.screenData.canvasData != null ||
                                         state.currentLyricLineIndex < 0
                                     ) {
                                         ""
@@ -983,7 +926,7 @@ fun NowPlayingContentSpotify(
                                     animationSpec = tween(durationMillis = 300),
                                     label = "inlineLyricLine",
                                 ) { lineText ->
-                                    LyricText(
+                                    Text(
                                         text = lineText,
                                         style = typo().labelSmall,
                                         color = Color.White,
@@ -1061,30 +1004,18 @@ fun NowPlayingContentSpotify(
                                             ) {
                                                 Icon(imageVector = SimpIcons.Info, tint = Color.White, contentDescription = "")
                                             }
-                                            // Where the sound goes: the phone's own outputs and the Cast
-                                            // receivers in one sheet, the same one the Apple Music style opens.
                                             // Cyan rather than colorScheme.primary: this screen is force-dark whatever
                                             // the app theme is, so a light-theme primary would sink into the black
                                             // backdrop. Mirrors the `if (forceDark) Color.Cyan` rule in FullWidthItems.
-                                            IconButton(
-                                                modifier =
-                                                    Modifier
-                                                        .size(24.dp)
-                                                        .aspectRatio(1f)
-                                                        .clip(CircleShape),
-                                                onClick = { showOutputSheet = true },
-                                            ) {
-                                                Icon(
-                                                    imageVector = SimpIcons.Headphones,
-                                                    tint = if (state.castState.isRemote) Color.Cyan else Color.White,
-                                                    contentDescription = stringResource(Res.string.audio_output),
-                                                )
-                                            }
+                                            PlatformCastButton(
+                                                modifier = Modifier.size(24.dp),
+                                                tint = if (state.castState.isRemote) Color.Cyan else Color.White,
+                                            )
                                             AnimatedVisibility(visible = state.castState.isRemote) {
                                                 Text(
                                                     text =
                                                         stringResource(
-                                                            Res.string.playing_on_device,
+                                                            R.string.simp_playing_on_device,
                                                             state.castState.deviceName ?: "Cast",
                                                         ),
                                                     style = typo().bodySmall,
@@ -1200,7 +1131,7 @@ fun NowPlayingContentSpotify(
                                                     Column(
                                                         modifier = Modifier.fillMaxWidth(),
                                                     ) {
-                                                        LyricText(
+                                                        Text(
                                                             modifier =
                                                                 Modifier
                                                                     .fillMaxWidth()
@@ -1224,7 +1155,7 @@ fun NowPlayingContentSpotify(
                                                                 ?.words
                                                                 ?.stripRichSyncTimestamps()
                                                         if (!translatedLineText.isNullOrBlank()) {
-                                                            LyricText(
+                                                            Text(
                                                                 modifier =
                                                                     Modifier
                                                                         .fillMaxWidth()
@@ -1235,7 +1166,6 @@ fun NowPlayingContentSpotify(
                                                                             animationMode = MarqueeAnimationMode.Immediately,
                                                                         ).focusable(),
                                                                 text = translatedLineText,
-                                                                alignmentText = lineText,
                                                                 style = typo().bodyMedium,
                                                                 color = Color.Yellow,
                                                                 maxLines = 1,
@@ -1276,7 +1206,7 @@ fun NowPlayingContentSpotify(
                                     Spacer(modifier = Modifier.height(5.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = stringResource(Res.string.lyrics),
+                                            text = stringResource(R.string.simp_lyrics),
                                             style = typo().labelMedium,
                                             color = Color.White,
                                         )
@@ -1298,22 +1228,7 @@ fun NowPlayingContentSpotify(
                                                 ) {
                                                     Icon(
                                                         imageVector = SimpIcons.ThumbsUpDown,
-                                                        contentDescription = stringResource(Res.string.rate_lyrics),
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(16.dp),
-                                                    )
-                                                }
-                                            }
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                        }
-                                        if (state.screenData.lyricsData.hasTiming()) {
-                                            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
-                                                IconButton(
-                                                    onClick = { showLyricsOffsetBar = !showLyricsOffsetBar },
-                                                ) {
-                                                    Icon(
-                                                        imageVector = SimpIcons.AvTimer,
-                                                        contentDescription = stringResource(Res.string.lyrics_offset),
+                                                        contentDescription = stringResource(R.string.simp_rate_lyrics),
                                                         tint = Color.White,
                                                         modifier = Modifier.size(16.dp),
                                                     )
@@ -1327,7 +1242,7 @@ fun NowPlayingContentSpotify(
                                             ) {
                                                 Icon(
                                                     imageVector = SimpIcons.Share,
-                                                    contentDescription = stringResource(Res.string.share_lyrics),
+                                                    contentDescription = stringResource(R.string.simp_share_lyrics),
                                                     tint = Color.White,
                                                     modifier = Modifier.size(16.dp),
                                                 )
@@ -1345,21 +1260,8 @@ fun NowPlayingContentSpotify(
                                                         .height(20.dp)
                                                         .wrapContentWidth(),
                                             ) {
-                                                Text(text = stringResource(Res.string.show), color = Color.White)
+                                                Text(text = stringResource(R.string.simp_show), color = Color.White)
                                             }
-                                        }
-                                    }
-                                    AnimatedVisibility(
-                                        visible = showLyricsOffsetBar && state.screenData.lyricsData.hasTiming(),
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                                            horizontalArrangement = Arrangement.End,
-                                        ) {
-                                            LyricsOffsetBar(
-                                                offsetMs = state.lyricsOffsetMs.toInt(),
-                                                onOffsetChange = actions.onLyricsOffsetChange,
-                                            )
                                         }
                                     }
                                     // Lyrics Layout
@@ -1369,6 +1271,7 @@ fun NowPlayingContentSpotify(
                                             Modifier
                                                 .fillMaxWidth()
                                                 .height(300.dp),
+                                        contentAlignment = Alignment.Center,
                                     ) {
                                         state.screenData.lyricsData?.let {
                                             LyricsView(
@@ -1378,6 +1281,30 @@ fun NowPlayingContentSpotify(
                                                     actions.onUIEvent(UIEvent.UpdateProgress(f))
                                                 },
                                             )
+                                        } ?: run {
+                                            // While the lyrics fetch is still running the
+                                            // section used to be a blank hole - now it reads as
+                                            // loading, and the page stays scrollable meanwhile.
+                                            // Round 188: once the fetch has CONCLUDED without
+                                            // lyrics, stop the spinner and say so - the
+                                            // indicator only runs while lyrics are loading.
+                                            if (state.screenData.lyricsUnavailable) {
+                                                Text(
+                                                    text = stringResource(R.string.simp_unavailable),
+                                                    style = typo().bodyMedium,
+                                                    color = Color.White.copy(alpha = 0.6f),
+                                                    maxLines = 1,
+                                                )
+                                            } else {
+                                                // Round 195 (user request): the playlist
+                                                // screen's loading indicator while the
+                                                // lyrics load, in place of the spinner.
+                                                com.maxrave.simpmusic.ui.component.CenterLoadingBox(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(72.dp),
+                                                )
+                                            }
                                         }
                                     }
 
@@ -1385,9 +1312,9 @@ fun NowPlayingContentSpotify(
                                         Text(
                                             text =
                                                 when (state.screenData.lyricsData?.lyrics?.syncType) {
-                                                    "LINE_SYNCED" -> stringResource(Res.string.line_synced)
-                                                    "RICH_SYNCED" -> stringResource(Res.string.rich_synced)
-                                                    else -> stringResource(Res.string.unsynced)
+                                                    "LINE_SYNCED" -> stringResource(R.string.simp_line_synced)
+                                                    "RICH_SYNCED" -> stringResource(R.string.simp_rich_synced)
+                                                    else -> stringResource(R.string.simp_unsynced)
                                                 },
                                             style = typo().bodySmall,
                                             textAlign = TextAlign.End,
@@ -1400,27 +1327,27 @@ fun NowPlayingContentSpotify(
                                             text =
                                                 when (state.screenData.lyricsData?.lyricsProvider) {
                                                     LyricsProvider.SIMPMUSIC -> {
-                                                        stringResource(Res.string.lyrics_provider_simpmusic)
+                                                        stringResource(R.string.simp_lyrics_provider_simpmusic)
                                                     }
 
                                                     LyricsProvider.LRCLIB -> {
-                                                        stringResource(Res.string.lyrics_provider_lrc)
+                                                        stringResource(R.string.simp_lyrics_provider_lrc)
                                                     }
 
                                                     LyricsProvider.YOUTUBE -> {
-                                                        stringResource(Res.string.lyrics_provider_youtube)
+                                                        stringResource(R.string.simp_lyrics_provider_youtube)
                                                     }
 
                                                     LyricsProvider.SPOTIFY -> {
-                                                        stringResource(Res.string.spotify_lyrics_provider)
+                                                        stringResource(R.string.simp_spotify_lyrics_provider)
                                                     }
 
                                                     LyricsProvider.OFFLINE -> {
-                                                        stringResource(Res.string.offline_mode)
+                                                        stringResource(R.string.simp_offline_mode)
                                                     }
 
                                                     LyricsProvider.BETTER_LYRICS -> {
-                                                        stringResource(Res.string.lyrics_provider_betterlyrics)
+                                                        stringResource(R.string.simp_lyrics_provider_betterlyrics)
                                                     }
 
                                                     else -> {
@@ -1494,7 +1421,7 @@ fun NowPlayingContentSpotify(
                                                     ),
                                         )
                                         Text(
-                                            text = stringResource(Res.string.artists),
+                                            text = stringResource(R.string.simp_artists),
                                             style = typo().labelMedium,
                                             color = Color.White,
                                             modifier =
@@ -1541,7 +1468,7 @@ fun NowPlayingContentSpotify(
                                 ) {
                                     Spacer(modifier = Modifier.height(5.dp))
                                     Text(
-                                        text = stringResource(Res.string.published_at, state.screenData.songInfoData?.uploadDate ?: ""),
+                                        text = stringResource(R.string.simp_published_at, state.screenData.songInfoData?.uploadDate ?: ""),
                                         style = typo().labelSmall,
                                         color = Color.White,
                                     )
@@ -1549,7 +1476,7 @@ fun NowPlayingContentSpotify(
                                     Text(
                                         text =
                                             stringResource(
-                                                Res.string.view_count,
+                                                R.string.simp_view_count,
                                                 "%,d".format(state.screenData.songInfoData?.viewCount),
                                             ),
                                         style = typo().labelMedium,
@@ -1559,7 +1486,7 @@ fun NowPlayingContentSpotify(
                                     Text(
                                         text =
                                             stringResource(
-                                                Res.string.like_and_dislike,
+                                                R.string.simp_like_and_dislike,
                                                 state.screenData.songInfoData?.like ?: 0,
                                                 state.screenData.songInfoData?.dislike ?: 0,
                                             ),
@@ -1567,7 +1494,7 @@ fun NowPlayingContentSpotify(
                                     )
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Text(
-                                        text = stringResource(Res.string.description),
+                                        text = stringResource(R.string.simp_description),
                                         style = typo().labelSmall,
                                         color = Color.White,
                                     )
@@ -1759,13 +1686,6 @@ fun NowPlayingContentSpotify(
             )
         }
     }
-
-    if (showOutputSheet) {
-        AudioOutputSheetHost(
-            castState = state.castState,
-            onDismiss = { showOutputSheet = false },
-        )
-    }
 }
 
 // The focused info layout (controls visible) and the canvas-unfocused overlay rendered this
@@ -1787,14 +1707,14 @@ internal fun NowPlayingTrackInfoRow(
                 .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AnimatedVisibility(showCanvasThumbnail && state.screenData.fullscreenCanvas() != null) {
+        AnimatedVisibility(showCanvasThumbnail && state.screenData.canvasData != null) {
             AsyncImage(
                 model =
                     ImageRequest
                         .Builder(LocalPlatformContext.current)
-                        .data(state.screenData.thumbnailURL)
+                        .data(state.thumbnailURL)
                         .diskCachePolicy(CachePolicy.ENABLED)
-                        .diskCacheKey(state.screenData.thumbnailURL + "BIGGER")
+                        .diskCacheKey(state.thumbnailURL + "BIGGER")
                         .crossfade(true)
                         .build(),
                 placeholder = rememberHolderPainter(),
@@ -1847,7 +1767,6 @@ internal fun NowPlayingTrackInfoRow(
                     Text(
                         text = state.screenData.artistName,
                         style = typo().bodyMedium,
-                        color = state.secondaryTextColor(),
                         maxLines = 1,
                         modifier =
                             Modifier
@@ -1923,7 +1842,18 @@ internal fun ColumnScope.SpotifyPlaybackControls(
     actions: NowPlayingContentActions,
     sliderModifier: Modifier = Modifier,
 ) {
-    // Real Slider
+    // Real Slider. Style is read here ONCE, above the shell, because the
+    // buffer bar below and the slider itself both branch on it.
+    val playerSliderStyle by com.muso.music.utils.rememberEnumPreference(
+        key = com.muso.music.constants.SliderStyleKey,
+        defaultValue = com.muso.music.constants.SliderStyle.Standard,
+    )
+    val isDefaultSliderStyle = playerSliderStyle == com.muso.music.constants.SliderStyle.Standard
+    // Shell height per style: the Echo renderers draw at their own height
+    // (SQUIGGLY 48dp, WAVY with its thumb) and must not be clipped into the
+    // times row below.
+    val sliderShellHeight =
+        if (playerSliderStyle == com.muso.music.constants.SliderStyle.Circular) 52.dp else 24.dp
     Box(
         Modifier
             .padding(
@@ -1935,10 +1865,13 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(24.dp),
+                    .height(sliderShellHeight),
             contentAlignment = Alignment.Center,
         ) {
-            Crossfade(state.timelineState.loading) {
+            // The buffered/indeterminate gray bar is the DEFAULT slider's buffer
+            // layer ONLY - under the Echo renderers it showed through as a second
+            // bar (user report: WAVY and SLIM both looked doubled).
+            if (isDefaultSliderStyle) Crossfade(state.timelineState.loading) {
                 if (it) {
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
                         LinearProgressIndicator(
@@ -1982,6 +1915,10 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             }
         }
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+            // Echo player slider styles (PRD folder 4): DEFAULT keeps the
+            // Classic player's own Material slider; WAVY / SLIM / SQUIGGLY
+            // swap in the Echo renderers.
+            if (isDefaultSliderStyle) {
             Slider(
                 // material3 1.5.0-alpha25 keeps a
                 // binary-compatibility overload of Slider that
@@ -2048,8 +1985,26 @@ internal fun ColumnScope.SpotifyPlaybackControls(
                     )
                 },
             )
+            } else {
+                com.maxrave.simpmusic.ui.component.PlayerSliderByStyle(
+                    style = playerSliderStyle,
+                    position = state.sliderValue / 100f,
+                    onSeek = { actions.onSliderChange(it * 100f) },
+                    onSeekFinished = { actions.onSliderChangeFinished() },
+                    accent = state.sliderTrackColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 3.dp)
+                        .align(Alignment.TopCenter),
+                )
+            }
         }
     }
+    // Real quality + bitrate under the progress bar (user request): the shared
+    // capsule every style uses, shown only when the setting is on AND the
+    // format is actually known - never a placeholder.
+    PlayerCodecCapsule(state = state, modifier = Modifier.padding(top = 8.dp))
+
     // Time Layout
     Row(
         Modifier
@@ -2057,9 +2012,8 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             .padding(horizontal = 20.dp),
     ) {
         Text(
-            text = state.timelineState.elapsedLabel(state.sliderValue / 100f),
+            text = formatDuration((state.timelineState.total * (state.sliderValue / 100f)).roundToLong()),
             style = typo().bodyMedium,
-            color = state.secondaryTextColor(),
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Left,
         )
@@ -2090,7 +2044,7 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             val shimmerHead = crossfadeSweep * (shimmerSpan * 3f) - shimmerSpan
             val labelColor = typo().bodyMedium.color
             Text(
-                text = stringResource(Res.string.crossfading),
+                text = stringResource(R.string.simp_crossfading),
                 style =
                     typo().bodyMedium.copy(
                         brush =
@@ -2110,9 +2064,8 @@ internal fun ColumnScope.SpotifyPlaybackControls(
             )
         }
         Text(
-            text = state.timelineState.lengthLabel(),
+            text = formatDuration(state.timelineState.total),
             style = typo().bodyMedium,
-            color = state.secondaryTextColor(),
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Right,
         )

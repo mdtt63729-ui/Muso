@@ -90,18 +90,12 @@ import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.add_to_queue
-import simpmusic.composeapp.generated.resources.album
-import simpmusic.composeapp.generated.resources.artists
-import simpmusic.composeapp.generated.resources.playlist
-import simpmusic.composeapp.generated.resources.podcasts
-import simpmusic.composeapp.generated.resources.radio
-import simpmusic.composeapp.generated.resources.you
+import com.muso.music.R
 import kotlin.math.roundToInt
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * This is the song item in the playlist or other places.
@@ -138,7 +132,7 @@ fun SongFullWidthItems(
     val downloadState by songRepository
         .getSongAsFlow(songEntity?.videoId ?: track?.videoId ?: "")
         .mapNotNull { it?.downloadState }
-        .collectAsState(initial = DownloadState.STATE_NOT_DOWNLOADED)
+        .collectAsStateWithLifecycle(initialValue = DownloadState.STATE_NOT_DOWNLOADED)
     val offsetX = remember { Animatable(initialValue = 0f) }
     var heightDp by remember { mutableStateOf(0.dp) }
 
@@ -162,7 +156,7 @@ fun SongFullWidthItems(
                     Icon(
                         tint = contentColor,
                         imageVector = SimpIcons.QueueMusic,
-                        contentDescription = stringResource(Res.string.add_to_queue),
+                        contentDescription = stringResource(R.string.simp_add_to_queue),
                     )
                 }
             }
@@ -529,11 +523,11 @@ fun PlaylistFullWidthItems(
 
         firstSubtitle =
             when (data.playlistType()) {
-                PlaylistType.Type.YOUTUBE_PLAYLIST -> stringResource(Res.string.playlist)
-                PlaylistType.Type.RADIO -> stringResource(Res.string.radio)
-                PlaylistType.Type.LOCAL -> stringResource(Res.string.playlist)
-                PlaylistType.Type.ALBUM -> stringResource(Res.string.album)
-                PlaylistType.Type.PODCAST -> stringResource(Res.string.podcasts)
+                PlaylistType.Type.YOUTUBE_PLAYLIST -> stringResource(R.string.simp_playlist)
+                PlaylistType.Type.RADIO -> stringResource(R.string.simp_radio)
+                PlaylistType.Type.LOCAL -> stringResource(R.string.simp_playlist)
+                PlaylistType.Type.ALBUM -> stringResource(R.string.simp_album)
+                PlaylistType.Type.PODCAST -> stringResource(R.string.simp_podcasts)
             }
         when (data) {
             is AlbumEntity -> {
@@ -555,7 +549,7 @@ fun PlaylistFullWidthItems(
             is LocalPlaylistEntity -> {
                 title = data.title
                 thumb = data.thumbnail ?: ""
-                secondSubtitle = stringResource(Res.string.you)
+                secondSubtitle = stringResource(R.string.simp_you)
             }
 
             is PlaylistsResult -> {
@@ -749,7 +743,7 @@ fun ArtistFullWidthItems(
                 )
 
                 Text(
-                    text = stringResource(Res.string.artists),
+                    text = stringResource(R.string.simp_artists),
                     style = typo().bodySmall,
                     maxLines = 1,
                     color = subtitleColor,

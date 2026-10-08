@@ -430,55 +430,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // One-time ask (Android 11+): grant All Files Access so the Muso
-            // log folder is visible at /storage/emulated/0/Muso. Declining
-            // keeps the logs inside Android/data (still fully functional).
-            var showLogFolderDialog by remember { mutableStateOf(false) }
-            LaunchedEffect(showSplash) {
-                if (
-                    !showSplash &&
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                    !android.os.Environment.isExternalStorageManager() &&
-                    !com.muso.music.utils.MusoLog.isPublicDirActive() &&
-                    !com.muso.music.utils.MusoLog.storagePromptDone(this@MainActivity)
-                ) {
-                    showLogFolderDialog = true
-                }
-            }
-            if (showLogFolderDialog) {
-                AlertDialog(
-                    onDismissRequest = {
-                        com.muso.music.utils.MusoLog.markStoragePromptDone(this@MainActivity)
-                        showLogFolderDialog = false
-                    },
-                    title = { Text(stringResource(R.string.log_folder_title)) },
-                    text = { Text(stringResource(R.string.log_folder_desc)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                com.muso.music.utils.MusoLog.markStoragePromptDone(this@MainActivity)
-                                showLogFolderDialog = false
-                                runCatching {
-                                    startActivity(
-                                        android.content.Intent(
-                                            android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                            android.net.Uri.parse("package:$packageName"),
-                                        ),
-                                    )
-                                }
-                            },
-                        ) { Text(stringResource(R.string.log_folder_allow)) }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = {
-                                com.muso.music.utils.MusoLog.markStoragePromptDone(this@MainActivity)
-                                showLogFolderDialog = false
-                            },
-                        ) { Text(stringResource(R.string.cancel)) }
-                    },
-                )
-            }
+            // The one-time All Files Access ask is gone (user request: no permission of any
+            // kind). The "Muso" log folder now lives in the app's own external directory
+            // (Android/data/<pkg>/files/Muso): no permission is needed to write there, and the
+            // system deletes it with the app. There is nothing left to ask for.
+
 
             if (composeMainUi) {
                 // First-frame reporter: the splash's exit fade waits for this,
@@ -547,6 +503,13 @@ class MainActivity : ComponentActivity() {
 
                     val navController = rememberNavController()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    // UI trace: name the screen in the log, so every press below is readable as
+                    // "pressed X while on screen Y" rather than a bare timestamp.
+                    LaunchedEffect(navBackStackEntry) {
+                        com.muso.music.utils.MusoLog.screen(
+                            navBackStackEntry?.destination?.route ?: "none",
+                        )
+                    }
                     val inSelectMode = navBackStackEntry?.savedStateHandle?.getStateFlow("inSelectMode", false)?.collectAsStateWithLifecycle()
 
                     val defaultOpenTab = remember {
@@ -664,15 +627,15 @@ class MainActivity : ComponentActivity() {
                         expandedBound = maxHeight,
                     )
 
-                    // Never restore the main player sheet as expanded on app startup.
-                    // The sheet is a transient UI surface, not a navigation destination;
-                    // restoring its previous expanded anchor can make a fresh launch open
-                    // directly into a blank/fullscreen player before any song is selected.
-                    // This runs once for this Activity and does not affect intentional user
-                    // expansion after the app is ready.
-                    LaunchedEffect(playerBottomSheetState) {
-                        playerBottomSheetState.snapTo(playerBottomSheetState.dismissedBound)
-                    }
+                    // REMOVED (PRD: App Foreground Restore): this snapped the sheet to dismissed
+                    // whenever the state object was re-created, and the state is re-created
+                    // whenever its BOUNDS change - which an inset change on foreground does. So
+                    // returning to the app forced the fullscreen player down to the mini player.
+                    //
+                    // It was also redundant: rememberBottomSheetState starts at the caller's
+                    // default anchor, which is dismissedBound, so a genuine cold start already
+                    // opens at the mini player. All it did was overrule the anchor
+                    // rememberSaveable had restored - the case the PRD says to keep.
 
 
                     val searchBarScrollBehavior = appBarScrollBehavior(

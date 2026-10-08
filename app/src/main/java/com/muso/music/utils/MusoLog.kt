@@ -50,6 +50,9 @@ object MusoLog {
     private const val PROMPT_KEY = "storage_prompt_done"
     private const val FILE_PROVIDER_AUTHORITY = "com.muso.music.fileprovider"
 
+    /** Tag for the UI trace. main.txt captures the whole logcat, so this is all that is needed. */
+    private const val UI_TAG = "MusoUI"
+
     @Volatile
     var logDir: File? = null
         private set
@@ -69,24 +72,45 @@ object MusoLog {
 
     fun init(app: Application) {
         appContext = app
-        val public = File(Environment.getExternalStorageDirectory(), "Muso")
-        var dir: File? = null
-        if (canWrite(public)) {
-            dir = public
-            usingPublicDir = true
-        }
-        if (dir == null) {
-            val fallback = File(app.getExternalFilesDir(null), "Muso")
-            if (canWrite(fallback)) dir = fallback
-        }
+        // The "Muso" folder lives in the app's OWN external directory:
+        //   /storage/emulated/0/Android/data/<pkg>/files/Muso
+        //
+        // Nothing has to be granted to write there, and the system deletes the whole folder
+        // when the app is uninstalled - exactly what was asked for. This used to PREFER the
+        // public /storage/emulated/0/Muso when All Files Access was granted, and to put up a
+        // dialog asking for that access when it was not. Both are gone: that dialog was the
+        // only permission this app ever asked the user for, and the app-external folder meets
+        // every requirement without it.
+        val dir =
+            runCatching { File(app.getExternalFilesDir(null), "Muso").apply { mkdirs() } }
+                .getOrNull()
+                ?.takeIf { canWrite(it) }
         logDir = dir
-        mirrorDir = runCatching {
-            File(app.getExternalFilesDir(null), "Muso").apply { mkdirs() }
-        }.getOrNull()
+        usingPublicDir = false
+        mirrorDir = dir
         installCrashHandler(app)
         startLogcat(dir)
         // Round 178: whole-app jank needs measuring before it can be fixed.
         FrameJankMonitor.install()
+    }
+
+    /**
+     * The screen the user is looking at. The nav host keeps it here so a press can name the
+     * screen it happened on - a press log with no screen is nearly useless.
+     */
+    @Volatile
+    var currentScreen: String = "startup"
+        private set
+
+    /** A screen became visible. Logged so the UI log reads as a journey, not a list of taps. */
+    fun screen(route: String) {
+        currentScreen = route
+        android.util.Log.i(UI_TAG, "SCREEN  " + route)
+    }
+
+    /** One UI event (a press, a toggle, a dialog). Lands in main.txt with the screen. */
+    fun ui(event: String) {
+        android.util.Log.i(UI_TAG, event + "  screen=" + currentScreen)
     }
 
     /** Public append used by the frame monitor (Downloads/Muso/<file>). */

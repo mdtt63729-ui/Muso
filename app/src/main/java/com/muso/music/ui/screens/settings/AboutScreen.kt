@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,9 +15,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,20 +52,25 @@ fun AboutScreen(
 ) {
     val uriHandler = LocalUriHandler.current
 
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(scrollState),
-        horizontalAlignment = Alignment.CenterHorizontally
+    // Phase 9: LazyColumn, not Column + verticalScroll - only the rows on screen are composed
+    // and measured. The centred alignment the Column carried moves to the list itself.
+    LazyColumn(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                ),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        item {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(64.dp))
 
         Spacer(Modifier.height(4.dp))
+        }
 
+        item {
         Image(
             painter = painterResource(R.mipmap.launcher_monochrome),
             contentDescription = null,
@@ -76,7 +80,9 @@ fun AboutScreen(
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable { }
         )
+        }
 
+        item {
         Row(
             verticalAlignment = Alignment.Top,
         ) {
@@ -89,7 +95,9 @@ fun AboutScreen(
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
             )
         }
+        }
 
+        item {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = BuildConfig.VERSION_NAME,
@@ -135,7 +143,9 @@ fun AboutScreen(
                 )
             }
         }
+        }
 
+        item {
         Spacer(Modifier.height(4.dp))
 
         // The developer credit in a real handwritten typeface (Caveat), so
@@ -149,7 +159,9 @@ fun AboutScreen(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(top = 6.dp)
         )
+        }
 
+        item {
         Spacer(Modifier.height(8.dp))
 
         Row {
@@ -162,6 +174,7 @@ fun AboutScreen(
                 )
             }
 
+        }
         }
 
     }

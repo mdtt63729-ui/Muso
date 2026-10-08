@@ -175,6 +175,28 @@ class App : Application(), ImageLoaderFactory {
         }
         Timber.plant(Timber.DebugTree())
 
+        // UI trace: the app lifecycle. The foreground/background boundary is exactly where the
+        // restore bugs live, so it is the first thing to look at in the log.
+        registerActivityLifecycleCallbacks(
+            object : android.app.Application.ActivityLifecycleCallbacks {
+                override fun onActivityCreated(activity: android.app.Activity, bundle: android.os.Bundle?) = Unit
+                override fun onActivityStarted(activity: android.app.Activity) = Unit
+                override fun onActivityResumed(activity: android.app.Activity) {
+                    com.muso.music.utils.MusoLog.ui("LIFECYCLE onResume")
+                }
+                override fun onActivityPaused(activity: android.app.Activity) {
+                    com.muso.music.utils.MusoLog.ui("LIFECYCLE onPause")
+                }
+                override fun onActivityStopped(activity: android.app.Activity) {
+                    com.muso.music.utils.MusoLog.ui("LIFECYCLE onStop")
+                }
+                override fun onActivitySaveInstanceState(activity: android.app.Activity, bundle: android.os.Bundle) = Unit
+                override fun onActivityDestroyed(activity: android.app.Activity) {
+                    com.muso.music.utils.MusoLog.ui("LIFECYCLE onDestroy")
+                }
+            },
+        )
+
         // Update notification: check GitHub for a newer release roughly every
         // 15 minutes (WorkManager's minimum period) even while the app is closed,
         // and post a system notification as soon as one is published. The check
