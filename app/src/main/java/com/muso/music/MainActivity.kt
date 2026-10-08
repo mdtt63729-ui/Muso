@@ -332,6 +332,25 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Visible build marker (user report: nothing seemed to change between builds). Shows
+        // ONCE per version, so it is impossible to be running this build and not know which one
+        // it is - and it prints the log folder, so the logging can be confirmed even with a file
+        // manager that cannot reach Android/data.
+        runCatching {
+            val marker = getSharedPreferences("muso_build_marker", MODE_PRIVATE)
+            val seenKey = "seen_" + BuildConfig.VERSION_NAME
+            if (!marker.getBoolean(seenKey, false)) {
+                marker.edit().putBoolean(seenKey, true).apply()
+                Toast.makeText(
+                    this,
+                    "Muso " + BuildConfig.VERSION_NAME + " (code " + BuildConfig.VERSION_CODE + ")\n" +
+                        "logs: " + (com.muso.music.utils.MusoLog.logDir?.absolutePath ?: "unavailable"),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
         // Kill the cold-start flash: the window carries the splash's dark

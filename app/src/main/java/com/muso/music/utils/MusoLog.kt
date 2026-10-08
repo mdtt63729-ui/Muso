@@ -92,6 +92,21 @@ object MusoLog {
         startLogcat(dir)
         // Round 178: whole-app jank needs measuring before it can be fixed.
         FrameJankMonitor.install()
+
+        // Drain the UI trace into Downloads/Muso/ui_log.txt every few seconds. A daemon thread,
+        // not a coroutine: this is set up in Application.onCreate and must outlive any scope.
+        runCatching {
+            Thread {
+                while (true) {
+                    runCatching { Thread.sleep(4_000L) }
+                    runCatching { flushUiLog() }
+                }
+            }.apply {
+                isDaemon = true
+                name = "muso-ui-log"
+                start()
+            }
+        }
     }
 
     /**
@@ -106,11 +121,37 @@ object MusoLog {
     fun screen(route: String) {
         currentScreen = route
         android.util.Log.i(UI_TAG, "SCREEN  " + route)
+        uiLines.add(stamp() + "  SCREEN  " + route)
     }
 
     /** One UI event (a press, a toggle, a dialog). Lands in main.txt with the screen. */
     fun ui(event: String) {
         android.util.Log.i(UI_TAG, event + "  screen=" + currentScreen)
+        uiLines.add(stamp() + "  " + event + "  screen=" + currentScreen)
+    }
+
+    private fun stamp(): String =
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
+
+    /**
+     * The UI trace, buffered and then written to Downloads/Muso/ui_log.txt.
+     *
+     * main.txt lives in Android/data/<pkg>/files/Muso, which Android 11+ HIDES from file
+     * managers - so a user cannot find the log to send it. Downloads/Muso is visible in any file
+     * manager and needs no permission on Android 10+. Buffered, because a MediaStore write on
+     * every press would be far too expensive.
+     */
+    private val uiLines = java.util.concurrent.ConcurrentLinkedQueue<String>()
+
+    private fun flushUiLog() {
+        val ctx = appContext ?: return
+        if (uiLines.isEmpty()) return
+        val sb = StringBuilder()
+        while (true) {
+            val line = uiLines.poll() ?: break
+            sb.append(line).append('\n')
+        }
+        if (sb.isNotEmpty()) runCatching { appendToDownloads(ctx, "ui_log.txt", sb.toString()) }
     }
 
     /** Public append used by the frame monitor (Downloads/Muso/<file>). */

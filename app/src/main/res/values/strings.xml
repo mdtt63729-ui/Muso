@@ -215,6 +215,7 @@
     <string name="settings_desc_update">Check and install new versions</string>
     <string name="player_style">Player style</string>
     <string name="player_style_desc">Pick the fullscreen player design</string>
+    <string name="logs_share">Share logs</string>
     <string name="player_style_classic">Classic</string>
     <string name="player_style_expressive">Expressive</string>
     <string name="log_folder_title">Muso log folder</string>

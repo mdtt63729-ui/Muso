@@ -1,3 +1,32 @@
+## Muso 0.5.256 — the log folder was hidden, not missing; now visible + one tap away
+- The release page screenshot proved the build SUCCEEDED (Muso v0.5.254, versionCode 261, "built
+  automatically from the latest source") - so my earlier "the builds are failing" conclusion was
+  wrong, and the code has been on the phone.
+- The real answer: the folder is /storage/emulated/0/Android/data/com.muso.music/files/Muso, and
+  Android 11+ HIDES Android/data from file managers. The folder was being created and written to;
+  it was simply unreachable. That is a design fault, not a user error.
+- Fix 1: the UI trace is mirrored to Downloads/Muso/ui_log.txt via MediaStore - no permission on
+  Android 10+, visible in any file manager. Buffered and drained every 4s, because a MediaStore
+  write per press would be far too expensive.
+- Fix 2: Settings -> About now has a "Share logs" row with the folder path under it. One tap
+  opens the share sheet with crash_log.txt and main.txt attached via FileProvider - no permission.
+- Docs: added docs/LOGS_VISIBLE_AND_SHAREABLE.md.
+
+## Muso 0.5.255 — a visible build marker (and the build-status evidence)
+- Every build log sent so far reports a FAILED build (0.5.240: 88 errors, 0.5.243: 15,
+  0.5.248: 789, 0.5.253: 9). A failed build produces no new artifact and does not update a
+  release page, so the APK being installed stays the one from the last green build - which is the
+  most likely reason none of the changes appear.
+- The code is present: checked inside the delivered 0.5.254 zip - the style mapping, the
+  app-external Muso folder, the press logging, the AboutScreen LazyColumn, the wasRestored guard,
+  the removed snap-to-dismissed effect, three PlayerStyle entries, and the removed permission
+  dialog are all there.
+- Added a build marker: a toast ONCE PER VERSION, first thing in MainActivity.onCreate, showing
+  "Muso <version> (code <n>)" and the log folder path. If it does not appear, the running APK is
+  not built from this source; if it does, both the version and the log folder are confirmed on
+  screen without needing a file manager that can reach Android/data.
+- Docs: added docs/BUILD_MARKER_AND_BUILD_STATUS.md.
+
 ## Muso 0.5.254 — the two compile errors from the 0.5.253 build
 - MusoSuiteBridge.kt:190 called parseLrcToSuiteLines, which lived in the part of MusoSuiteHost.kt
   I did NOT extract in 0.5.250 (my "is it used?" check was a crude awk that missed it, and the

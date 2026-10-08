@@ -51,6 +51,7 @@ fun AboutScreen(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val uriHandler = LocalUriHandler.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // Phase 9: LazyColumn, not Column + verticalScroll - only the rows on screen are composed
     // and measured. The centred alignment the Column carried moves to the list itself.
@@ -143,6 +144,30 @@ fun AboutScreen(
                 )
             }
         }
+        }
+
+        item {
+            // Logs. The folder is Android/data/<pkg>/files/Muso, which Android 11+ HIDES from
+            // file managers, so the only reliable way to get at the logs is from in here. One tap
+            // opens the share sheet with main.txt, the crash log and the UI trace attached - no
+            // permission of any kind involved.
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.material3.TextButton(
+                onClick = {
+                    runCatching {
+                        context.startActivity(
+                            com.muso.music.utils.MusoLog.shareLogsIntent(context),
+                        )
+                    }
+                },
+            ) {
+                Text(stringResource(R.string.logs_share))
+            }
+            Text(
+                text = com.muso.music.utils.MusoLog.logDir?.absolutePath ?: "",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+            )
         }
 
         item {
