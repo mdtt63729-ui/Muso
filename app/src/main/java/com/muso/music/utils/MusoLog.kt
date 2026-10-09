@@ -133,16 +133,41 @@ object MusoLog {
     }
 
     /**
-     * Every finger-up, wherever it lands. MotionIndication was the intended hook, but
-     * MaterialTheme provides its own ripple as LocalIndication and that one wins, so
-     * MotionIndication never ran and no press was ever logged. A touch at the Activity level
-     * cannot be missed, and it covers buttons that pass indication = null too.
+     * Every finger-up, wherever it lands. A touch at the Activity level cannot be missed, and it
+     * covers buttons that pass indication = null too.
+     *
+     * (Correction: this used to claim MotionIndication never ran. The 0.5.259 ui_log.txt carries
+     * 56 PRESS lines alongside the TOUCH lines, so MotionIndication DOES run - the earlier log
+     * simply had a three-second window with no press in it, and I read too much into it.)
      */
     fun touch(x: Float, y: Float) {
         val where = x.toInt().toString() + "," + y.toInt()
         android.util.Log.i(UI_TAG, "TOUCH " + where + "  screen=" + currentScreen)
         uiLines.add(stamp() + "  TOUCH  " + where + "  screen=" + currentScreen)
     }
+
+    /**
+     * The opposite of SilentHandler (`CoroutineExceptionHandler { _, _ -> }`), which swallows
+     * every exception. A failed play used to be completely invisible: `playQueue` runs its body
+     * under SilentHandler, so a queue that could not be resolved - network, a dead stream, a
+     * missing PO token - produced no crash, no toast and no log. The user tapped a song and
+     * nothing happened, which is exactly "the songs in the playlist do not play". This logs it
+     * and tells the user.
+     */
+    fun playFailureHandler(context: android.content.Context): kotlinx.coroutines.CoroutineExceptionHandler =
+        kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
+            val why = e.message ?: e.javaClass.simpleName
+            ui("PLAY-FAIL " + e.javaClass.simpleName + ": " + why)
+            runCatching {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Muso: could not play this \u2014 " + why,
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
 
     private fun stamp(): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
@@ -461,7 +486,21 @@ object MainThreadWatchdog {
                     val stack = runCatching {
                         android.os.Looper.getMainLooper().thread.stackTrace
                     }.getOrNull() ?: continue
-                    val top = stack.take(8).joinToString("|") { it.toString() }
+                    val frames = stack.take(8).map { it.toString() }
+                    // Skip the IDLE main thread. `nativePollOnce` / `MessageQueue.next` is the
+                    // Looper waiting for its next message: the main thread is doing NOTHING, not
+                    // stuck. That stack is identical on every sample, so the repeat test below
+                    // matched it every time and the whole first jank_stack.txt was 14 entries of
+                    // pure idle - useless. Only a stack whose top frame is real work is reported.
+                    if (frames.isEmpty() ||
+                        frames.first().contains("nativePollOnce") ||
+                        frames.first().contains("MessageQueue.next")
+                    ) {
+                        lastTop = ""
+                        repeats = 0
+                        continue
+                    }
+                    val top = frames.joinToString("|")
                     if (top == lastTop) {
                         repeats++
                         if (repeats == 4) {

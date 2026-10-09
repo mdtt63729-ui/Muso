@@ -1,3 +1,45 @@
+## Muso 0.5.261 — the re-anchor was too narrow, and a sheet trace to settle it
+- The user reports on the latest APK that NOTHING is fixed: songs in the playlist still do not
+  play, no button there works, components still do not stay in place on minimise/restore. My
+  previous two diagnoses were wrong.
+- What the 0.5.259 ui_log rules OUT: on online_playlist/{playlistId} it has BOTH TOUCH and PRESS
+  lines, paired, ~20 of them. PRESS is written from MotionIndication's PressInteraction handler,
+  which only runs when a clickable's interaction source sees a press - so the taps WERE reaching
+  the clickables. A full-screen overlay eating them is not what happened there. That weakens the
+  "invisible layer eats every tap" story for the playlist and points bug 1 back at the action:
+  playQueue failing silently (0.5.260 now reports and surfaces it).
+- The re-anchor was too narrow: it only handled previousAnchor == collapsed/expanded. previousAnchor
+  is set by collapse()/expand()/dismiss() and NEVER by a drag (which goes through DraggableState),
+  so the value can be left strictly BETWEEN anchors - and then neither branch ran, the sheet stayed
+  mid-range, isCollapsed and isDismissed were both false, progress was neither 0 nor 1, and the
+  expanded layer composed invisibly over the whole app. It now snaps to the NEAREST anchor.
+- Added a SHEET trace: MainActivity writes one "SHEET progress=..% collapsed=.. dismissed=..
+  expanded=.. value=.." line to ui_log.txt per screen change, so the next log says outright whether
+  the player sheet is covering the screen.
+- Docs: added docs/STILL_BROKEN_NEAREST_ANCHOR_AND_SHEET_TRACE.md.
+
+## Muso 0.5.260 — the 0.5.259 logs, a watchdog that reported only idle, and a play that failed silently
+- The logs the user sent: app_log-2.txt shows "App start 0.5.259 (266)". jank_log-2.txt is three
+  minutes at 525-603 frames per 10s (52.5-60.2 fps), worst 49-215ms. The previous build read
+  "445 frames (~44.4 fps), 29 janky, worst 1385ms" with a 17,725ms stall. The stalls are gone.
+- ui_log.txt: 114 TOUCH, 56 PRESS, 18 SCREEN, 3 LIFECYCLE. Presses ARE logged, so MotionIndication
+  DOES run. My earlier claim that MaterialTheme's ripple as LocalIndication prevented it from ever
+  running was WRONG - the earlier log had a three-second window with no press in it. Source
+  comments corrected.
+- jank_stack.txt was useless: all 14 entries are the IDLE main thread (MessageQueue.nativePollOnce
+  -> Looper.loop -> ActivityThread.main). That stack is identical on every 500ms sample, so the
+  "same top-8 frames four times" test matched it every time. The watchdog now SKIPS a stack whose
+  top frame is nativePollOnce or MessageQueue.next, so only real work is reported.
+- Why the songs did not play: playQueue runs its body under SilentHandler =
+  CoroutineExceptionHandler { _, _ -> }, which swallows every exception. A queue that could not be
+  resolved (network, dead stream, missing PO token) produced NO crash, NO toast and NO log - the
+  user tapped a song and nothing happened, invisible by construction.
+- Fix: playQueue logs "PLAY-QUEUE <queue class>" on entry, and its body now runs under
+  MusoLog.playFailureHandler(context) instead of SilentHandler - a failure is logged as
+  "PLAY-FAIL <exception>: <message>" AND shown as a toast. Whatever the cause is, the app now says
+  so instead of doing nothing.
+- Docs: added docs/PLAYBACK_FAILURE_WAS_SILENT.md.
+
 ## Muso 0.5.259 — one root cause behind the dead playlist and the layout that shifts on restore
 - TWO reports, ONE cause. The player sheet's collapsedBound is built from the window insets
   (bottomInset + navigation bar), so it CHANGES when the app goes to the background and returns.

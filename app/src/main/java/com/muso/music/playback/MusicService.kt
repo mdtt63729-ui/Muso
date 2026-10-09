@@ -722,6 +722,10 @@ class MusicService : MediaLibraryService(),
         if (!scope.isActive) {
             scope = CoroutineScope(Dispatchers.Main) + Job()
         }
+        // Playback trace: a song tap is recorded here, so the next ui_log says whether the tap
+        // reached playback at all. Everything below runs under a handler that REPORTS failures
+        // rather than SilentHandler, which swallowed them - see MusoLog.playFailureHandler.
+        com.muso.music.utils.MusoLog.ui("PLAY-QUEUE " + queue.javaClass.simpleName)
         currentQueue = queue
         queueTitle = null
         player.shuffleModeEnabled = false
@@ -731,7 +735,7 @@ class MusicService : MediaLibraryService(),
             player.playWhenReady = playWhenReady
         }
 
-        scope.launch(SilentHandler) {
+        scope.launch(com.muso.music.utils.MusoLog.playFailureHandler(applicationContext)) {
             val initialStatus = withContext(Dispatchers.IO) {
                 queue.getInitialStatus().filterExplicit(dataStore.get(HideExplicitKey, false))
             }

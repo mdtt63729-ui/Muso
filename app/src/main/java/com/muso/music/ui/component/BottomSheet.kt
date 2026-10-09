@@ -457,12 +457,16 @@ fun rememberBottomSheetState(
     // fixes both: a collapsed sheet follows the new collapsed bound, an expanded sheet follows the
     // new expanded bound, and nothing else moves.
     LaunchedEffect(collapsedBound, expandedBound) {
-        when (previousAnchor) {
-            collapsedAnchor ->
-                if (animatable.value != collapsedBound) animatable.snapTo(collapsedBound)
-            expandedAnchor ->
-                if (animatable.value != expandedBound) animatable.snapTo(expandedBound)
-        }
+        // Snap to the NEAREST anchor, not to whatever `previousAnchor` says. The first version of
+        // this fix only handled the two named anchors, and that was not enough: the value can be
+        // left strictly BETWEEN them when a bound moves, and that is precisely the state that
+        // composes the invisible full-screen expanded layer over the app (eating every tap) and
+        // makes the mini player and the navbar land somewhere else. After a bounds change the sheet
+        // must rest exactly ON an anchor, whatever it was doing before.
+        val v = animatable.value
+        val nearest = listOf(dismissedBound, collapsedBound, expandedBound)
+            .minBy { kotlin.math.abs((it - v).value) }
+        if (nearest != v) animatable.snapTo(nearest)
     }
 
     return remember(dismissedBound, expandedBound, collapsedBound, coroutineScope) {

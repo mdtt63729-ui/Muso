@@ -331,11 +331,10 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @OptIn(ExperimentalMaterial3Api::class)
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
-        // Full UI log: every finger-up, wherever it lands. MotionIndication was the intended hook,
-        // but MaterialTheme provides its own ripple as LocalIndication and that one wins, so it
-        // never ran and no press was ever logged (confirmed from the user's ui_log.txt, which had
-        // LIFECYCLE and SCREEN lines but not a single PRESS). A touch at the Activity level cannot
-        // be missed, and it also covers buttons that pass indication = null.
+        // Full UI log: every finger-up, wherever it lands. A touch at the Activity level cannot
+        // be missed, and it also covers buttons that pass indication = null. (The 0.5.259
+        // ui_log.txt shows PRESS lines as well, so MotionIndication does run - the earlier log
+        // simply had no press in its short window.)
         if (ev.actionMasked == android.view.MotionEvent.ACTION_UP) {
             runCatching { com.muso.music.utils.MusoLog.touch(ev.x, ev.y) }
         }
@@ -668,6 +667,20 @@ class MainActivity : ComponentActivity() {
                     // opens at the mini player. All it did was overrule the anchor
                     // rememberSaveable had restored - the case the PRD says to keep.
 
+
+                    // Diagnostic, one line per screen: what the player sheet is doing. A sheet left
+                    // mid-range or expanded composes an invisible full-screen layer over the app and
+                    // every tap dies in it, so this is the single fact that decides whether the
+                    // "nothing works" reports are the sheet. It lands in ui_log.txt.
+                    LaunchedEffect(navBackStackEntry, playerBottomSheetState) {
+                        com.muso.music.utils.MusoLog.ui(
+                            "SHEET progress=" + (playerBottomSheetState.progress * 100).toInt() + "%" +
+                                " collapsed=" + playerBottomSheetState.isCollapsed +
+                                " dismissed=" + playerBottomSheetState.isDismissed +
+                                " expanded=" + playerBottomSheetState.isExpanded +
+                                " value=" + playerBottomSheetState.value,
+                        )
+                    }
 
                     val searchBarScrollBehavior = appBarScrollBehavior(
                         canScroll = {
